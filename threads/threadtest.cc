@@ -317,6 +317,58 @@ void t5_t2() {
     t5_l1.Release();
 }
 
+Lock applicationLock("Application Line Lock");
+Lock pictureLock("Picture Line Lock");
+Lock passportLock("Passport Line Lock");
+Lock cashierLock("Cashier Line Lock");
+
+int clerkLineCount[5];
+int clerkState[5];
+Condition clerkLineCV[5];
+
+static const int AVAILABLE = 0;
+static const int BUSY = 1;
+static const int ONBREAK = 2;
+
+
+void customer() {
+    
+    srand (time(NULL));
+    int randomNum = rand() % 2
+    
+    if(randomNum == 0)
+    {
+        //do application
+        applicationLock.Acquire();
+        int myLine = -1;
+        int shortestLineSize = 10000; //change to the number of max customers
+        for(int i =0;i<5;i++)
+        {
+            if(clerkLineCount[i]<shortestLineSize && clerkState[i] != ONBREAK)
+            {
+                myLine = i;
+                shortestLineSize = clerkLineCount[i];
+            }
+            
+        }
+        if(clerkState[myLine] == BUSY)
+        {
+            clerkLineCount[myLine]++;
+            clerkLineCV[myLine]->Wait(applicationLock);
+            clerkLineCount[myLine]--;
+        }
+        clerkState[myLine] = BUSY;
+        application.Release();
+    }
+    else
+    {
+        //do picture
+    }
+    
+}
+
+
+
 // --------------------------------------------------
 // TestSuite()
 //     This is the main thread of the test suite.  It runs the
@@ -417,6 +469,45 @@ void TestSuite() {
     
     t = new Thread("t5_t2");
     t->Fork((VoidFunctionPtr)t5_t2,0);
+    
+    //Part 2
+    
+    printf(" \n \n \n \n \n starting part 2");
+    
+    
+    for(int i = 0;i < 10; i++)
+    {
+        t = new Thread("Customer %d", i);
+        t->Fork((VoidFunctionPtr)customer,0);
+    }
+    
+    for(int i = 0; i < 5; i ++)
+    {
+        t = new Thread("Application Clerk %d", i);
+        t->Fork((VoidFunctionPtr)applicationClerk, 0);
+    }
+    
+    for(int i = 0; i < 5; i ++)
+    {
+        t = new Thread("Picture Clerk %d", i);
+        t->Fork((VoidFunctionPtr)pictureClerk, 0);
+    }
+    
+    for(int i = 0; i < 5; i ++)
+    {
+        t = new Thread("Passport Clerk %d", i);
+        t->Fork((VoidFunctionPtr)passportClerk, 0);
+    }
+    
+    for(int i= 0;i<5;i++)
+    {
+        t = new Thread("Cashier %d", i);
+        t->Fork((VoidFunctionPtr)cashier, 0);
+    }
+    
+    
+    
+    
     
 }
 #endif

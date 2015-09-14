@@ -163,7 +163,7 @@ bool Lock::isHeldByCurrentThread() {
 Condition::Condition(char* debugName) {
 
     name = debugName;
-    cvWaitQueue = new List();
+    cvWaitQueue = new List;
     printf("Printing address of cvWaitQueue inside constructor, %d \n \n \n", cvWaitQueue);
     waitingLock = NULL;
     
@@ -238,8 +238,8 @@ void Condition::Signal(Lock* conditionLock) {
         waitingLock = NULL;
     }
     else{
-        //Thread *waitingThread = (Thread *)cvWaitQueue->Remove();
-        //scheduler->ReadyToRun(waitingThread);
+        Thread *waitingThread = (Thread *)cvWaitQueue->Remove();
+        scheduler->ReadyToRun(waitingThread);
     }
     (void) interrupt->SetLevel(old);
 }
