@@ -336,9 +336,10 @@ void customer() {
     srand (time(NULL));
     int randomNum = rand() % 2
     
+    // !!!! make sure that we do both (picture/application) and not just one or the other in the if/else
     if(randomNum == 0)
     {
-        //do application
+        // do application first
         applicationLock.Acquire();
         int myLine = -1;
         int shortestLineSize = 10000; //change to the number of max customers
@@ -360,11 +361,14 @@ void customer() {
         clerkState[myLine] = BUSY;
         application.Release();
     }
-    else
+    else // randomNum == 1
     {
-        //do picture
+        // do picture first
     }
     
+    // passport clerk
+
+    // cashier
 }
 
 
