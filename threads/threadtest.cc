@@ -172,6 +172,9 @@ void t2_t1() {
 void t2_t2() {
     t2_s1.P();	// Wait for t2_t1 to be done with the lock
     t2_l1.Acquire();
+    
+    printf("Printing cvWaitQueue address inside test function for t2_t2, %d \n \n", t2_c1.GetQueueAddress());
+    
     printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
            t2_l1.getName(), t2_c1.getName());
     t2_c1.Wait(&t2_l1);

@@ -131,6 +131,11 @@ class Condition {
     void Signal(Lock *conditionLock);   // conditionLock must be held by
     void Broadcast(Lock *conditionLock);// the currentThread for all of 
 					// these operations
+    
+    int GetQueueAddress()
+    {
+        return (int)cvWaitQueue;
+    }
 
   private:
     char* name;

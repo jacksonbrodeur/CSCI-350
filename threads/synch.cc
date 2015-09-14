@@ -163,12 +163,16 @@ bool Lock::isHeldByCurrentThread() {
 Condition::Condition(char* debugName) {
 
     name = debugName;
-    cvWaitQueue = new List;
+    cvWaitQueue = new List();
+    printf("Printing address of cvWaitQueue inside constructor, %d \n \n \n", cvWaitQueue);
     waitingLock = NULL;
+    
+    printf("Printing address of this condition variable, %d \n \n", this);
 }
 
 Condition::~Condition() {
 
+    printf("\n \n Calling destructor for condition %s \n \n \n", name);
     delete cvWaitQueue;
 }
 
@@ -181,9 +185,10 @@ void Condition::Wait(Lock* conditionLock) {
         (void) interrupt->SetLevel(old);
         return;
     }
-    //if(waitingLock==NULL) {
-    if(waitingLock) {
-        printf("Inside Wait, setting conditionLock equal to waitingLock (%s)", currentThread->getName());
+    if(waitingLock==NULL) {
+    printf("Printing address of waitingLock, %d \n", waitingLock);
+    //if(waitingLock) {
+        printf("Inside Wait, setting conditionLock equal to waitingLock (%s) \n", currentThread->getName());
         waitingLock = conditionLock;
         printf("1 \n");
     }
@@ -193,7 +198,14 @@ void Condition::Wait(Lock* conditionLock) {
         (void) interrupt->SetLevel(old);
         return;
     }
-    printf("2 \n");
+    
+    //cvWaitQueue = new List;
+    
+    printf("Printing address of cvWaitQueue, %d \n", cvWaitQueue);
+    
+    printf("Printing address of this condition variable, %d \n \n", this);
+    
+    printf("2, we are about to access %s's cvWaitQueue \n", name);
     cvWaitQueue->Append((void *)currentThread);
     printf("3 \n");
     conditionLock->Release();
@@ -209,7 +221,8 @@ void Condition::Signal(Lock* conditionLock) {
 
     IntStatus old = interrupt->SetLevel(IntOff);
     //INVESTIGATE THIS (Why is NULL = true??)
-    if(waitingLock) {
+    //if(waitingLock) {
+    if(waitingLock == NULL) {
         printf("Inside signal function and there is no waitingLock (%s) \n",currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
@@ -220,11 +233,13 @@ void Condition::Signal(Lock* conditionLock) {
         (void) interrupt->SetLevel(old);
         return;
     }
-    Thread *waitingThread = (Thread *)cvWaitQueue->Remove();
-    scheduler->ReadyToRun(waitingThread);
     if(cvWaitQueue->IsEmpty()){
         
         waitingLock = NULL;
+    }
+    else{
+        //Thread *waitingThread = (Thread *)cvWaitQueue->Remove();
+        //scheduler->ReadyToRun(waitingThread);
     }
     (void) interrupt->SetLevel(old);
 }
