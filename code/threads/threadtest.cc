@@ -322,17 +322,64 @@ Lock pictureLock("Picture Line Lock");
 Lock passportLock("Passport Line Lock");
 Lock cashierLock("Cashier Line Lock");
 
-int clerkLineCount[5];
-int clerkState[5];
-Condition clerkLineCV[5];
+int applicationLineCount[5];
+int applicationClerkState[5];
+Condition applicationClerkLineCV[5];
+Lock applicationClerkLock[5];
+Condition applicationClerkCV[5];
+
+int pictureLineCount[5];
+int pictureClerkState[5];
+Condition pictureClerkLineCV[5];
+Lock pictureClerkLock[5];
+Condition pictureClerkCV[5];
+
+int passportLineCount[5];
+int passportClerkState[5];
+Condition passportClerkLineCV[5];
+Lock passportClerkLock[5];
+Condition passportClerkCV[5];
+
+int cashierLineCount[5];
+int cashierState[5];
+Condition cashierLineCV[5];
+Lock cashierLock[5];
+Condition cashierCV[5];
 
 static const int AVAILABLE = 0;
 static const int BUSY = 1;
 static const int ONBREAK = 2;
 
+//Possibly change array params to pointers
+void customerTransaction(int lineCount[], int clerkState[], Condition clerkLineCV[], Lock lock) {
+    lock.Acquire();
+    int myLine = -1;
+    int shortestLineSize = 10000; //change to the number of max customers
+    for(int i=0;i<5;i++)
+    {
+        if(lineCount[i]<shortestLineSize && clerkState[i] != ONBREAK)
+        {
+            myLine = i;
+            shortestLineSize = lineCount[i];
+        }
+        
+    }
+    if(clerkState[myLine] == BUSY)
+    {
+        lineCount[myLine]++;
+        clerkLineCV[myLine].Wait(lock);
+        lineCount[myLine]--;
+    } else {
+        clerkState[myLine] = BUSY;
+    }
 
-void customer() {
-    
+    lock.Release();
+}
+
+void customer(int socialSecurity) {
+
+    printf("Printing Social Security: %d\n", socialSecurity);
+
     srand (time(NULL));
     int randomNum = rand() % 2
     
@@ -340,35 +387,49 @@ void customer() {
     if(randomNum == 0)
     {
         // do application first
-        applicationLock.Acquire();
-        int myLine = -1;
-        int shortestLineSize = 10000; //change to the number of max customers
-        for(int i =0;i<5;i++)
-        {
-            if(clerkLineCount[i]<shortestLineSize && clerkState[i] != ONBREAK)
-            {
-                myLine = i;
-                shortestLineSize = clerkLineCount[i];
-            }
-            
-        }
-        if(clerkState[myLine] == BUSY)
-        {
-            clerkLineCount[myLine]++;
-            clerkLineCV[myLine]->Wait(applicationLock);
-            clerkLineCount[myLine]--;
-        }
-        clerkState[myLine] = BUSY;
-        application.Release();
+        customerTransaction(applicationLineCount, applicationClerkState, applicationClerkLineCV, applicationLock);
+        // Then do picture
+        customerTransaction(pictureLineCount, pictureClerkState, pictureClerkLineCV, pictureLock);
     }
     else // randomNum == 1
     {
-        // do picture first
+        // Do picture first
+        customerTransaction(pictureLineCount, pictureClerkState, pictureClerkLineCV, pictureLock);
+        // Then do application
+        customerTransaction(applicationLineCount, applicationClerkState, applicationClerkLineCV, applicationLock);
     }
     
     // passport clerk
+    customerTransaction(passportLineCount, passportClerkState, passportClerkLineCV, passportLock);
 
     // cashier
+    customerTransaction(cashierLineCount, cashierState, cashierLineCV, cashierLock);
+}
+
+void applicationClerk(int myLine) {
+    while(true) {
+        applicationLock.Acquire();
+        // TODO: Bribes
+        if (applicationLineCount[myLine] > 0) {
+            applicationClerkLineCV[myLine]->Signal(applicationLock);
+            applicationClerkState[myLine] = BUSY;
+        } else {
+            applicationClerkState[myLine] = AVAILABLE;
+        }
+
+        applicationClerkLock[myLine].Acquire();
+        applicationLock.Release();
+
+        //Wait for customer data
+        applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
+
+        //Do my job - customer now waiting
+        applicationClerkCV[myLine].Signal(applicationClerkLock[myLine]);
+        applicationClerkCV[myLine].Wait(applicationClerkLock[myLine]);
+        applicationClerkLock[myLine].Release();
+    }
+
+
 }
 
 
@@ -482,32 +543,32 @@ void TestSuite() {
     for(int i = 0;i < 10; i++)
     {
         t = new Thread("Customer %d", i);
-        t->Fork((VoidFunctionPtr)customer,0);
+        t->Fork((VoidFunctionPtr)customer, i+1);
     }
     
     for(int i = 0; i < 5; i ++)
     {
         t = new Thread("Application Clerk %d", i);
-        t->Fork((VoidFunctionPtr)applicationClerk, 0);
+        t->Fork((VoidFunctionPtr)applicationClerk, i);
     }
     
-    for(int i = 0; i < 5; i ++)
-    {
-        t = new Thread("Picture Clerk %d", i);
-        t->Fork((VoidFunctionPtr)pictureClerk, 0);
-    }
+    // for(int i = 0; i < 5; i ++)
+    // {
+    //     t = new Thread("Picture Clerk %d", i);
+    //     t->Fork((VoidFunctionPtr)pictureClerk, 0);
+    // }
     
-    for(int i = 0; i < 5; i ++)
-    {
-        t = new Thread("Passport Clerk %d", i);
-        t->Fork((VoidFunctionPtr)passportClerk, 0);
-    }
+    // for(int i = 0; i < 5; i ++)
+    // {
+    //     t = new Thread("Passport Clerk %d", i);
+    //     t->Fork((VoidFunctionPtr)passportClerk, 0);
+    // }
     
-    for(int i= 0;i<5;i++)
-    {
-        t = new Thread("Cashier %d", i);
-        t->Fork((VoidFunctionPtr)cashier, 0);
-    }
+    // for(int i= 0;i<5;i++)
+    // {
+    //     t = new Thread("Cashier %d", i);
+    //     t->Fork((VoidFunctionPtr)cashier, 0);
+    // }
     
     
     
