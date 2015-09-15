@@ -65,6 +65,7 @@ class Semaphore {
 
 class Lock {
   public:
+    Lock();
     Lock(char* debugName);  		// initialize lock to be FREE
     ~Lock();				// deallocate lock
     char* getName() { return name; }	// debugging assist
@@ -119,6 +120,7 @@ class Lock {
 
 class Condition {
   public:
+    Condition();
     Condition(char* debugName);		// initialize condition to 
 					// "no one waiting"
     ~Condition();			// deallocate the condition

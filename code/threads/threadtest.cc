@@ -343,7 +343,7 @@ Condition passportClerkCV[5];
 int cashierLineCount[5];
 int cashierState[5];
 Condition cashierLineCV[5];
-Lock cashierLock[5];
+Lock cashierClerkLock[5];
 Condition cashierCV[5];
 
 static const int AVAILABLE = 0;
@@ -367,7 +367,7 @@ void customerTransaction(int lineCount[], int clerkState[], Condition clerkLineC
     if(clerkState[myLine] == BUSY)
     {
         lineCount[myLine]++;
-        clerkLineCV[myLine].Wait(lock);
+        clerkLineCV[myLine].Wait(&lock);
         lineCount[myLine]--;
     } else {
         clerkState[myLine] = BUSY;
@@ -381,7 +381,7 @@ void customer(int socialSecurity) {
     printf("Printing Social Security: %d\n", socialSecurity);
 
     srand (time(NULL));
-    int randomNum = rand() % 2
+    int randomNum = rand() % 2;
     
     // !!!! make sure that we do both (picture/application) and not just one or the other in the if/else
     if(randomNum == 0)
@@ -411,7 +411,7 @@ void applicationClerk(int myLine) {
         applicationLock.Acquire();
         // TODO: Bribes
         if (applicationLineCount[myLine] > 0) {
-            applicationClerkLineCV[myLine]->Signal(applicationLock);
+            applicationClerkLineCV[myLine].Signal(&applicationLock);
             applicationClerkState[myLine] = BUSY;
         } else {
             applicationClerkState[myLine] = AVAILABLE;
@@ -421,11 +421,11 @@ void applicationClerk(int myLine) {
         applicationLock.Release();
 
         //Wait for customer data
-        applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
+        applicationClerkCV[myLine].Wait(&applicationClerkLock[myLine]);
 
         //Do my job - customer now waiting
-        applicationClerkCV[myLine].Signal(applicationClerkLock[myLine]);
-        applicationClerkCV[myLine].Wait(applicationClerkLock[myLine]);
+        applicationClerkCV[myLine].Signal(&applicationClerkLock[myLine]);
+        applicationClerkCV[myLine].Wait(&applicationClerkLock[myLine]);
         applicationClerkLock[myLine].Release();
     }
 
@@ -542,13 +542,13 @@ void TestSuite() {
     
     for(int i = 0;i < 10; i++)
     {
-        t = new Thread("Customer %d", i);
+        t = new Thread("Customer");
         t->Fork((VoidFunctionPtr)customer, i+1);
     }
     
     for(int i = 0; i < 5; i ++)
     {
-        t = new Thread("Application Clerk %d", i);
+        t = new Thread("Application Clerk");
         t->Fork((VoidFunctionPtr)applicationClerk, i);
     }
     
