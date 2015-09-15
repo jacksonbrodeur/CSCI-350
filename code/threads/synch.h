@@ -79,6 +79,9 @@ class Lock {
 
   private:
     char* name;				// for debugging
+    List *waitQueue;
+    Thread *owner;
+    bool isBusy;
     // plus some other stuff you'll need to define
 };
 
@@ -128,9 +131,16 @@ class Condition {
     void Signal(Lock *conditionLock);   // conditionLock must be held by
     void Broadcast(Lock *conditionLock);// the currentThread for all of 
 					// these operations
+    
+    int GetQueueAddress()
+    {
+        return (int)cvWaitQueue;
+    }
 
   private:
     char* name;
+    Lock *waitingLock;
+    List *cvWaitQueue;
     // plus some other stuff you'll need to define
 };
 #endif // SYNCH_H

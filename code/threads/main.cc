@@ -85,13 +85,20 @@ main(int argc, char **argv)
     (void) Initialize(argc, argv);
     
 #ifdef THREADS
-    ThreadTest();
+    //ThreadTest();
+    extern void Part2(void), TestSuite(void);
 #endif
 
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
+#ifdef THREADS
+        if (!strcmp(*argv, "-T"))               // Test Suite
+            TestSuite();
+        //if (!strcmp(*argv, "-P2"))               // Problem 2
+           // Part2();
+#endif //THREADS
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
