@@ -351,9 +351,9 @@ struct Customer {
     bool cashierPaid;
     int money;
     
-    Customer(char * name)
+    Customer(char * _name)
     {
-        this.name = name;
+        name = _name;
         applicationFiled = false;
         pictureTaken = false;
         passportFiled = false;
@@ -375,9 +375,9 @@ struct Clerk {
     Customer * customer;
     int money;
     
-    PictureClerk(char * name, int type)
+    PictureClerk(char * _name, int type)
     {
-        this.name = name;
+        name = _name;
         lineCount = 0;
         state = AVAILABLE;
         lineCondition = new Condition("%s's line condition variable", name);
@@ -391,18 +391,22 @@ struct Clerk {
 
 struct Manager {
     
-    Manager(char * name)
+    char * name;
+
+    Manager(char * _name)
     {
-        
+        name = _name;
     }
     
 };
 
 struct Senator {
     
-    Senator(char * name)
+    char * name;
+
+    Senator(char * _name)
     {
-        
+        name = _name;
     }
 };
 
@@ -637,6 +641,7 @@ void cashier (int myLine) {
 }
 
 void manager() {
+    
     
 }
 
