@@ -492,8 +492,11 @@ void customer(int customerNumber) {
     
     if (clerkToVisit[myLine].state == BUSY)
     {
-        
+        clerkToVisit[myLine].lineCondition->Wait(clerkLock);
+        clerkToVisit[myLine].lineCount = clerkToVisit.lineCount-1;
     }
+    clerkToVisit[myLine].state=BUSY;
+    clerkLock->Release();
 
     
 }
