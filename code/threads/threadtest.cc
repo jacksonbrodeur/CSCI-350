@@ -436,12 +436,6 @@ int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
     return myLine;
 }
 
-//Possibly change array params to pointers
-void applicationTransaction(Clerk clerk, Customer customer, Lock * lock) {
-    
-    
-}
-
 void customer(int customerNumber) {
 
     Customer * me = customers[customerNumber];
@@ -635,6 +629,41 @@ void manager() {
 
 void senator() {
     
+}
+
+void pictureTransaction(Clerk * clerk, Customer * customer) {
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    // taking picture
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+
+
+
+    while(!clerk->customer->pictureTaken) {
+        
+        if((rand() % 10) == 0) { // they don't like it
+            clerk->clerkCondition->Signal(clerk->clerkLock);
+        } else { // they like it
+            clerk->customer->pictureTaken = true;
+            clerk->clerkCondition->Signal(clerk->clerkLock);
+        }
+    }
+
+    // clerk is filing application
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+    // application transaction done
+    clerk->clerkLock->Release();
+}
+
+void applicationTransaction(Clerk * clerk, Customer * customer) {
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    // passing application
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+    // clerk is filing application
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+    // application transaction done
+    clerk->clerkLock->Release();
 }
 
 // --------------------------------------------------
