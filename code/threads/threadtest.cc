@@ -480,9 +480,20 @@ void customer(int customerNumber) {
         }
     }
     
-
-    getInShortestLine(cashiers, cashierLock);
-    //Do Cashier Stuff
+    while(!me->cashierPaid) {
+        int myLine = getInShortestLine(cashiers, cashierLock);
+        if(!me->passportFiled) {
+            //Penalize me
+            cashier[myLine]->state = AVAILABLE;
+            int penalty = rand() % 900 + 100;
+            for(int i = 0; i < penalty; i++) {
+                currentThread->Yield();
+            }
+        } else {
+            //Call cashier transaction
+        }
+    }
+   
 
     
 }
@@ -581,23 +592,25 @@ void passportClerk(int myLine) {
 
         me->clerkCondition->Wait(me->clerkLock);
 
-        if(!me->customer->pictureFiled || !me->customer->applicationFiled) {
-            //Customer is too early
-            //Penalize them with some yields
-            int penalty = rand() % 900 + 100;
-
-        } else {
-            //Yield for random amount
-            int delay = rand()% 80 + 20;
-            for(int i = 0; i < delay; i++) {
-                currentThread->Yield();
-            }
+        //Yield for random amount
+        int delay = rand()% 80 + 20;
+        for(int i = 0; i < delay; i++) {
+            currentThread->Yield();
         }
-
+        me->customer->passportFiled = true;
         me->clerkCondition->Signal(me->clerkLock);
         //Done
         me->clerkLock->Release();
     }
+}
+
+void passportTransaction(Clerk * clerk, Customer * customer) {
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+
+    clerk->clerkLock->Release();
 }
 
 void cashier (int myLine) {
