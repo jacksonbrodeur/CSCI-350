@@ -636,6 +636,16 @@ void cashier (int myLine) {
     } 
 }
 
+void cashierTransaction(Clerk * clerk, Customer * customer) {
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    //Signal that I have paid
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+    //Wait for Cashier to file my passport
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+    clerk->clerkLock->Release();
+}
+
 void manager() {
     
 }
