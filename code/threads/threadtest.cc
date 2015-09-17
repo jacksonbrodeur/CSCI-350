@@ -373,6 +373,7 @@ struct Clerk {
     Lock * clerkLock;
     int clerkType;
     Customer * customer;
+    int money;
     
     PictureClerk(char * name, int type)
     {
@@ -383,31 +384,10 @@ struct Clerk {
         clerkCondition = new Condition("%s's clerk condition variable", name);
         clerkLock = new Lock("%'s lock");
         clerkType = type;
-        
+        money = 0;
     }
 };
 
-
-struct Cashier {
-    
-    char * name;
-    int state;
-    int lineCount;
-    Condition * lineCondition;
-    Condition * cashierCondition;
-    Lock * cashierLock;
-    
-    Cashier(char * name)
-    {
-        this.name = name;
-        state = AVAILABLE;
-        lineCount=0;
-        lineCondition=new Condition("%s's line condition variable", name);
-        cashierCondition = new Condition("%s's condition variable", name);
-        cashierLock = new Lock("%s's lock", name);
-    }
-    
-};
 
 struct Manager {
     
@@ -545,34 +525,40 @@ void pictureClerk(int myLine) {
 }
 
 void applicationClerk(int myLine) {
-    
-    // //Whole method needs to be revamped
-    // while(true) {
-    //     applicationLock->Acquire();
-    //     // TODO: Bribes
-    //     if (applicationLineCount[myLine] > 0) {
-    //         applicationClerkLineCV[myLine]->Signal(applicationLock);
-    //         applicationClerkState[myLine] = BUSY;
-    //     } else {
-    //         applicationClerkState[myLine] = AVAILABLE;
-    //     }
+    Clerk * me = applicationClerks[myLine];
+    while(true) {
+        applicationClerkLock->Acquire();
+        //TODO: Bribes
 
-    //     applicationClerkLock[myLine]->Acquire();
-    //     applicationLock->Release();
+        // If there is a customer in line 
+        // signal him to the counter
+        if(me->lineCount > 0) {
+            me->lineCondition->Signal(applicationClerkLock);
+            me->state = BUSY;
+        } else {
+            me->state = AVAILABLE;
+        }
 
-    //     //Wait for customer data
-    //     applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
+        me->clerkLock->Acquire();
+        applicationClerkLock->Release();
 
-    //     //Do my job - customer now waiting
-    //     int randomNum = rand() % 80 + 20;
-    //     for(int i =0;i < randomNum;i++)
-    //     {
-    //         currentThread->Yield();
-    //     }
-    //     applicationClerkCV[myLine]->Signal(applicationClerkLock[myLine]);
-    //     applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
-    //     applicationClerkLock[myLine]->Release();
-    // }
+        //Wait for customer data
+        me->clerkCondition->Wait(me->clerkLock);
+
+        //Do your job, accept application
+
+        yieldTime = rand() % 80 + 20;
+        for(int i =0;i<yieldTime;i++)
+        {
+        	currentThread->Yield();
+        }
+
+        me->customer->applicationFiled = true;
+
+        me->clerkCondition->Signal(me->clerkLock);
+        //All done with this bastard
+        me->clerkLock->Release();
+    }    
 }
 
 void passportClerk(int myLine) {
@@ -614,8 +600,33 @@ void passportClerk(int myLine) {
     }
 }
 
-void cashier () {
-    
+void cashier (int myLine) {
+    Clerk * me = cashiers[myLine];
+    while(true) {
+    	cashierLock->Acquire();
+
+    	// TODO: bribes
+    	if (me->lineCount > 0) {
+    		me->lineCondition->Signal(cashierLock);
+    		me->state = BUSY;
+    	} else {
+    		me->state = AVAILABLE;
+    	}
+
+    	me->clerkLock->Acquire();
+    	cashierLock->Release();
+
+    	// wait for customer to pay
+    	me->clerkCondition->Wait(me->clerkLock);
+
+    	// taking payment
+    	me->customer->money -= 100;
+    	me->money += 100;
+
+    	me->customer->passportFiled = true;
+    	me->clerkCondition->Signal(me->clerkLock);
+    	me->clerkLock->Release();
+    } 
 }
 
 void manager() {
