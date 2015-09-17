@@ -173,15 +173,11 @@ Condition::Condition(char* debugName) {
 
     name = debugName;
     cvWaitQueue = new List;
-    printf("Printing address of cvWaitQueue inside constructor, %d \n \n \n", cvWaitQueue);
     waitingLock = NULL;
-    
-    printf("Printing address of this condition variable, %d \n \n", this);
 }
 
 Condition::~Condition() {
 
-    printf("\n \n Calling destructor for condition %s \n \n \n", name);
     delete cvWaitQueue;
 }
 
@@ -195,10 +191,8 @@ void Condition::Wait(Lock* conditionLock) {
         return;
     }
     if(waitingLock==NULL) {
-    printf("Printing address of waitingLock, %d \n", waitingLock);
         printf("Inside Wait, setting conditionLock equal to waitingLock (%s) \n", currentThread->getName());
         waitingLock = conditionLock;
-        printf("1 \n");
     }
     if(waitingLock != conditionLock) {
         
@@ -206,22 +200,10 @@ void Condition::Wait(Lock* conditionLock) {
         (void) interrupt->SetLevel(old);
         return;
     }
-    
-    //cvWaitQueue = new List;
-    
-    printf("Printing address of cvWaitQueue, %d \n", cvWaitQueue);
-    
-    printf("Printing address of this condition variable, %d \n \n", this);
-    
-    printf("2, we are about to access %s's cvWaitQueue \n", name);
     cvWaitQueue->Append((void *)currentThread);
-    printf("3 \n");
     conditionLock->Release();
-    printf("4 \n");
     currentThread->Sleep();
-    printf("5 \n");
     conditionLock->Acquire();
-    printf("6 \n");
     (void) interrupt->SetLevel(old);
 }
 

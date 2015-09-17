@@ -335,16 +335,13 @@ Lock * pictureClerkLock;
 Lock * passportClerkLock;
 Lock * cashierLock;
 
-Customer * customers[10];
-Clerk * pictureClerks[5];
-Clerk * applicationClerks[5];
-Clerk * passportClerks[5];
-Clerk * cashiers[5];
-
 float pictureRevenue;
 float applicationRevenue;
 float passportRevenue;
 float cashierRevenue;
+
+static const int NUM_CUSTOMERS = 1;
+int customersFinished=0;
 
 struct Customer {
     
@@ -380,14 +377,27 @@ struct Clerk {
     Customer * customer;
     int money;
     
-    PictureClerk(char * _name, int type)
+    Clerk()
+    {
+        name=NULL;
+        lineCount=0;
+        state=0;
+        lineCondition=new Condition(name);
+        clerkCondition=new Condition(name);
+        clerkLock=new Lock(name);
+        clerkType=0;
+        customer=NULL;
+        money=0;
+    }
+    
+    Clerk(char * _name, int type)
     {
         name = _name;
         lineCount = 0;
         state = AVAILABLE;
-        lineCondition = new Condition("%s's line condition variable", name);
-        clerkCondition = new Condition("%s's clerk condition variable", name);
-        clerkLock = new Lock("%'s lock");
+        lineCondition = new Condition(name);
+        clerkCondition = new Condition(name);
+        clerkLock = new Lock(name);
         clerkType = type;
         money = 0;
     }
@@ -408,12 +418,104 @@ struct Manager {
 struct Senator {
     
     char * name;
-
+    Lock * senatorLock;
+    Condition * senatorCondition;
+    
     Senator(char * _name)
     {
         name = _name;
+        senatorLock = new Lock(name);
+        senatorCondition = new Condition(name);
     }
 };
+
+Customer * customers[NUM_CUSTOMERS];
+Clerk * pictureClerks[5];
+Clerk * applicationClerks[5];
+Clerk * passportClerks[5];
+Clerk * cashiers[5];
+
+void pictureTransaction(Clerk * clerk, Customer * customer) {
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    
+    printf("%s has acquired the lock %s \n", clerk->customer->name, clerk->clerkLock->getName());
+    
+    // taking picture
+    printf("%s is about to get their picture taken by clerk %s \n", customer->name, clerk->name);
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+    
+    while(!clerk->customer->pictureTaken) {
+        
+        if((rand() % 10) == 0) { // they don't like it
+            
+            printf("%s got their picture taken by %s but didn't like it \n", customer->name, clerk->name);
+            clerk->clerkCondition->Signal(clerk->clerkLock);
+        } else { // they like it
+            
+            printf("%s liked their picture (taken by %s) \n", customer->name,clerk->name);
+            clerk->customer->pictureTaken = true;
+            clerk->clerkCondition->Signal(clerk->clerkLock);
+        }
+    }
+    
+    
+    // clerk is filing the photo
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+    // application transaction done
+    clerk->clerkLock->Release();
+}
+
+void applicationTransaction(Clerk * clerk, Customer * customer) {
+    
+    
+    printf("%s is about to perform an application transaction with %s", customer->name, clerk->name);
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    
+    //this signals that the customer is at the counter
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+    
+    // clerk is filing application
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+    // application transaction done
+    
+    customer->applicationFiled = true;
+    printf("%s has just gotten his application filed by %s \n",customer->name, clerk->name);
+    
+    clerk->clerkLock->Release();
+}
+
+void passportTransaction(Clerk * clerk, Customer * customer) {
+    
+    printf("%s is about to perform a passport transaction with %s", customer->name, clerk->name);
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+    
+    customer->passportFiled = true;
+    printf("%s has just gotten his passport filed by %s \n",customer->name, clerk->name);
+    
+    clerk->clerkLock->Release();
+}
+
+void cashierTransaction(Clerk * clerk, Customer * customer) {
+    
+    printf("%s is about to perform a cashier transaction with %s", customer->name, clerk->name);
+    clerk->clerkLock->Acquire();
+    clerk->customer = customer;
+    //Signal that I have paid
+    clerk->clerkCondition->Signal(clerk->clerkLock);
+    
+    customer->cashierPaid = true;
+    printf("%s just paid for his passport, waiting for the %s to file it \n", customer->name, clerk->name);
+    
+    //Wait for Cashier to file my passport
+    clerk->clerkCondition->Wait(clerk->clerkLock);
+    clerk->clerkLock->Release();
+}
 
 int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
 
@@ -430,17 +532,13 @@ int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
                 shortestLineSize = clerkToVisit[i]->lineCount;
                 foundLine = true;
             }
-            
         }
     }
+
+    clerkToVisit[myLine]->lineCount++;
+    clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
+    clerkToVisit[myLine]->lineCount--;
     
-    if (clerkToVisit[myLine]->state == BUSY)
-    {
-        clerkToVisit[myLine]->lineCount++;
-        clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
-        clerkToVisit[myLine]->lineCount--;
-    }
-    clerkToVisit[myLine]->state=BUSY;
     clerkLock->Release();
     return myLine;
 }
@@ -448,62 +546,67 @@ int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
 void customer(int customerNumber) {
 
     Customer * me = customers[customerNumber];
-    printf("Printing Customer Number: %d\n", customerNumber);
+    printf("Printing Customer Name: %s \n", me->name);
 
     int randomNum = rand() % 2;
     
     if(randomNum == 0)
     {
         printf("Going to Picture Clerk first \n \n");
-        getInShortestLine(pictureClerks, pictureClerkLock);
-        //Do Picture Clerk Stuff
-        getInShortestLine(applicationClerks, applicationClerkLock);
-        //Do Application Clerk Stuff
+        int myLine = getInShortestLine(pictureClerks, pictureClerkLock);
+        
+        pictureTransaction(pictureClerks[myLine], me);
+        
+        myLine = getInShortestLine(applicationClerks, applicationClerkLock);
+        
+        applicationTransaction(applicationClerks[myLine], me);
     }
     else // randomNum == 1
     {
-        printf("Going to Application Clerk first \n \n");
-        getInShortestLine(applicationClerks, applicationClerkLock);
-        //Do Application Clerk Stuff
-        getInShortestLine(pictureClerks, pictureClerkLock);
-        //Do Picture Clerk Stuff
+        printf("%s is going to the Application Clerk first \n", me->name);
+        
+        int myLine = getInShortestLine(applicationClerks, applicationClerkLock);
+        applicationTransaction(applicationClerks[myLine], me);
+        
+        myLine = getInShortestLine(pictureClerks, pictureClerkLock);
+        pictureTransaction(pictureClerks[myLine], me);
     }
 
+    printf("%s has reached the passport clerk, attempting to file his passport now \n \n", me->name);
     while(!me->passportFiled) {
         int myLine = getInShortestLine(passportClerks, passportClerkLock);
         if(!me->pictureFiled || !me->applicationFiled) {
-            //Penalize me
+       
             passportClerks[myLine]->state = AVAILABLE;
-            int penalty = rand() % 900 + 100;
-            for(int i = 0; i < penalty; i++) {
+            for(int i = 0; i < rand() % 900 + 100; i++) {
                 currentThread->Yield();
             }
         } else {
-            //Call passport transaction
+            passportTransaction(passportClerks[myLine], me);
         }
     }
     
+    printf("%s has gotten his passport filed, attempting to pay now \n \n", me->name);
     while(!me->cashierPaid) {
         int myLine = getInShortestLine(cashiers, cashierLock);
         if(!me->passportFiled) {
-            //Penalize me
-            cashier[myLine]->state = AVAILABLE;
-            int penalty = rand() % 900 + 100;
-            for(int i = 0; i < penalty; i++) {
+
+            cashiers[myLine]->state = AVAILABLE;
+            for(int i = 0; i < rand() % 900 + 100; i++) {
                 currentThread->Yield();
             }
         } else {
-            //Call cashier transaction
+            cashierTransaction(cashiers[myLine], me);
         }
     }
    
-
-    
+    customersFinished++;
+    printf("Just finished %s, incrementing the count to %d \n", me->name, customersFinished);
 }
 
 void pictureClerk(int myLine) {
     Clerk * me = pictureClerks[myLine];
-    while(true) {
+    while(customersFinished < NUM_CUSTOMERS) {
         pictureClerkLock->Acquire();
         //TODO: Bribes
 
@@ -540,7 +643,8 @@ void pictureClerk(int myLine) {
 
 void applicationClerk(int myLine) {
     Clerk * me = applicationClerks[myLine];
-    while(true) {
+    while(customersFinished < NUM_CUSTOMERS) {
+        
         applicationClerkLock->Acquire();
         //TODO: Bribes
 
@@ -549,35 +653,35 @@ void applicationClerk(int myLine) {
         if(me->lineCount > 0) {
             me->lineCondition->Signal(applicationClerkLock);
             me->state = BUSY;
+            me->lineCondition->Wait(applicationClerkLock);
+            printf("%s has %s in line, telling him to come to the counter", me->name, me->customer->name);
         } else {
-            me->state = AVAILABLE;
+            //TODO: This code is illogical, needs to be put to sleep by manager
+            me->state = ONBREAK;
+            printf("%s has no one in line, going on break", me->name);
         }
 
         me->clerkLock->Acquire();
         applicationClerkLock->Release();
 
-        //Wait for customer data
-        me->clerkCondition->Wait(me->clerkLock);
-
         //Do your job, accept application
-
-        yieldTime = rand() % 80 + 20;
-        for(int i =0;i<yieldTime;i++)
+        
+        for(int i =0;i<rand() % 80 + 20;i++)
         {
         	currentThread->Yield();
         }
-
+        
         me->customer->applicationFiled = true;
 
+        printf("%s has just finished filing %'s application", me->name, me->customer->name);
         me->clerkCondition->Signal(me->clerkLock);
-        //All done with this bastard
         me->clerkLock->Release();
     }    
 }
 
 void passportClerk(int myLine) {
     Clerk * me = passportClerks[myLine];
-    while(true) {
+    while(customersFinished < NUM_CUSTOMERS) {
         passportClerkLock->Acquire();
         //TODO: Bribes
 
@@ -607,18 +711,10 @@ void passportClerk(int myLine) {
     }
 }
 
-void passportTransaction(Clerk * clerk, Customer * customer) {
-    clerk->clerkLock->Acquire();
-    clerk->customer = customer;
-    clerk->clerkCondition->Signal(clerk->clerkLock);
-    clerk->clerkCondition->Wait(clerk->clerkLock);
-
-    clerk->clerkLock->Release();
-}
 
 void cashier (int myLine) {
     Clerk * me = cashiers[myLine];
-    while(true) {
+    while(customersFinished < NUM_CUSTOMERS) {
     	cashierLock->Acquire();
 
     	// TODO: bribes
@@ -645,48 +741,38 @@ void cashier (int myLine) {
     } 
 }
 
-void cashierTransaction(Clerk * clerk, Customer * customer) {
-    clerk->clerkLock->Acquire();
-    clerk->customer = customer;
-    //Signal that I have paid
-    clerk->clerkCondition->Signal(clerk->clerkLock);
-    //Wait for Cashier to file my passport
-    clerk->clerkCondition->Wait(clerk->clerkLock);
-    clerk->clerkLock->Release();
-}
-
 void manager() {
     
-    while(true) {
+    while(customersFinished < NUM_CUSTOMERS) {
         
         for(int i =0;i<5;i++)
         {
-            if(pictureClerks[i]->lineCount >=3 )
+            if(pictureClerks[i]->lineCount >=3 && pictureClerks[i]->state == ONBREAK)
             {
                 pictureClerks[i]->clerkLock->Acquire();
                 pictureClerks[i]->state = AVAILABLE;
                 pictureClerks[i]->lineCondition->Signal(pictureClerks[i]->clerkLock);
                 pictureClerks[i]->clerkLock->Release();
             }
-            if(applicationClerks[i]->lineCount >=3 )
+            if(applicationClerks[i]->lineCount >=3 && applicationClerks[i]->state == ONBREAK)
             {
                 applicationClerks[i]->clerkLock->Acquire();
-                applicationClerks[i]->state = AVAILABLE
+                applicationClerks[i]->state = AVAILABLE;
                 applicationClerks[i]->lineCondition->Signal(applicationClerks[i]->clerkLock);
                 applicationClerks[i]->clerkLock->Release();
                 
             }
-            if(passportClerks[i]->lineCount >=3 )
+            if(passportClerks[i]->lineCount >=3 && passportClerks[i]->state == ONBREAK)
             {
                 passportClerks[i]->clerkLock->Acquire();
-                passportClerks[i]->state = AVAILABLE
+                passportClerks[i]->state = AVAILABLE;
                 passportClerks[i]->lineCondition->Signal(passportClerks[i]->clerkLock);
                 passportClerks[i]->clerkLock->Release();
             }
-            if(cashiers[i]->lineCount >=3 )
+            if(cashiers[i]->lineCount >=3 && cashiers[i]->state == ONBREAK)
             {
                 cashiers[i]->clerkLock->Acquire();
-                cashiers[i]->state = AVAILABLE
+                cashiers[i]->state = AVAILABLE;
                 cashiers[i]->lineCondition->Signal(cashiers[i]->clerkLock);
                 cashiers[i]->clerkLock->Release();
             }
@@ -694,51 +780,24 @@ void manager() {
         
         for(int i = 0; i < 100; i ++)
         {
-            printf("Revenue generated from picture clerks: %d \n", pictureRevenue);
-            printf("Revenue generated from application clerks: %d \n", applicationRevenue);
-            printf("Revenue generated from passport clerks: %d \n", passportRevenue);
-            printf("Revenue generated from cashiers: %d \n", cashierRevenue);
+            printf("Revenue generated from picture clerks: %f \n", pictureRevenue);
+            printf("Revenue generated from application clerks: %f \n", applicationRevenue);
+            printf("Revenue generated from passport clerks: %f \n", passportRevenue);
+            printf("Revenue generated from cashiers: %f \n", cashierRevenue);
         }
     }
 }
 
 void senator() {
     
-}
-
-void pictureTransaction(Clerk * clerk, Customer * customer) {
-    clerk->clerkLock->Acquire();
-    clerk->customer = customer;
-    // taking picture
-    clerk->clerkCondition->Signal(clerk->clerkLock);
-
-
-
-    while(!clerk->customer->pictureTaken) {
-        
-        if((rand() % 10) == 0) { // they don't like it
-            clerk->clerkCondition->Signal(clerk->clerkLock);
-        } else { // they like it
-            clerk->customer->pictureTaken = true;
-            clerk->clerkCondition->Signal(clerk->clerkLock);
-        }
+    for(int i = 0; i < 5;i ++)
+    {
+        //need to sleep every single customer besides the customers currently being serviced.
+        pictureClerks[i]->state = BUSY;
+        applicationClerks[i]->state = BUSY;
+        passportClerks[i]->state = BUSY;
+        cashiers[i]->state = BUSY;
     }
-
-    // clerk is filing application
-    clerk->clerkCondition->Wait(clerk->clerkLock);
-    // application transaction done
-    clerk->clerkLock->Release();
-}
-
-void applicationTransaction(Clerk * clerk, Customer * customer) {
-    clerk->clerkLock->Acquire();
-    clerk->customer = customer;
-    // passing application
-    clerk->clerkCondition->Signal(clerk->clerkLock);
-    // clerk is filing application
-    clerk->clerkCondition->Wait(clerk->clerkLock);
-    // application transaction done
-    clerk->clerkLock->Release();
 }
 
 // --------------------------------------------------
@@ -766,6 +825,7 @@ void TestSuite() {
     char *name;
     int i;
     
+    /*
     // Test 1
     
     printf("Starting Test 1\n");
@@ -843,13 +903,17 @@ void TestSuite() {
     t->Fork((VoidFunctionPtr)t5_t2,0);
     
     t5_done.P();
+     
+    */
+    
+    
     //Part 2
     
     printf(" \n \n \n \n \n Starting Part 2 \n \n \n");
     
-    pictureLock = new Lock("Picture Lock");
-    applicationLock = new Lock("Application Lock");
-    passportLock = new Lock("Passport Lock");
+    pictureClerkLock = new Lock("Picture Lock");
+    applicationClerkLock = new Lock("Application Lock");
+    passportClerkLock = new Lock("Passport Lock");
     cashierLock = new Lock("Cashier Lock");
    
     pictureRevenue = 0.00;
@@ -857,16 +921,16 @@ void TestSuite() {
     passportRevenue = 0.00;
     cashierRevenue = 0.00;
     
-    for(int i = 0;i < 10; i++)
+    for( i = 0;i < NUM_CUSTOMERS; i++)
     {
         name = new char [20];
-        sprintf(name,"Customer %d",i);
+        sprintf(name,"Customer %d", i);
         customers[i] = new Customer(name);
         t = new Thread(name);
-        t->Fork((VoidFunctionPtr), i+1);
+        t->Fork((VoidFunctionPtr)customer, i);
     }
     
-    for(int i = 0; i < 5; i ++)
+    for( i = 0; i < 5; i ++)
     {
         name = new char [20];
         sprintf(name,"Picture Clerk %d",i);
@@ -891,7 +955,7 @@ void TestSuite() {
         sprintf(name,"Cashier %d",i);
         cashiers[i] = new Clerk(name, CASHIER);
         t = new Thread(name);
-        t->Fork((VoidFunctionPtr)clerk, i);
+        t->Fork((VoidFunctionPtr)cashier, i);
     }
 }
 #endif
