@@ -538,34 +538,40 @@ void pictureClerk(int myLine) {
 }
 
 void applicationClerk(int myLine) {
-    
-    // //Whole method needs to be revamped
-    // while(true) {
-    //     applicationLock->Acquire();
-    //     // TODO: Bribes
-    //     if (applicationLineCount[myLine] > 0) {
-    //         applicationClerkLineCV[myLine]->Signal(applicationLock);
-    //         applicationClerkState[myLine] = BUSY;
-    //     } else {
-    //         applicationClerkState[myLine] = AVAILABLE;
-    //     }
+    Clerk * me = applicationClerks[myLine];
+    while(true) {
+        applicationClerkLock->Acquire();
+        //TODO: Bribes
 
-    //     applicationClerkLock[myLine]->Acquire();
-    //     applicationLock->Release();
+        // If there is a customer in line 
+        // signal him to the counter
+        if(me->lineCount > 0) {
+            me->lineCondition->Signal(applicationClerkLock);
+            me->state = BUSY;
+        } else {
+            me->state = AVAILABLE;
+        }
 
-    //     //Wait for customer data
-    //     applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
+        me->clerkLock->Acquire();
+        applicationClerkLock->Release();
 
-    //     //Do my job - customer now waiting
-    //     int randomNum = rand() % 80 + 20;
-    //     for(int i =0;i < randomNum;i++)
-    //     {
-    //         currentThread->Yield();
-    //     }
-    //     applicationClerkCV[myLine]->Signal(applicationClerkLock[myLine]);
-    //     applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
-    //     applicationClerkLock[myLine]->Release();
-    // }
+        //Wait for customer data
+        me->clerkCondition->Wait(me->clerkLock);
+
+        //Do your job, accept application
+
+        yieldTime = rand() % 80 + 20;
+        for(int i =0;i<yieldTime;i++)
+        {
+        	currentThread->Yield();
+        }
+
+        me->customer->applicationFiled = true;
+
+        me->clerkCondition->Signal(me->clerkLock);
+        //All done with this bastard
+        me->clerkLock->Release();
+    }    
 }
 
 void passportClerk() {
