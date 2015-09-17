@@ -329,9 +329,9 @@ static const int PICTURECLERK = 0;
 static const int APPLICATIONCLERK = 1;
 static const int PASSPORTCLERK = 2;
 
-Lock * applicationLock;
-Lock * pictureLock;
-Lock * passportLock;
+Lock * applicationClerkLock;
+Lock * pictureClerkLock;
+Lock * passportClerkLock;
 Lock * cashierLock;
 
 Customer * customers[10];
@@ -428,23 +428,6 @@ void customerTransaction(Clerk clerk, Customer customer, Lock * lock) {
     
     printf("\n%s is about to perform a transaction \n",customer.name);
     
-    lock->Acquire();
-    int myLine = -1;
-    int shortestLineSize = 10000; //change to the number of max customers
-    bool foundLine = false;
-    while(!foundLine) {
-        for(int i=0;i<5;i++)
-        {
-            if(lineCount[i]<shortestLineSize && clerk.state != ONBREAK)
-            {
-                myLine = i;
-                shortestLineSize = lineCount[i];
-                foundLine = true;
-            }
-            
-        }
-    }
-    
     if(clerkState[myLine] == BUSY)
     {
         lineCount[myLine]++;
@@ -458,42 +441,70 @@ void customerTransaction(Clerk clerk, Customer customer, Lock * lock) {
     lock->Release();
 }
 
-void customer(int socialSecurity) {
+void customer(int customerNumber) {
 
-    printf("Printing Social Security: %d\n", socialSecurity);
+    printf("Printing Customer Number: %d\n", socialSecurity);
 
     srand (time(NULL));
-    int randomNum = rand() % 2;
+    int randomNum = rand() % 3;
     
-    printf("The random number is: %d \n \n", randomNum);
+    bool applicationCompleted=false;
+    bool pictureCompleted=false;
     
-    // !!!! make sure that we do both (picture/application) and not just one or the other in the if/else
+    Clerk * clerkToVisit[];
+    Lock * clerkLock;
+    
     if(randomNum == 0)
     {
-        printf("Going to Application Clerk first \n \n");
-        // do application first
-        customerTransaction(applicationLineCount, applicationClerkState, applicationClerkLineCV, applicationLock);
-        // Then do picture
-        customerTransaction(pictureLineCount, pictureClerkState, pictureClerkLineCV, pictureLock);
-    }
-    else // randomNum == 1
-    {
         printf("Going to Picture Clerk first \n \n");
-        // Do picture first
-        customerTransaction(pictureLineCount, pictureClerkState, pictureClerkLineCV, pictureLock);
-        // Then do application
-        customerTransaction(applicationLineCount, applicationClerkState, applicationClerkLineCV, applicationLock);
+        clerkToVisit = pictureClerks;
+        clerkLock = pictureClerkLock;
+    }
+    else if(randomNum == 1) // randomNum == 1
+    {
+        printf("Going to Application Clerk first \n \n");
+        clerkToVisit = applicationClerks;
+        clerkLock = applicationClerkLock
+    }
+    else
+    {
+        printf("Going to Passport Clerk first \n \n");
+        clerkToVisit = passportClerks;
+        clerkLock = passportClerkLock;
     }
     
-    // passport clerk
-    customerTransaction(passportLineCount, passportClerkState, passportClerkLineCV, passportLock);
+    clerkLock->Acquire();
+    int myLine = -1;
+    int shortestLineSize = 10000; //change to the number of max customers
+    bool foundLine = false;
+    while(!foundLine) {
+        for(int i=0;i<5;i++)
+        {
+            if(clerkToVisit[i].lineCount<shortestLineSize && clerkToVisit[i].state != ONBREAK)
+            {
+                myLine = i;
+                shortestLineSize = clerkToVisit[i].lineCount;
+                foundLine = true;
+            }
+            
+        }
+    }
+    
+    if (clerkToVisit[myLine].state == BUSY)
+    {
+        
+    }
 
-    // cashier
-    customerTransaction(cashierLineCount, cashierState, cashierLineCV, cashierLock);
+    
+}
+
+void pictureClerk() {
+    
 }
 
 void applicationClerk(int myLine) {
     
+    //Whole method needs to be revamped
     while(true) {
         applicationLock->Acquire();
         // TODO: Bribes
@@ -520,6 +531,22 @@ void applicationClerk(int myLine) {
         applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
         applicationClerkLock[myLine]->Release();
     }
+}
+
+void passportClerk() {
+    
+}
+
+void cashier () {
+    
+}
+
+void manager() {
+    
+}
+
+void senator() {
+    
 }
 
 // --------------------------------------------------
@@ -628,8 +655,8 @@ void TestSuite() {
     
     printf(" \n \n \n \n \n Starting Part 2 \n \n \n");
     
-    applicationLock = new Lock("Application Lock");
     pictureLock = new Lock("Picture Lock");
+    applicationLock = new Lock("Application Lock");
     passportLock = new Lock("Passport Lock");
     cashierLock = new Lock("Cashier Lock");
    
@@ -646,16 +673,17 @@ void TestSuite() {
     for(int i = 0; i < 5; i ++)
     {
         name = new char [20];
-        sprintf(name,"Application Clerk %d",i);
-        applicationClerks[i] = new Clerk(name, APPLICATIONCLERK);
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)applicationClerk, i);
-        
-        name = new char [20];
         sprintf(name,"Picture Clerk %d",i);
         pictureClerks[i] = new Clerk(name, PICTURECLERK);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)pictureClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Application Clerk %d",i);
+        applicationClerks[i] = new Clerk(name, APPLICATIONCLERK);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)applicationClerk, i);
+
         
         name = new char [20];
         sprintf(name,"Passport Clerk %d",i);
