@@ -346,6 +346,7 @@ struct Customer {
     char * name;
     bool applicationFiled;
     bool pictureTaken;
+    bool pictureFiled;
     bool passportFiled;
     bool cashierPaid;
     int money;
@@ -357,6 +358,7 @@ struct Customer {
         pictureTaken = false;
         passportFiled = false;
         cashierPaid = false;
+        pictureFiled = false;
         money = 100 + (rand() % 4)*500;
     }
 };
@@ -451,6 +453,7 @@ int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
     }
     clerkToVisit[myLine]->state=BUSY;
     clerkLock->Release();
+    return myLine;
 }
 
 //Possibly change array params to pointers
@@ -461,12 +464,10 @@ void applicationTransaction(Clerk clerk, Customer customer, Lock * lock) {
 
 void customer(int customerNumber) {
 
+    Customer * me = customers[customerNumber];
     printf("Printing Customer Number: %d\n", customerNumber);
 
-    int randomNum = rand() % 3;
-    
-    bool applicationCompleted=false;
-    bool pictureCompleted=false;
+    int randomNum = rand() % 2;
     
     if(randomNum == 0)
     {
@@ -476,7 +477,7 @@ void customer(int customerNumber) {
         getInShortestLine(applicationClerks, applicationClerkLock);
         //Do Application Clerk Stuff
     }
-    else if(randomNum == 1) // randomNum == 1
+    else // randomNum == 1
     {
         printf("Going to Application Clerk first \n \n");
         getInShortestLine(applicationClerks, applicationClerkLock);
@@ -484,15 +485,21 @@ void customer(int customerNumber) {
         getInShortestLine(pictureClerks, pictureClerkLock);
         //Do Picture Clerk Stuff
     }
-    else
-    {
-        printf("Going to Passport Clerk first \n \n");
-        clerkToVisit = passportClerks;
-        clerkLock = passportClerkLock;
-    }
 
-    getInShortestLine(passportClerks, passportClerkLock);
-    //Do passport Stuff
+    while(!me->passportFiled) {
+        int myLine = getInShortestLine(passportClerks, passportClerkLock);
+        if(!me->pictureFiled || !me->applicationFiled) {
+            //Penalize me
+            passportClerks[myLine]->state = AVAILABLE;
+            int penalty = rand() % 900 + 100;
+            for(int i = 0; i < penalty; i++) {
+                currentThread->Yield();
+            }
+        } else {
+            //Call passport transaction
+        }
+    }
+    
 
     getInShortestLine(cashiers, cashierLock);
     //Do Cashier Stuff
@@ -568,8 +575,43 @@ void applicationClerk(int myLine) {
     // }
 }
 
-void passportClerk() {
-    
+void passportClerk(int myLine) {
+    Clerk * me = passportClerks[myLine];
+    while(true) {
+        passportClerkLock->Acquire();
+        //TODO: Bribes
+
+        // If there is a customer in line 
+        // signal him to the counter
+        if(me->lineCount > 0) {
+            me->lineCondition->Signal(pictureClerkLock);
+            me->state = BUSY;
+        } else {
+            me->state = AVAILABLE;
+        }
+
+        me->clerkLock->Acquire();
+        passportClerkLock->Release();
+
+        me->clerkCondition->Wait(me->clerkLock);
+
+        if(!me->customer->pictureFiled || !me->customer->applicationFiled) {
+            //Customer is too early
+            //Penalize them with some yields
+            int penalty = rand() % 900 + 100;
+
+        } else {
+            //Yield for random amount
+            int delay = rand()% 80 + 20;
+            for(int i = 0; i < delay; i++) {
+                currentThread->Yield();
+            }
+        }
+
+        me->clerkCondition->Signal(me->clerkLock);
+        //Done
+        me->clerkLock->Release();
+    }
 }
 
 void cashier () {
