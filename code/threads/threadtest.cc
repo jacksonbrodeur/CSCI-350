@@ -341,6 +341,11 @@ Clerk * applicationClerks[5];
 Clerk * passportClerks[5];
 Clerk * cashiers[5];
 
+float pictureRevenue;
+float applicationRevenue;
+float passportRevenue;
+float cashierRevenue;
+
 struct Customer {
     
     char * name;
@@ -349,7 +354,7 @@ struct Customer {
     bool pictureFiled;
     bool passportFiled;
     bool cashierPaid;
-    int money;
+    float money;
     
     Customer(char * _name)
     {
@@ -652,7 +657,49 @@ void cashierTransaction(Clerk * clerk, Customer * customer) {
 
 void manager() {
     
-    
+    while(true) {
+        
+        for(int i =0;i<5;i++)
+        {
+            if(pictureClerks[i]->lineCount >=3 )
+            {
+                pictureClerks[i]->clerkLock->Acquire();
+                pictureClerks[i]->state = AVAILABLE;
+                pictureClerks[i]->lineCondition->Signal(pictureClerks[i]->clerkLock);
+                pictureClerks[i]->clerkLock->Release();
+            }
+            if(applicationClerks[i]->lineCount >=3 )
+            {
+                applicationClerks[i]->clerkLock->Acquire();
+                applicationClerks[i]->state = AVAILABLE
+                applicationClerks[i]->lineCondition->Signal(applicationClerks[i]->clerkLock);
+                applicationClerks[i]->clerkLock->Release();
+                
+            }
+            if(passportClerks[i]->lineCount >=3 )
+            {
+                passportClerks[i]->clerkLock->Acquire();
+                passportClerks[i]->state = AVAILABLE
+                passportClerks[i]->lineCondition->Signal(passportClerks[i]->clerkLock);
+                passportClerks[i]->clerkLock->Release();
+            }
+            if(cashiers[i]->lineCount >=3 )
+            {
+                cashiers[i]->clerkLock->Acquire();
+                cashiers[i]->state = AVAILABLE
+                cashiers[i]->lineCondition->Signal(cashiers[i]->clerkLock);
+                cashiers[i]->clerkLock->Release();
+            }
+        }
+        
+        for(int i = 0; i < 100; i ++)
+        {
+            printf("Revenue generated from picture clerks: %d \n", pictureRevenue);
+            printf("Revenue generated from application clerks: %d \n", applicationRevenue);
+            printf("Revenue generated from passport clerks: %d \n", passportRevenue);
+            printf("Revenue generated from cashiers: %d \n", cashierRevenue);
+        }
+    }
 }
 
 void senator() {
@@ -805,6 +852,10 @@ void TestSuite() {
     passportLock = new Lock("Passport Lock");
     cashierLock = new Lock("Cashier Lock");
    
+    pictureRevenue = 0.00;
+    applicationRevenue = 0.00;
+    passportRevenue = 0.00;
+    cashierRevenue = 0.00;
     
     for(int i = 0;i < 10; i++)
     {
