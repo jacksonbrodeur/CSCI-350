@@ -280,6 +280,8 @@ Lock t5_l1("t5_l1");		// For mutual exclusion
 Lock t5_l2("t5_l2");		// Second lock for the bad behavior
 Condition t5_c1("t5_c1");	// The condition variable to test
 Semaphore t5_s1("t5_s1",0);	// To make sure t5_t2 acquires the lock after
+
+Semaphore t5_done("t5_done",0);
 // t5_t1
 
 // --------------------------------------------------
@@ -315,65 +317,145 @@ void t5_t2() {
     printf("%s: Releasing Lock %s\n",currentThread->getName(),
            t5_l1.getName());
     t5_l1.Release();
+    
+    t5_done.V();
 }
-
-Lock applicationLock("Application Line Lock");
-Lock pictureLock("Picture Line Lock");
-Lock passportLock("Passport Line Lock");
-Lock cashierLock("Cashier Line Lock");
-
-int applicationLineCount[5];
-int applicationClerkState[5];
-Condition applicationClerkLineCV[5];
-Lock applicationClerkLock[5];
-Condition applicationClerkCV[5];
-
-int pictureLineCount[5];
-int pictureClerkState[5];
-Condition pictureClerkLineCV[5];
-Lock pictureClerkLock[5];
-Condition pictureClerkCV[5];
-
-int passportLineCount[5];
-int passportClerkState[5];
-Condition passportClerkLineCV[5];
-Lock passportClerkLock[5];
-Condition passportClerkCV[5];
-
-int cashierLineCount[5];
-int cashierState[5];
-Condition cashierLineCV[5];
-Lock cashierClerkLock[5];
-Condition cashierCV[5];
 
 static const int AVAILABLE = 0;
 static const int BUSY = 1;
 static const int ONBREAK = 2;
 
-//Possibly change array params to pointers
-void customerTransaction(int lineCount[], int clerkState[], Condition clerkLineCV[], Lock lock) {
-    lock.Acquire();
-    int myLine = -1;
-    int shortestLineSize = 10000; //change to the number of max customers
-    for(int i=0;i<5;i++)
+static const int PICTURECLERK = 0;
+static const int APPLICATIONCLERK = 1;
+static const int PASSPORTCLERK = 2;
+
+Lock * applicationLock;
+Lock * pictureLock;
+Lock * passportLock;
+Lock * cashierLock;
+
+Customer * customers[10];
+Clerk * pictureClerks[5];
+Clerk * applicationClerks[5];
+Clerk * passportClerks[5];
+Cashier * cashiers[5];
+
+struct Customer {
+    
+    char * name;
+    bool applicationFiled;
+    bool pictureTaken;
+    bool passportFiled;
+    bool cashierPaid;
+    int money;
+    
+    Customer(char * name)
     {
-        if(lineCount[i]<shortestLineSize && clerkState[i] != ONBREAK)
-        {
-            myLine = i;
-            shortestLineSize = lineCount[i];
-        }
+        this.name = name;
+        applicationFiled = false;
+        pictureTaken = false;
+        passportFiled = false;
+        cashierPaid = false;
+        money = 100 + (rand() % 4)*500;
+    }
+};
+
+struct Clerk {
+    
+    char * name;
+    int lineCount;
+    int state;
+    Condition * lineCondition;
+    Condition * clerkCondition;
+    Lock * clerkLock;
+    int clerkType;
+    
+    PictureClerk(char * name, int type)
+    {
+        this.name = name;
+        lineCount = 0;
+        state = AVAILABLE;
+        lineCondition = new Condition("%s's line condition variable", name);
+        clerkCondition = new Condition("%s's clerk condition variable", name);
+        clerkLock = new Lock("%'s lock");
+        clerkType = type;
         
     }
+};
+
+
+struct Cashier {
+    
+    char * name;
+    int state;
+    int lineCount;
+    Condition * lineCondition;
+    Condition * cashierCondition;
+    Lock * cashierLock;
+    
+    Cashier(char * name)
+    {
+        this.name = name;
+        state = AVAILABLE;
+        lineCount=0;
+        lineCondition=new Condition("%s's line condition variable", name);
+        cashierCondition = new Condition("%s's condition variable", name);
+        cashierLock = new Lock("%s's lock", name);
+    }
+    
+};
+
+struct Manager {
+    
+    Manager(char * name)
+    {
+        
+    }
+    
+};
+
+struct Senator {
+    
+    Senator(char * name)
+    {
+        
+    }
+};
+
+
+//Possibly change array params to pointers
+void customerTransaction(Clerk clerk, Customer customer, Lock * lock) {
+    
+    printf("\n%s is about to perform a transaction \n",customer.name);
+    
+    lock->Acquire();
+    int myLine = -1;
+    int shortestLineSize = 10000; //change to the number of max customers
+    bool foundLine = false;
+    while(!foundLine) {
+        for(int i=0;i<5;i++)
+        {
+            if(lineCount[i]<shortestLineSize && clerk.state != ONBREAK)
+            {
+                myLine = i;
+                shortestLineSize = lineCount[i];
+                foundLine = true;
+            }
+            
+        }
+    }
+    
     if(clerkState[myLine] == BUSY)
     {
         lineCount[myLine]++;
-        clerkLineCV[myLine].Wait(&lock);
+        clerkLineCV[myLine]->Wait(lock);
         lineCount[myLine]--;
-    } else {
+    } else if (clerkState[myLine] == ONBREAK){
+        clerkLineCV[myLine]->Signal();
         clerkState[myLine] = BUSY;
     }
 
-    lock.Release();
+    lock->Release();
 }
 
 void customer(int socialSecurity) {
@@ -383,9 +465,12 @@ void customer(int socialSecurity) {
     srand (time(NULL));
     int randomNum = rand() % 2;
     
+    printf("The random number is: %d \n \n", randomNum);
+    
     // !!!! make sure that we do both (picture/application) and not just one or the other in the if/else
     if(randomNum == 0)
     {
+        printf("Going to Application Clerk first \n \n");
         // do application first
         customerTransaction(applicationLineCount, applicationClerkState, applicationClerkLineCV, applicationLock);
         // Then do picture
@@ -393,6 +478,7 @@ void customer(int socialSecurity) {
     }
     else // randomNum == 1
     {
+        printf("Going to Picture Clerk first \n \n");
         // Do picture first
         customerTransaction(pictureLineCount, pictureClerkState, pictureClerkLineCV, pictureLock);
         // Then do application
@@ -407,32 +493,34 @@ void customer(int socialSecurity) {
 }
 
 void applicationClerk(int myLine) {
+    
     while(true) {
-        applicationLock.Acquire();
+        applicationLock->Acquire();
         // TODO: Bribes
         if (applicationLineCount[myLine] > 0) {
-            applicationClerkLineCV[myLine].Signal(&applicationLock);
+            applicationClerkLineCV[myLine]->Signal(applicationLock);
             applicationClerkState[myLine] = BUSY;
         } else {
             applicationClerkState[myLine] = AVAILABLE;
         }
 
-        applicationClerkLock[myLine].Acquire();
-        applicationLock.Release();
+        applicationClerkLock[myLine]->Acquire();
+        applicationLock->Release();
 
         //Wait for customer data
-        applicationClerkCV[myLine].Wait(&applicationClerkLock[myLine]);
+        applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
 
         //Do my job - customer now waiting
-        applicationClerkCV[myLine].Signal(&applicationClerkLock[myLine]);
-        applicationClerkCV[myLine].Wait(&applicationClerkLock[myLine]);
-        applicationClerkLock[myLine].Release();
+        int randomNum = rand() % 80 + 20;
+        for(int i =0;i < randomNum;i++)
+        {
+            currentThread->Yield();
+        }
+        applicationClerkCV[myLine]->Signal(applicationClerkLock[myLine]);
+        applicationClerkCV[myLine]->Wait(applicationClerkLock[myLine]);
+        applicationClerkLock[myLine]->Release();
     }
-
-
 }
-
-
 
 // --------------------------------------------------
 // TestSuite()
@@ -535,44 +623,51 @@ void TestSuite() {
     t = new Thread("t5_t2");
     t->Fork((VoidFunctionPtr)t5_t2,0);
     
+    t5_done.P();
     //Part 2
     
-    printf(" \n \n \n \n \n starting part 2");
+    printf(" \n \n \n \n \n Starting Part 2 \n \n \n");
     
+    applicationLock = new Lock("Application Lock");
+    pictureLock = new Lock("Picture Lock");
+    passportLock = new Lock("Passport Lock");
+    cashierLock = new Lock("Cashier Lock");
+   
     
     for(int i = 0;i < 10; i++)
     {
-        t = new Thread("Customer");
+        name = new char [20];
+        sprintf(name,"Customer %d",i);
+        customers[i] = new Customer(name);
+        t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer, i+1);
     }
     
     for(int i = 0; i < 5; i ++)
     {
-        t = new Thread("Application Clerk");
+        name = new char [20];
+        sprintf(name,"Application Clerk %d",i);
+        applicationClerks[i] = new Clerk(name, APPLICATIONCLERK);
+        t = new Thread(name);
         t->Fork((VoidFunctionPtr)applicationClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Picture Clerk %d",i);
+        pictureClerks[i] = new Clerk(name, PICTURECLERK);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)pictureClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Passport Clerk %d",i);
+        passportClerks[i] = new Clerk(name, PASSPORTCLERK);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)passportClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Cashier %d",i);
+        cashiers[i] = new Cashier(name);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)cashier, i);
     }
-    
-    // for(int i = 0; i < 5; i ++)
-    // {
-    //     t = new Thread("Picture Clerk %d", i);
-    //     t->Fork((VoidFunctionPtr)pictureClerk, 0);
-    // }
-    
-    // for(int i = 0; i < 5; i ++)
-    // {
-    //     t = new Thread("Passport Clerk %d", i);
-    //     t->Fork((VoidFunctionPtr)passportClerk, 0);
-    // }
-    
-    // for(int i= 0;i<5;i++)
-    // {
-    //     t = new Thread("Cashier %d", i);
-    //     t->Fork((VoidFunctionPtr)cashier, 0);
-    // }
-    
-    
-    
-    
-    
 }
 #endif

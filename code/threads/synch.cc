@@ -110,6 +110,7 @@ Lock::Lock(char* debugName) {
     name = debugName;
     waitQueue = new List;
     isBusy = false;
+    owner = NULL;
 }
 
 Lock::~Lock() {
@@ -195,7 +196,6 @@ void Condition::Wait(Lock* conditionLock) {
     }
     if(waitingLock==NULL) {
     printf("Printing address of waitingLock, %d \n", waitingLock);
-    //if(waitingLock) {
         printf("Inside Wait, setting conditionLock equal to waitingLock (%s) \n", currentThread->getName());
         waitingLock = conditionLock;
         printf("1 \n");
@@ -228,8 +228,6 @@ void Condition::Wait(Lock* conditionLock) {
 void Condition::Signal(Lock* conditionLock) {
 
     IntStatus old = interrupt->SetLevel(IntOff);
-    //INVESTIGATE THIS (Why is NULL = true??)
-    //if(waitingLock) {
     if(waitingLock == NULL) {
         printf("Inside signal function and there is no waitingLock (%s) \n",currentThread->getName());
         (void) interrupt->SetLevel(old);
