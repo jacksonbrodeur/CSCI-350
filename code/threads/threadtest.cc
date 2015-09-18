@@ -369,8 +369,10 @@ struct Clerk {
     
     char * name;
     int lineCount;
+    int bribeLineCount;
     int state;
     Condition * lineCondition;
+    Condition * bribeLineCondition;
     Condition * clerkCondition;
     Lock * clerkLock;
     int clerkType;
@@ -380,22 +382,26 @@ struct Clerk {
     Clerk()
     {
         name=NULL;
-        lineCount=0;
+        lineCount = 0;
+        bribeLineCount = 0;
         state=0;
-        lineCondition=new Condition(name);
-        clerkCondition=new Condition(name);
-        clerkLock=new Lock(name);
-        clerkType=0;
-        customer=NULL;
-        money=0;
+        lineCondition= new Condition(name);
+        bribeLineCondition = new Condition(name);
+        clerkCondition = new Condition(name);
+        clerkLock = new Lock(name);
+        clerkType = 0;
+        customer = NULL;
+        money = 0;
     }
     
     Clerk(char * _name, int type)
     {
         name = _name;
         lineCount = 0;
+        bribeLineCount = 0;
         state = AVAILABLE;
         lineCondition = new Condition(name);
+        bribeLineCondition = new Condition(name);
         clerkCondition = new Condition(name);
         clerkLock = new Lock(name);
         clerkType = type;
@@ -474,11 +480,12 @@ void pictureClerk(int myLine) {
         printf("There are still customers so %s isn't finished yet \n\n", me->name);
         pictureClerkLock->Acquire();
         
-        //TODO: Bribes
         // If there is a customer in line signal him to the counter
-        
-        if(me->lineCount > 0) {
-            
+        if(me->bribeLineCount > 0) {
+        	printf("There are people in %s's bribe line \n \n", me->name);
+            me->bribeLineCondition->Signal(pictureClerkLock);
+            me->state = BUSY;
+        } else if(me->lineCount > 0) {
             printf("There are people in %s's line \n \n", me->name);
             me->lineCondition->Signal(pictureClerkLock);
             me->state = BUSY;
@@ -542,10 +549,12 @@ void applicationClerk(int myLine) {
         
         applicationClerkLock->Acquire();
         
-        //TODO: Bribes
         // If there is a customer in line signal him to the counter
-        
-        if(me->lineCount > 0) {
+         if(me->bribeLineCount > 0) {
+        	printf("There are people in %s's bribe line \n \n", me->name);
+            me->bribeLineCondition->Signal(applicationClerkLock);
+            me->state = BUSY;
+        } else if(me->lineCount > 0) {
             me->lineCondition->Signal(applicationClerkLock);
             me->state = BUSY;
             printf("%s has %d people in his line, signaling 1 of them to come to the counter \n\n", me->name, me->lineCount);
@@ -621,12 +630,10 @@ int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
     int shortestLineSize = 10000; //change to the number of max customers
     bool foundLine = false;
     while(!foundLine) {
-        for(int i=0;i<5;i++)
-        {
-            if(clerkToVisit[i]->lineCount<shortestLineSize && clerkToVisit[i]->state != ONBREAK)
-            {
+        for(int i=0;i<5;i++) {
+            if((clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
                 myLine = i;
-                shortestLineSize = clerkToVisit[i]->lineCount;
+                shortestLineSize = clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount;
                 foundLine = true;
             }
         }
@@ -635,7 +642,6 @@ int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
     printf("The shortest line found was line %d \n\n", myLine);
     
     if(clerkToVisit[myLine]->state == BUSY) {
-        
         printf("The clerk at line %d is busy so the customer is waiting \n\n",myLine);
         clerkToVisit[myLine]->lineCount++;
         clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
@@ -725,11 +731,12 @@ void passportClerk(int myLine) {
         
         passportClerkLock->Acquire();
         
-        //TODO: Bribes
         // If there is a customer in line signal him to the counter
-        
-        if(me->lineCount > 0) {
-            
+         if(me->bribeLineCount > 0) {
+        	printf("There are people in %s's bribe line \n \n", me->name);
+            me->bribeLineCondition->Signal(passportClerkLock);
+            me->state = BUSY;
+        } else if(me->lineCount > 0) {
             printf("%s has %d people in his line \n\n", me->name, me->lineCount);
             me->lineCondition->Signal(passportClerkLock);
             me->state = BUSY;
