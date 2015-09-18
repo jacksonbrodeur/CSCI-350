@@ -123,16 +123,16 @@ void Lock::Acquire() {
     IntStatus old = interrupt->SetLevel(IntOff);
     
     if (isHeldByCurrentThread()) {
-        printf("This lock is held by %s already \n", currentThread->getName());
+        //printf("This lock is held by %s already \n", currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
     if(owner == NULL) {
-        printf("The lock is available so %s is now the owner \n", currentThread->getName());
+        //printf("The lock is available so %s is now the owner \n", currentThread->getName());
         isBusy = true;
         owner = currentThread;
     } else {
-        printf("This lock is held by another thread already so we are adding %s to the waitQueue \n", currentThread->getName());
+        //printf("This lock is held by another thread already so we are adding %s to the waitQueue \n", currentThread->getName());
         //lock is busy
         waitQueue->Append((void *)currentThread);	// so go to sleep
         currentThread->Sleep();
@@ -145,7 +145,7 @@ void Lock::Release() {
 
     IntStatus old = interrupt->SetLevel(IntOff);
     if (!isHeldByCurrentThread()) {
-        printf("ERROR: The current thread is not the lock owner. (%s) \n", currentThread->getName());
+        //printf("ERROR: The current thread is not the lock owner. (%s) \n", currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
@@ -186,17 +186,17 @@ void Condition::Wait(Lock* conditionLock) {
     IntStatus old = interrupt->SetLevel(IntOff);
     if(conditionLock == NULL) {
         
-        printf("Error, conditionLock is NULL inside wait (%s) \n", currentThread->getName());
+        //printf("Error, conditionLock is NULL inside wait (%s) \n", currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
     if(waitingLock==NULL) {
-        printf("Inside Wait, setting conditionLock equal to waitingLock (%s) \n", currentThread->getName());
+        //printf("Inside Wait, setting conditionLock equal to waitingLock (%s) \n", currentThread->getName());
         waitingLock = conditionLock;
     }
     if(waitingLock != conditionLock) {
         
-        printf("Inside wait: waiting on different lock (%s) \n", currentThread->getName());
+        //printf("Inside wait: waiting on different lock (%s) \n", currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
@@ -211,13 +211,13 @@ void Condition::Signal(Lock* conditionLock) {
 
     IntStatus old = interrupt->SetLevel(IntOff);
     if(waitingLock == NULL) {
-        printf("Inside signal function and there is no waitingLock (%s) \n",currentThread->getName());
+        //printf("Inside signal function and there is no waitingLock (%s) \n",currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
     if(waitingLock != conditionLock) {
         
-        printf("ERROR Inside signal: Different lock than went to sleep with (%s) \n", currentThread->getName());
+        //printf("ERROR Inside signal: Different lock than went to sleep with (%s) \n", currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
@@ -237,13 +237,13 @@ void Condition::Broadcast(Lock* conditionLock) {
     IntStatus old = interrupt->SetLevel(IntOff);
     if(conditionLock==NULL){
         
-        printf("ERROR: Lock passed in was null (%s) \n", currentThread->getName());
+        //printf("ERROR: Lock passed in was null (%s) \n", currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
     if(conditionLock!=waitingLock){
         
-        printf("ERROR Broadcast: Different lock than went to sleep with (%s) \n", currentThread->getName());
+        //printf("ERROR Broadcast: Different lock than went to sleep with (%s) \n", currentThread->getName());
         (void) interrupt->SetLevel(old);
         return;
     }
