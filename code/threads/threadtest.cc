@@ -439,7 +439,7 @@ void pictureTransaction(Clerk * clerk, Customer * customer) {
     clerk->clerkLock->Acquire();
     clerk->customer = customer;
     
-    printf("%s has acquired the lock %s \n", clerk->customer->name, clerk->clerkLock->getName());
+    printf("%s has acquired the lock %s \n", customer->name, clerk->clerkLock->getName());
     
     // taking picture
     printf("%s is about to get their picture taken by clerk %s \n", customer->name, clerk->name);
@@ -557,6 +557,8 @@ void customer(int customerNumber) {
         
         pictureTransaction(pictureClerks[myLine], me);
         
+        printf("%s is going to the Application Clerk second \n", me->name);
+        
         myLine = getInShortestLine(applicationClerks, applicationClerkLock);
         
         applicationTransaction(applicationClerks[myLine], me);
@@ -567,6 +569,9 @@ void customer(int customerNumber) {
         
         int myLine = getInShortestLine(applicationClerks, applicationClerkLock);
         applicationTransaction(applicationClerks[myLine], me);
+        
+        printf("%s is going to the picture clerk second \n", me->name);
+        
         
         myLine = getInShortestLine(pictureClerks, pictureClerkLock);
         pictureTransaction(pictureClerks[myLine], me);
@@ -617,6 +622,7 @@ void pictureClerk(int myLine) {
             me->state = BUSY;
         } else {
             me->state = AVAILABLE;
+            
         }
 
         me->clerkLock->Acquire();
@@ -636,7 +642,7 @@ void pictureClerk(int myLine) {
         //Yield for random amount
 
         me->clerkCondition->Signal(me->clerkLock);
-        //All done with this bastard
+
         me->clerkLock->Release();
     }
 }
@@ -653,16 +659,18 @@ void applicationClerk(int myLine) {
         if(me->lineCount > 0) {
             me->lineCondition->Signal(applicationClerkLock);
             me->state = BUSY;
-            me->lineCondition->Wait(applicationClerkLock);
-            printf("%s has %s in line, telling him to come to the counter", me->name, me->customer->name);
+            printf("%s has someone in line, telling him to come to the counter", me->name);
         } else {
             //TODO: This code is illogical, needs to be put to sleep by manager
-            me->state = ONBREAK;
+            me->state = AVAILABLE;
             printf("%s has no one in line, going on break", me->name);
         }
 
         me->clerkLock->Acquire();
         applicationClerkLock->Release();
+        
+        // waiting for customer to pass data
+        me->clerkCondition->Wait(me->clerkLock);
 
         //Do your job, accept application
         
@@ -673,7 +681,7 @@ void applicationClerk(int myLine) {
         
         me->customer->applicationFiled = true;
 
-        printf("%s has just finished filing %'s application", me->name, me->customer->name);
+        printf("%s has just finished filing %'s application \n", me->name, me->customer->name);
         me->clerkCondition->Signal(me->clerkLock);
         me->clerkLock->Release();
     }    
