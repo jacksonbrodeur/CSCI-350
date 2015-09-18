@@ -435,7 +435,9 @@ Clerk * applicationClerks[5];
 Clerk * passportClerks[5];
 Clerk * cashiers[5];
 
+//the customer thread is running inside this method
 void pictureTransaction(Clerk * clerk, Customer * customer) {
+    
     clerk->clerkLock->Acquire();
     clerk->customer = customer;
     
@@ -447,6 +449,7 @@ void pictureTransaction(Clerk * clerk, Customer * customer) {
     
     while(!clerk->customer->pictureTaken) {
         
+        clerk->clerkCondition->Wait(clerk->clerkLock);
         if((rand() % 10) == 0) { // they don't like it
             
             printf("%s got their picture taken by %s but didn't like it \n", customer->name, clerk->name);
@@ -459,12 +462,52 @@ void pictureTransaction(Clerk * clerk, Customer * customer) {
         }
     }
     
-    
-    // clerk is filing the photo
-    clerk->clerkCondition->Wait(clerk->clerkLock);
-    // application transaction done
     clerk->clerkLock->Release();
 }
+
+void pictureClerk(int myLine) {
+    Clerk * me = pictureClerks[myLine];
+    while(customersFinished < NUM_CUSTOMERS) {
+        pictureClerkLock->Acquire();
+        //TODO: Bribes
+        
+        // If there is a customer in line
+        // signal him to the counter
+        if(me->lineCount > 0) {
+            me->lineCondition->Signal(pictureClerkLock);
+            me->state = BUSY;
+        } else {
+            me->state = AVAILABLE;
+            
+        }
+        
+        me->clerkLock->Acquire();
+        pictureClerkLock->Release();
+        
+        //Wait for customer data
+        me->clerkCondition->Wait(me->clerkLock);
+        
+        //Do your job, take the picture
+        while(!me->customer->pictureTaken) {
+            //Take the damn customer's picture
+            me->clerkCondition->Signal(me->clerkLock);
+            //Accept the freaking picture, customer
+            me->clerkCondition->Wait(me->clerkLock);
+        }
+        
+        //Yield for random amount
+        for(int i = 0; i < rand()%80+20;i++)
+        {
+            currentThread->Yield();
+        }
+        
+        me->customer->pictureFiled=true;
+        
+        me->clerkCondition->Signal(me->clerkLock);
+        me->clerkLock->Release();
+    }
+}
+
 
 void applicationTransaction(Clerk * clerk, Customer * customer) {
     
@@ -480,10 +523,51 @@ void applicationTransaction(Clerk * clerk, Customer * customer) {
     clerk->clerkCondition->Wait(clerk->clerkLock);
     // application transaction done
     
-    customer->applicationFiled = true;
     printf("%s has just gotten his application filed by %s \n",customer->name, clerk->name);
     
     clerk->clerkLock->Release();
+}
+
+void applicationClerk(int myLine) {
+    Clerk * me = applicationClerks[myLine];
+    while(customersFinished < NUM_CUSTOMERS) {
+        
+        applicationClerkLock->Acquire();
+        //TODO: Bribes
+        
+        // If there is a customer in line
+        // signal him to the counter
+        if(me->lineCount > 0) {
+            me->lineCondition->Signal(applicationClerkLock);
+            me->state = BUSY;
+            printf("%s has someone in line, telling him to come to the counter", me->name);
+        } else {
+            //TODO: This code is illogical, needs to be put to sleep by manager
+            me->state = AVAILABLE;
+            printf("%s has no one in line, going on break", me->name);
+        }
+        
+        me->clerkLock->Acquire();
+        applicationClerkLock->Release();
+        
+        //Waiting for customer to pass data
+        me->clerkCondition->Wait(me->clerkLock);
+        
+        //Clerk files the application here
+        for(int i =0;i<rand() % 80 + 20;i++)
+        {
+            currentThread->Yield();
+        }
+        me->customer->applicationFiled = true;
+        
+        printf("%s has just finished filing %'s application \n", me->name, me->customer->name);
+        me->clerkCondition->Signal(me->clerkLock);
+        
+        //adding this based on Crowley's code
+        me->clerkCondition->Wait(me->clerkLock);
+        
+        me->clerkLock->Release();
+    }    
 }
 
 void passportTransaction(Clerk * clerk, Customer * customer) {
@@ -535,10 +619,14 @@ int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
         }
     }
 
-    clerkToVisit[myLine]->lineCount++;
-    clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
-    clerkToVisit[myLine]->lineCount--;
+    if(clerkToVisit[myLine]->state == BUSY) {
+        
+        clerkToVisit[myLine]->lineCount++;
+        clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
+        clerkToVisit[myLine]->lineCount--;
+    }
     
+    clerkToVisit[myLine]->state = BUSY;
     clerkLock->Release();
     return myLine;
 }
@@ -582,6 +670,8 @@ void customer(int customerNumber) {
         int myLine = getInShortestLine(passportClerks, passportClerkLock);
         if(!me->pictureFiled || !me->applicationFiled) {
        
+            
+            printf("%s attempted got to the passport clerk before his photo/app was filed!", me->name);
             passportClerks[myLine]->state = AVAILABLE;
             for(int i = 0; i < rand() % 900 + 100; i++) {
                 currentThread->Yield();
@@ -607,84 +697,6 @@ void customer(int customerNumber) {
    
     customersFinished++;
     printf("Just finished %s, incrementing the count to %d \n", me->name, customersFinished);
-}
-
-void pictureClerk(int myLine) {
-    Clerk * me = pictureClerks[myLine];
-    while(customersFinished < NUM_CUSTOMERS) {
-        pictureClerkLock->Acquire();
-        //TODO: Bribes
-
-        // If there is a customer in line 
-        // signal him to the counter
-        if(me->lineCount > 0) {
-            me->lineCondition->Signal(pictureClerkLock);
-            me->state = BUSY;
-        } else {
-            me->state = AVAILABLE;
-            
-        }
-
-        me->clerkLock->Acquire();
-        pictureClerkLock->Release();
-
-        //Wait for customer data
-        me->clerkCondition->Wait(me->clerkLock);
-
-        //Do your job, take the picture
-        while(!me->customer->pictureTaken) {
-            //Take the damn customer's picture
-            me->clerkCondition->Signal(me->clerkLock);
-            //Accept the freaking picture, customer
-            me->clerkCondition->Wait(me->clerkLock);
-        }
-
-        //Yield for random amount
-
-        me->clerkCondition->Signal(me->clerkLock);
-
-        me->clerkLock->Release();
-    }
-}
-
-void applicationClerk(int myLine) {
-    Clerk * me = applicationClerks[myLine];
-    while(customersFinished < NUM_CUSTOMERS) {
-        
-        applicationClerkLock->Acquire();
-        //TODO: Bribes
-
-        // If there is a customer in line 
-        // signal him to the counter
-        if(me->lineCount > 0) {
-            me->lineCondition->Signal(applicationClerkLock);
-            me->state = BUSY;
-            printf("%s has someone in line, telling him to come to the counter", me->name);
-        } else {
-            //TODO: This code is illogical, needs to be put to sleep by manager
-            me->state = AVAILABLE;
-            printf("%s has no one in line, going on break", me->name);
-        }
-
-        me->clerkLock->Acquire();
-        applicationClerkLock->Release();
-        
-        // waiting for customer to pass data
-        me->clerkCondition->Wait(me->clerkLock);
-
-        //Do your job, accept application
-        
-        for(int i =0;i<rand() % 80 + 20;i++)
-        {
-        	currentThread->Yield();
-        }
-        
-        me->customer->applicationFiled = true;
-
-        printf("%s has just finished filing %'s application \n", me->name, me->customer->name);
-        me->clerkCondition->Signal(me->clerkLock);
-        me->clerkLock->Release();
-    }    
 }
 
 void passportClerk(int myLine) {
@@ -917,7 +929,7 @@ void TestSuite() {
     
     //Part 2
     
-    printf(" \n \n \n \n \n Starting Part 2 \n \n \n");
+    printf("\n \n \n Starting Part 2 \n \n \n");
     
     pictureClerkLock = new Lock("Picture Lock");
     applicationClerkLock = new Lock("Application Lock");
@@ -928,15 +940,6 @@ void TestSuite() {
     applicationRevenue = 0.00;
     passportRevenue = 0.00;
     cashierRevenue = 0.00;
-    
-    for( i = 0;i < NUM_CUSTOMERS; i++)
-    {
-        name = new char [20];
-        sprintf(name,"Customer %d", i);
-        customers[i] = new Customer(name);
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)customer, i);
-    }
     
     for( i = 0; i < 5; i ++)
     {
@@ -964,6 +967,15 @@ void TestSuite() {
         cashiers[i] = new Clerk(name, CASHIER);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)cashier, i);
+    }
+    
+    for( i = 0;i < NUM_CUSTOMERS; i++)
+    {
+        name = new char [20];
+        sprintf(name,"Customer %d", i);
+        customers[i] = new Customer(name);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)customer, i);
     }
 }
 #endif
