@@ -339,16 +339,17 @@ Semaphore * senatorSemaphore;
 Lock * senatorLock;
 Condition * senatorCondition;
 
-float pictureRevenue;
-float applicationRevenue;
-float passportRevenue;
-float cashierRevenue;
+int pictureRevenue;
+int applicationRevenue;
+int passportRevenue;
+int cashierRevenue;
+int totalCustomerMoney;
 
 static const int NUM_CUSTOMERS = 5;
 static const int NUM_SENATORS = 0;
 int customersFinished=0;
 
-bool senatorHere=true;
+bool senatorHere=false;
 
 struct Customer {
     
@@ -373,7 +374,7 @@ struct Customer {
         passportGiven = false;
         passportCertified = false;
         money = 100 + (rand() % 4)*500;
-        
+        totalCustomerMoney += money;
         
         isSenator = senator;
     }
@@ -639,7 +640,7 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkL
     bool foundLine = false;
     bool bribed = false;
     while(!foundLine) {
-        if (customer->money >= 600) { // because you need 500 to bribe and 100 to pay cashier
+        if (customer->money >= 600 && clerkToVisit[0]->clerkType != CASHIER) { // because you need 500 to bribe and 100 to pay cashier
         	printf("%s has $%d money and is entering %s bribe line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
         	for(int i=0;i<5;i++) {
         		if((clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
@@ -666,7 +667,6 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkL
     if(clerkToVisit[myLine]->state == BUSY) {
 
     	if (bribed) {
-    		customer->money -= 500;
     		printf("The clerk at line %d is busy so the customer is waiting \n\n",myLine);
         	clerkToVisit[myLine]->bribeLineCount++;
         	clerkToVisit[myLine]->bribeLineCondition->Wait(clerkLock);
@@ -695,6 +695,25 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkL
         	clerkToVisit[myLine]->lineCount--;
     	}
     	
+    }
+
+    if (bribed) {
+    		customer->money -= 500;
+
+    		printf("%s had $%d but he bribed %s so he now has %d \n\n", customer->name, customer->money+500,clerkToVisit[myLine]->name, customer->money);
+
+    		if(clerkToVisit[myLine]->clerkType == PICTURECLERK) {
+    			pictureRevenue+=500;
+    		}
+    		else if(clerkToVisit[myLine]->clerkType == APPLICATIONCLERK) {
+    			applicationRevenue+=500;
+    		}
+    		else if(clerkToVisit[myLine]->clerkType == PASSPORTCLERK) {
+    			passportRevenue+=500;
+    		}
+    		else if(clerkToVisit[myLine]->clerkType == CASHIER) {
+    			cashierRevenue+=500;
+    		}
     }
     
     clerkToVisit[myLine]->state = BUSY;
@@ -751,19 +770,14 @@ void customer(int customerNumber) {
 
     printf("%s has reached the passport clerk, attempting to certify his passport now \n\n", me->name);
     while(!me->passportCertified) {
-        
-        int myLine = getInShortestLine(me, passportClerks, passportClerkLock);
-        passportTransaction(passportClerks[myLine], me);
-        
+                
         if(!me->pictureFiled || !me->applicationFiled) {
-       
-            
             printf("%s attempted got to the passport clerk before his photo/app was filed! \n\n", me->name);
-            passportClerks[myLine]->state = AVAILABLE;
             for(int i = 0; i < rand() % 900 + 100; i++) {
                 currentThread->Yield();
             }
         } else {
+			int myLine = getInShortestLine(me, passportClerks, passportClerkLock);
             passportTransaction(passportClerks[myLine], me);
         }
     }
@@ -771,7 +785,7 @@ void customer(int customerNumber) {
     printf("%s has gotten his passport certified, attempting to pay now \n\n", me->name);
     while(!me->cashierPaid) {
         int myLine = getInShortestLine(me, cashiers, cashierLock);
-        if(!me->passportFiled) {
+        if(!me->passportCertified) {
 
             cashiers[myLine]->state = AVAILABLE;
             for(int i = 0; i < rand() % 900 + 100; i++) {
@@ -796,7 +810,7 @@ void passportClerk(int myLine) {
     Clerk * me = passportClerks[myLine];
     
     while(customersFinished < NUM_CUSTOMERS) {
-        
+        printf("%s has %d in his bribe line and %d in reg line \n\n", me->name, me->bribeLineCount, me->lineCount);
         passportClerkLock->Acquire();
         
         // If there is a customer in line signal him to the counter
@@ -820,11 +834,12 @@ void passportClerk(int myLine) {
         printf("%s is waiting for customer data \n\n", me->name);
         me->clerkCondition->Wait(me->clerkLock);
 
+        printf("%s is about to certify %s 's passport\n\n", me->name, me->customer->name);
         for(int i = 0; i < rand()% 80 + 20; i++) {
             currentThread->Yield();
         }
         me->customer->passportCertified = true;
-        
+        printf("%s has certified %s 's passport and is signalling him now\n\n", me->name, me->customer->name);
         me->clerkCondition->Signal(me->clerkLock);
         
         //adding this based on Crowley's code
@@ -954,11 +969,12 @@ void manager() {
         
         printf("Manager will print the revenue now: \n\n\n");
         
-        printf("Revenue generated from picture clerks: %f \n\n", pictureRevenue);
-        printf("Revenue generated from application clerks: %f \n\n", applicationRevenue);
-        printf("Revenue generated from passport clerks: %f \n\n", passportRevenue);
-        printf("Revenue generated from cashiers: %f \n\n", cashierRevenue);
-        printf("Total revenue generated: %f \n\n", (pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue));
+        printf("Revenue generated from picture clerks: %d \n\n", pictureRevenue);
+        printf("Revenue generated from application clerks: %d \n\n", applicationRevenue);
+        printf("Revenue generated from passport clerks: %d \n\n", passportRevenue);
+        printf("Revenue generated from cashiers: %d \n\n", cashierRevenue);
+        printf("Total revenue generated: %d \n\n", (pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue));
+        printf("Total money walking in the door: %d \n\n", totalCustomerMoney);
     }
 }
 
@@ -1082,10 +1098,11 @@ void TestSuite() {
     senatorLock = new Lock("Senator Lock");
     senatorCondition = new Condition("Senator Condition");
    
-    pictureRevenue = 0.00;
-    applicationRevenue = 0.00;
-    passportRevenue = 0.00;
-    cashierRevenue = 0.00;
+    pictureRevenue = 0;
+    applicationRevenue = 0;
+    passportRevenue = 0;
+    cashierRevenue = 0;
+    totalCustomerMoney = 0;
     
     clerkManager = new Manager("Manager 0");
     t = new Thread("Manager 0");
