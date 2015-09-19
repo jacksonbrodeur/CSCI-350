@@ -351,7 +351,7 @@ struct Customer {
     bool pictureFiled;
     bool passportFiled;
     bool cashierPaid;
-    float money;
+    int money;
     
     Customer(char * _name)
     {
@@ -623,29 +623,53 @@ void cashierTransaction(Clerk * clerk, Customer * customer) {
     clerk->clerkLock->Release();
 }
 
-int getInShortestLine(Clerk * clerkToVisit[], Lock * clerkLock) {
+int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkLock) {
 
     clerkLock->Acquire();
     int myLine = -1;
     int shortestLineSize = 10000; //change to the number of max customers
     bool foundLine = false;
+    bool bribed = false;
     while(!foundLine) {
-        for(int i=0;i<5;i++) {
-            if((clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
-                myLine = i;
-                shortestLineSize = clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount;
-                foundLine = true;
+        if (customer->money >= 600) { // because you need 500 to bribe and 100 to pay cashier
+        	printf("%s has $%d money and is entering %s bribe line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
+        	for(int i=0;i<5;i++) {
+        		if((clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
+            	   	myLine = i;
+                	shortestLineSize = clerkToVisit[i]->bribeLineCount;
+                	foundLine = true;
+                	bribed = true;
+            	}
             }
+        } else {
+        	printf("%s has $%d money and is entering %s regular line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
+        	for(int i=0;i<5;i++) {
+           		if((clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
+               	myLine = i;
+               	shortestLineSize = clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount;
+               	foundLine = true;
+           		}
+        	}
         }
     }
     
     printf("The shortest line found was line %d \n\n", myLine);
     
     if(clerkToVisit[myLine]->state == BUSY) {
-        printf("The clerk at line %d is busy so the customer is waiting \n\n",myLine);
-        clerkToVisit[myLine]->lineCount++;
-        clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
-        clerkToVisit[myLine]->lineCount--;
+    	if (bribed) {
+    		customer->money -= 500;
+    		printf("The clerk at line %d is busy so the customer is waiting \n\n",myLine);
+        	clerkToVisit[myLine]->bribeLineCount++;
+        	clerkToVisit[myLine]->bribeLineCondition->Wait(clerkLock);
+        	clerkToVisit[myLine]->bribeLineCount--;
+    	} else {
+    		// getting in regular line
+        	printf("The clerk at line %d is busy so the customer is waiting \n\n",myLine);
+        	clerkToVisit[myLine]->lineCount++;
+        	clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
+        	clerkToVisit[myLine]->lineCount--;
+    	}
+    	
     }
     
     clerkToVisit[myLine]->state = BUSY;
@@ -665,13 +689,13 @@ void customer(int customerNumber) {
     if(randomNum == 0)
     {
         printf("Going to Picture Clerk first \n \n");
-        int myLine = getInShortestLine(pictureClerks, pictureClerkLock);
+        int myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
         
         pictureTransaction(pictureClerks[myLine], me);
         
         printf("%s is going to the Application Clerk second \n \n", me->name);
         
-        myLine = getInShortestLine(applicationClerks, applicationClerkLock);
+        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
         
         applicationTransaction(applicationClerks[myLine], me);
     }
@@ -679,20 +703,20 @@ void customer(int customerNumber) {
     {
         printf("%s is going to the Application Clerk first \n \n", me->name);
         
-        int myLine = getInShortestLine(applicationClerks, applicationClerkLock);
+        int myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
         applicationTransaction(applicationClerks[myLine], me);
         
         printf("%s is going to the picture clerk second \n \n", me->name);
         
         
-        myLine = getInShortestLine(pictureClerks, pictureClerkLock);
+        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
         pictureTransaction(pictureClerks[myLine], me);
     }
 
     printf("%s has reached the passport clerk, attempting to file his passport now \n \n", me->name);
     while(!me->passportFiled) {
         
-        int myLine = getInShortestLine(passportClerks, passportClerkLock);
+        int myLine = getInShortestLine(me, passportClerks, passportClerkLock);
         passportTransaction(passportClerks[myLine], me);
         
         if(!me->pictureFiled || !me->applicationFiled) {
@@ -710,7 +734,7 @@ void customer(int customerNumber) {
     
     printf("%s has gotten his passport filed, attempting to pay now \n \n", me->name);
     while(!me->cashierPaid) {
-        int myLine = getInShortestLine(cashiers, cashierLock);
+        int myLine = getInShortestLine(me, cashiers, cashierLock);
         if(!me->passportFiled) {
 
             cashiers[myLine]->state = AVAILABLE;
