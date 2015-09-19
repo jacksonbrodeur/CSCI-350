@@ -343,7 +343,8 @@ static const int NUM_CUSTOMERS = 5;
 static const int NUM_SENATORS = 0;
 static const int NUM_CLERKS = 5;
 int customersFinished = 0;
-int totalCustomerMoney = 0;
+
+
 
 bool senatorHere = false;
 
@@ -357,6 +358,7 @@ struct Customer {
     bool passportGiven;
     bool cashierPaid;
     int money;
+    static int totalCustomerMoney;
     
     bool isSenator;
     
@@ -370,11 +372,13 @@ struct Customer {
         passportGiven = false;
         passportCertified = false;
         money = 100 + (rand() % 4)*500;
-        totalCustomerMoney += money;
+        Customer::totalCustomerMoney += money;
         
         isSenator = senator;
     }
 };
+
+int Customer::totalCustomerMoney = 0;
 
 struct Clerk {
     
@@ -970,7 +974,7 @@ void manager() {
         printf("Revenue generated from passport clerks: %d \n\n", passportRevenue);
         printf("Revenue generated from cashiers: %d \n\n", cashierRevenue);
         printf("Total revenue generated: %d \n\n", (pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue));
-        printf("Total money walking in the door: %d \n\n", totalCustomerMoney);
+        printf("Total money walking in the door: %d \n\n", Customer::totalCustomerMoney);
     }
 }
 
@@ -1097,7 +1101,7 @@ void TestSuite() {
     clerkManager = new Manager("Manager 0");
     t = new Thread("Manager 0");
     t->Fork((VoidFunctionPtr)manager, 0);
-    
+
     for( i = 0; i < NUM_CLERKS; i ++)
     {
         name = new char [20];
