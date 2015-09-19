@@ -339,17 +339,13 @@ Semaphore * senatorSemaphore;
 Lock * senatorLock;
 Condition * senatorCondition;
 
-int pictureRevenue;
-int applicationRevenue;
-int passportRevenue;
-int cashierRevenue;
-int totalCustomerMoney;
-
 static const int NUM_CUSTOMERS = 5;
 static const int NUM_SENATORS = 0;
-int customersFinished=0;
+static const int NUM_CLERKS = 5;
+int customersFinished = 0;
+int totalCustomerMoney = 0;
 
-bool senatorHere=false;
+bool senatorHere = false;
 
 struct Customer {
     
@@ -437,10 +433,10 @@ struct Manager {
 };
 
 Customer * customers[NUM_CUSTOMERS + NUM_SENATORS];
-Clerk * pictureClerks[5];
-Clerk * applicationClerks[5];
-Clerk * passportClerks[5];
-Clerk * cashiers[5];
+Clerk * pictureClerks[NUM_CLERKS];
+Clerk * applicationClerks[NUM_CLERKS];
+Clerk * passportClerks[NUM_CLERKS];
+Clerk * cashiers[NUM_CLERKS];
 
 
 Manager * clerkManager;
@@ -642,7 +638,7 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkL
     while(!foundLine) {
         if (customer->money >= 600 && clerkToVisit[0]->clerkType != CASHIER) { // because you need 500 to bribe and 100 to pay cashier
         	printf("%s has $%d money and is entering %s bribe line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
-        	for(int i=0;i<5;i++) {
+        	for(int i = 0; i < NUM_CLERKS; i++) {
         		if((clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
             	   	myLine = i;
                 	shortestLineSize = clerkToVisit[i]->bribeLineCount;
@@ -652,7 +648,7 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkL
             }
         } else {
         	printf("%s has $%d money and is entering %s regular line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
-        	for(int i=0;i<5;i++) {
+        	for(int i = 0; i < NUM_CLERKS; i++) {
            		if((clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
                	myLine = i;
                	shortestLineSize = clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount;
@@ -702,18 +698,7 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkL
 
     		printf("%s had $%d but he bribed %s so he now has %d \n\n", customer->name, customer->money+500,clerkToVisit[myLine]->name, customer->money);
 
-    		if(clerkToVisit[myLine]->clerkType == PICTURECLERK) {
-    			pictureRevenue+=500;
-    		}
-    		else if(clerkToVisit[myLine]->clerkType == APPLICATIONCLERK) {
-    			applicationRevenue+=500;
-    		}
-    		else if(clerkToVisit[myLine]->clerkType == PASSPORTCLERK) {
-    			passportRevenue+=500;
-    		}
-    		else if(clerkToVisit[myLine]->clerkType == CASHIER) {
-    			cashierRevenue+=500;
-    		}
+    		clerkToVisit[myLine]->money += 500;
     }
     
     clerkToVisit[myLine]->state = BUSY;
@@ -879,8 +864,6 @@ void cashier (int myLine) {
     	// taking payment
     	me->customer->money -= 100;
     	me->money += 100;
-        
-        cashierRevenue+=100;
 
         printf("%s just received payment from %s \n\n", me->name, me->customer->name);
         
@@ -907,7 +890,7 @@ void manager() {
         bool signalPassportClerk=false;
         bool signalCashier=false;
         
-        for(int i = 0;i< 5;i ++)
+        for(int i = 0; i< NUM_CLERKS;i ++)
         {
             if(pictureClerks[i]->lineCount>=3)
                 signalPictureClerk=true;
@@ -919,7 +902,7 @@ void manager() {
                 signalCashier=true;
         }
         
-        for(int i =0;i<5;i++)
+        for(int i = 0; i < NUM_CLERKS; i++)
         {
             if(signalPictureClerk && pictureClerks[i]->state == ONBREAK)
             {
@@ -968,6 +951,19 @@ void manager() {
         }
         
         printf("Manager will print the revenue now: \n\n\n");
+
+        int pictureRevenue = 0;
+        int applicationRevenue = 0;
+        int passportRevenue = 0;
+        int cashierRevenue = 0;
+
+        for (int i = 0; i < NUM_CLERKS; i++)
+        {
+        	pictureRevenue += pictureClerks[i]->money;
+        	applicationRevenue += applicationClerks[i]->money;
+        	passportRevenue += passportClerks[i]->money;
+        	cashierRevenue += cashiers[i]->money;  		
+        }
         
         printf("Revenue generated from picture clerks: %d \n\n", pictureRevenue);
         printf("Revenue generated from application clerks: %d \n\n", applicationRevenue);
@@ -1098,17 +1094,11 @@ void TestSuite() {
     senatorLock = new Lock("Senator Lock");
     senatorCondition = new Condition("Senator Condition");
    
-    pictureRevenue = 0;
-    applicationRevenue = 0;
-    passportRevenue = 0;
-    cashierRevenue = 0;
-    totalCustomerMoney = 0;
-    
     clerkManager = new Manager("Manager 0");
     t = new Thread("Manager 0");
     t->Fork((VoidFunctionPtr)manager, 0);
     
-    for( i = 0; i < 5; i ++)
+    for( i = 0; i < NUM_CLERKS; i ++)
     {
         name = new char [20];
         sprintf(name,"Picture Clerk %d",i);
