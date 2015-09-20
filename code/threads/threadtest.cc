@@ -18,6 +18,9 @@
 #include "system.h"
 #ifdef CHANGED
 #include "synch.h"
+#include <iostream>
+#include <string>
+#include <vector>
 #endif
 
 #ifdef CHANGED
@@ -339,9 +342,9 @@ Semaphore * senatorSemaphore;
 Lock * senatorLock;
 Condition * senatorCondition;
 
-static const int NUM_CUSTOMERS = 5;
-static const int NUM_SENATORS = 1;
-static const int NUM_CLERKS = 5;
+int NUM_CUSTOMERS;
+int NUM_SENATORS;
+int NUM_CLERKS;
 int customersFinished = 0;
 
 bool senatorHere = false;
@@ -437,11 +440,11 @@ struct Manager {
     
 };
 
-Customer * customers[NUM_CUSTOMERS + NUM_SENATORS];
-Clerk * pictureClerks[NUM_CLERKS];
-Clerk * applicationClerks[NUM_CLERKS];
-Clerk * passportClerks[NUM_CLERKS];
-Clerk * cashiers[NUM_CLERKS];
+std::vector<Customer*> customers;
+std::vector<Clerk*> pictureClerks;
+std::vector<Clerk*> applicationClerks;
+std::vector<Clerk*> passportClerks;
+std::vector<Clerk*> cashiers;
 
 
 Manager * clerkManager;
@@ -634,7 +637,7 @@ void cashierTransaction(Clerk * clerk, Customer * customer) {
     clerk->clerkLock->Release();
 }
 
-int getInShortestLine(Customer * customer, Clerk * clerkToVisit[], Lock * clerkLock) {
+int getInShortestLine(Customer * customer, std::vector<Clerk*> clerkToVisit, Lock * clerkLock) {
 
     clerkLock->Acquire();
     int myLine = -1;
@@ -1006,11 +1009,79 @@ void manager() {
 //
 //     Fatal errors terminate the thread in question.
 // --------------------------------------------------
+int isValidNumber(char* number, int limit) {
+	int num;
+	try 
+	{
+		num = atoi(number);
+		if (num < 1 || num > limit) {
+			num = -1;
+		}
+	} catch (int e) {
+		num = -1;
+	}
+	return num;
+}
+
 void TestSuite() {
     Thread *t;
     char *name;
     int i;
-    
+
+    bool valid = false;
+    while (!valid) 
+    {
+    	char* z = new char[20];
+  		std::cout << "Please enter the number of customers (1-50): ";
+  		std::cin >> z;	
+
+  		int num_cust = isValidNumber(z, 50);
+
+    	if (num_cust != -1){
+    		valid = true;
+    		NUM_CUSTOMERS = num_cust;
+    	} else {
+    		printf("That was an invalid number. \n");
+    	}
+    }
+
+    valid = false;
+    while (!valid) 
+    {
+    	char* z = new char[20];
+  		std::cout << "Please enter the number of clerks and cashiers (1-5): ";
+  		std::cin >> z;	
+
+  		int num_clerk = isValidNumber(z, 5);
+
+    	if (num_clerk != -1){
+    		valid = true;
+    		NUM_CLERKS = num_clerk;
+    	} else {
+    		printf("That was an invalid number. \n");
+    	}
+    }
+
+    valid = false;
+    while (!valid) 
+    {
+    	char* z = new char[20];
+  		std::cout << "Please enter the number of senators (1-10): ";
+  		std::cin >> z;	
+
+  		int num_sen = isValidNumber(z, 10);
+
+    	if (num_sen != -1){
+    		valid = true;
+    		NUM_SENATORS = num_sen;
+    	} else {
+    		printf("That was an invalid number. \n");
+    	}
+    }
+
+
+
+ 	    
     /*
     // Test 1
     
@@ -1114,26 +1185,26 @@ void TestSuite() {
     {
         name = new char [20];
         sprintf(name,"Picture Clerk %d",i);
-        pictureClerks[i] = new Clerk(name, PICTURECLERK);
+        pictureClerks.push_back(new Clerk(name, PICTURECLERK));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)pictureClerk, i);
         
         name = new char [20];
         sprintf(name,"Application Clerk %d",i);
-        applicationClerks[i] = new Clerk(name, APPLICATIONCLERK);
+        applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)applicationClerk, i);
 
         
         name = new char [20];
         sprintf(name,"Passport Clerk %d",i);
-        passportClerks[i] = new Clerk(name, PASSPORTCLERK);
+        passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)passportClerk, i);
         
         name = new char [20];
         sprintf(name,"Cashier %d",i);
-        cashiers[i] = new Clerk(name, CASHIER);
+        cashiers.push_back(new Clerk(name, CASHIER));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)cashier, i);
     }
@@ -1142,7 +1213,7 @@ void TestSuite() {
     {
         name = new char [20];
         sprintf(name,"Customer %d", i);
-        customers[i] = new Customer(name, false);
+        customers.push_back(new Customer(name, false));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer, i);
     }
@@ -1151,7 +1222,7 @@ void TestSuite() {
     {
         name = new char [20];
         sprintf(name,"Senator %d", i);
-        customers[NUM_CUSTOMERS+i]=new Customer(name,true);
+        customers.push_back(new Customer(name,true));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer,NUM_CUSTOMERS + i);
     }
