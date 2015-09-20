@@ -1,0 +1,115 @@
+Title: Writeup for Project 1, Fall 2015
+Date: 09/20/15
+Group:  Jackson Brodeur     jbrodeur@usc.edu
+        Dylan Davis         dylandav@usc.edu
+        Matthew O'Brien     obrienm@usc.edu
+
+I. Requirements
+
+    Part 1
+        Implement locks and condition variables. To do this we implement the
+        provided methods in the Lock class nad Condition class. The methods to be implemented are as follows:
+            Lock
+                - Lock(char* debugName)
+                - ~Lock()
+                - Acquire()
+                - Release()
+                    [Note: only the thread that acquired the lock should be 
+                    able to release it]
+                - IsHeldByCurrentThread()
+
+            Condition
+                - Condition(char* debugName)
+                - ~Condition()
+                - Wait(Lock* conditionLock)
+                - Signal(Lock* conditionLock)
+                    [Note: Signal should be implemented with Mesa semantics 
+                    where the signalled thread is added to the ready queue]
+                - Broadcast(Lock* conditionLock)
+
+        In addition to implementing these methods, the necessary member 
+        variables will need to be added to these classes.
+
+    Part 2
+        Simulate the operation of a passport office. The following entities 
+        must be implemented and fulfill the given requirements:
+
+            - Customer
+                A Customer must get their application accepted by an ApplicationClerk, get their picture taken by a PictureClerk (there is a chance they don't like their picture), get their filed application and picture recognized by a PassportClerk, and finally pay a Cashier once their documentation is approved by a PassportClerk
+
+                A Customer can go to either an ApplicationClerk first or a PictureClerk first, which is chosen at random. 
+
+                A Customer always chooses the shortest line to get into.
+
+                A Customer will have one of the following amounts of money, to be randomly determined: $100, $600, $1100, $1600.
+
+                A Customer needs $100 to pay the cashier for his passport and can use the rest of his money to bribe the clerks/cashier to move to the front of his line. It costs $500 to bribe a clerk/cashier however a customer will not move in front of other customers who have also bribed the clerk/cashier.
+
+            - ApplicationClerk
+                An ApplicationClerk receives a completed application from a Customer and 'records' that it has been completed. There is a random delay from when the Customer's application has been accepted and when it is 'filed'. An ApplicationClerk will go on break if there is no one in his line.
+
+            - PictureClerk
+                A PictureClerk takes the picture of a Customer. There is a random chance that the Customer will not like their picture and it needs to be retaken. Once the picture is accepted by the Customer, the PictureClerk 'files' it. There is a random delay from when the picture is accepted to when it is 'filed'. A PictureClerk will go on break if there is no one in his line.
+
+            - PassportClerk
+                A PassportClerk will 'certify' a Customer only if that Customer's application and picture have been 'filed'. There is a random delay from when a Customer is 'certified' and when it is 'recorded' by the PassportClerk. If the Customer arrives prior to these two items being 'filed' then the customer is penalized a random amount of time before being sent to the back of the line. A PassportClerk goes on break if there is no one in his line.
+
+            - Cashier
+                A Cashier collects the $100 passport fee from a Customer, but only if they arrive after the PassportClerk has 'recorded' that the other documents have been filed. A Cashier goes on break if there is no one in his line.
+
+            - Manager
+                A manager has the job of waking up a clerk/cashier from when more than 3 Customers are in that clerk's/cashier's line. A manager is also responsible for tallying the amount of money collected by each clerk/cashier type and the total money collected. 
+
+            - Senator
+                A Senator is a special kind of Customer. When a Senator shows up, all Customers who are currently being serviced, complete their current action with the clerk/cashier and all other Customers must wait outside. Once the current Customers have been serviced A Senator goes to all Clerk types and gets his passport. Once a Senator is done, all waiting Customers return to normal.
+
+    Testing
+        Develop repeatable tests for part 2. In particular, be able to prove the following:
+            - Customers always choose the shortest line, but two customers don't choose the same line at the same time
+            - Managers only read from one Clerk's received money at a time
+            - Customers do not leave until they are given their passport by a Cashier
+            - Clerks only go on break when no one is waiting in their line
+            - Managers wake up Clerks from break when 3 or more customers are waiting in line
+            - Total sales doesn't suffer from race conditions
+            - The behavior of Customers is proper when a Senator arrives
+
+II. Assumptions:
+    - Reasonable assumptions you take for your scheme.
+
+III. Design:
+- This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
+
+IV. Implementation:
+    + Files Modified
+    + Files added
+
+    + Data Structures added, and the file they were added to.
+    + Data Structures modified, and the file they were added to.
+        -For example,
+            class Lock      -- in file threads.cc/threads.h
+            {
+                //. Modified fields.
+            }
+
+    + Functions added and in which file.
+    + Functions modified and in which file.
+
+V. Testing:  (For each test case, you must show)
+    + How to test
+- How to run the test cases, the commands, the arguments and so on.
+    + Test Output
+- Describe the testing output. You don't have to dump all the output info. Just make sure your description can exactly reflect your output. The grader of your submission will be wanting to compare the output they get with what you say the output is.
+
+VI. Discussion:
+    + Experiment expectation.  (What is supposed to happen.)
+    + Experiment result.  (What actually happened.)
+    + Explanation
+        - Explain your experiment result - how it proves what 
+          you were supposed to prove.
+
+VIII. Miscellaneous:
+- Whatever else you want the grader know about your development.  You can create your own subsections headings here.
+
+
+
+Note: All clerks go on break when the Senator enters because all customers leave. Since no clerk would have 3 customers in line they would never be woken up from break. Added check for clerks to wake up if there is a Senator present
