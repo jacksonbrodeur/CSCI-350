@@ -18,9 +18,8 @@
 #include "system.h"
 #ifdef CHANGED
 #include "synch.h"
-#include <iostream>
-#include <string>
 #include <vector>
+#include <iostream>
 #endif
 
 #ifdef CHANGED
@@ -393,6 +392,10 @@ struct Clerk {
     Condition * lineCondition;
     Condition * bribeLineCondition;
     Condition * clerkCondition;
+    
+    Lock * breakLock;
+    Condition * breakCondition;
+    
     Lock * clerkLock;
     int clerkType;
     Customer * customer;
@@ -408,6 +411,10 @@ struct Clerk {
         bribeLineCondition = new Condition(name);
         clerkCondition = new Condition(name);
         clerkLock = new Lock(name);
+        
+        breakLock = new Lock(name);
+        breakCondition = new Condition(name);
+        
         clerkType = 0;
         customer = NULL;
         money = 0;
@@ -423,6 +430,10 @@ struct Clerk {
         bribeLineCondition = new Condition(name);
         clerkCondition = new Condition(name);
         clerkLock = new Lock(name);
+        
+        breakLock = new Lock(name);
+        breakCondition = new Condition(name);
+        
         clerkType = type;
         money = 0;
     }
@@ -445,7 +456,6 @@ std::vector<Clerk*> pictureClerks;
 std::vector<Clerk*> applicationClerks;
 std::vector<Clerk*> passportClerks;
 std::vector<Clerk*> cashiers;
-
 
 Manager * clerkManager;
 
@@ -499,9 +509,15 @@ void pictureClerk(int myLine) {
             me->state = BUSY;
         } else {
             
-            printf("There is no one in %s's line \n \n", me->name);
-            me->state = AVAILABLE;
+            printf("There is no one in %s's line so he is going on break\n\n", me->name);
+            pictureClerkLock->Release();
+            me->breakLock->Acquire();
+            me->state = ONBREAK;
+            me->breakCondition->Wait(me->breakLock);
+            me->breakLock->Release();
+            pictureClerkLock->Acquire();
             
+            me->lineCondition->Signal(pictureClerkLock);
         }
         
         me->clerkLock->Acquire();
@@ -574,9 +590,16 @@ void applicationClerk(int myLine) {
             printf("%s has %d people in his line, signaling 1 of them to come to the counter \n\n", me->name, me->lineCount);
         } else {
             
-            //TODO: This code is illogical, needs to be put to sleep by manager
-            me->state = AVAILABLE;
-            printf("%s has no one in line \n\n", me->name);
+            printf("There is no one in %s's line so he is going on break\n\n", me->name);
+            
+            applicationClerkLock->Release();
+            me->breakLock->Acquire();
+            me->state = ONBREAK;
+            me->breakCondition->Wait(me->breakLock);
+            me->breakLock->Release();
+            applicationClerkLock->Acquire();
+            
+            me->lineCondition->Signal(applicationClerkLock);
         }
         
         me->clerkLock->Acquire();
@@ -644,42 +667,82 @@ int getInShortestLine(Customer * customer, std::vector<Clerk*> clerkToVisit, Loc
     int shortestLineSize = NUM_CUSTOMERS + NUM_SENATORS; 
     bool foundLine = false;
     bool bribed = false;
-    while(!foundLine) {
-        if (customer->money >= 600 && clerkToVisit[0]->clerkType != CASHIER) { // because you need 500 to bribe and 100 to pay cashier
-        	printf("%s has $%d money and is entering %s bribe line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
-        	for(int i = 0; i < NUM_CLERKS; i++) {
-        		if((clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
-            	   	myLine = i;
-                	shortestLineSize = clerkToVisit[i]->bribeLineCount;
-                	foundLine = true;
-                	bribed = true;
-            	}
-            }
-        } else {
-        	printf("%s has $%d money and is entering %s regular line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
-        	for(int i = 0; i < NUM_CLERKS; i++) {
-           		if((clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
-               	myLine = i;
-               	shortestLineSize = clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount;
-               	foundLine = true;
-           		}
-        	}
-        }
+    
+    bool allOnBreak = true;
+    for(int i = 0 ; i < NUM_CLERKS; i++)
+    {
+        if(clerkToVisit[i]->state == BUSY || clerkToVisit[i]->state == AVAILABLE)
+            allOnBreak=false;
     }
     
+    if(!allOnBreak) {
+    
+        while(!foundLine) {
+            if (customer->money >= 600 && clerkToVisit[0]->clerkType != CASHIER) { // because you need 500 to bribe and 100 to pay cashier
+                printf("%s has $%d money and is entering %s bribe line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
+                for(int i = 0; i < NUM_CLERKS; i++) {
+                    if((clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
+                        myLine = i;
+                        shortestLineSize = clerkToVisit[i]->bribeLineCount;
+                        foundLine = true;
+                        bribed = true;
+                    }
+                }
+            } else {
+                printf("%s has $%d money and is entering %s regular line \n\n", customer->name, customer->money, clerkToVisit[0]->name);
+                for(int i = 0; i < NUM_CLERKS; i++) {
+                    if((clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount < shortestLineSize) && (clerkToVisit[i]->state != ONBREAK)) {
+                        myLine = i;
+                        shortestLineSize = clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount;
+                        foundLine = true;
+                    }
+                }
+            }
+        }
+        
+    }
+    else {
+        if (customer->money >= 600 && clerkToVisit[0]->clerkType != CASHIER) {
+            
+            myLine = 0;
+            shortestLineSize = clerkToVisit[0]->bribeLineCount;
+            foundLine = true;
+            bribed = true;
+        }
+        else {
+            
+            myLine = 0;
+            shortestLineSize = clerkToVisit[0]->lineCount + clerkToVisit[0]->bribeLineCount;
+            foundLine = true;
+        }
+    }
     printf("The shortest line found for %s was line %d \n\n", customer->name, myLine);
     
-    if(clerkToVisit[myLine]->state == BUSY) {
+    if(clerkToVisit[myLine]->state == BUSY || clerkToVisit[myLine]->state == ONBREAK) {
 
     	if (bribed) {
     		printf("The clerk at line %d is busy so the customer is waiting \n\n",myLine);
         	clerkToVisit[myLine]->bribeLineCount++;
+            /*if(customer->isSenator && clerkToVisit[myLine]->state == ONBREAK)
+            {
+                printf("%s is at %s's line but %s is on break so we are waking him back up (bribed) \n\n", customer->name,clerkToVisit[myLine]->name, clerkToVisit[myLine]->name);
+                clerkToVisit[myLine]->breakLock->Acquire();
+                clerkToVisit[myLine]->breakCondition->Signal(clerkToVisit[myLine]->breakLock);
+                clerkToVisit[myLine]->breakLock->Release();
+            }*/
         	clerkToVisit[myLine]->bribeLineCondition->Wait(clerkLock);
         	clerkToVisit[myLine]->bribeLineCount--;
     	} else {
     		// getting in regular line
         	printf("The clerk at line %d is busy so the customer is waiting \n\n",myLine);
         	clerkToVisit[myLine]->lineCount++;
+            /*if(customer->isSenator && clerkToVisit[myLine]->state == ONBREAK)
+            {
+                printf("%s is at %s's line but %s is on break so we are waking him back up (not bribed) \n\n", customer->name,clerkToVisit[myLine]->name, clerkToVisit[myLine]->name);
+                clerkToVisit[myLine]->breakLock->Acquire();
+                clerkToVisit[myLine]->breakCondition->Signal(clerkToVisit[myLine]->breakLock);
+                clerkToVisit[myLine]->breakLock->Release();
+            }*/
         	clerkToVisit[myLine]->lineCondition->Wait(clerkLock);
         	clerkToVisit[myLine]->lineCount--;
     	}
@@ -709,6 +772,7 @@ void customer(int customerNumber) {
     {
         printf("%s just entered the office, we are making all customers not currently being serviced leave the office \n\n", me->name);
         senatorSemaphore->P();
+        //senatorLock->Acquire();
         senatorHere = true;
     }
     
@@ -716,7 +780,7 @@ void customer(int customerNumber) {
     
     if(randomNum == 0)
     {
-        printf("Going to Picture Clerk first \n \n");
+        printf("%s is going to Picture Clerk first \n\n", me->name);
         int myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
         pictureTransaction(pictureClerks[myLine], me);
         
@@ -800,6 +864,7 @@ void customer(int customerNumber) {
     {
         printf("%s has just finished using the office, we are broadcasting for all customers to come back into the office \n\n",me->name);
         senatorHere = false;
+        //senatorLock->Release();
         senatorCondition->Broadcast(senatorLock);
         senatorSemaphore->V();
     }
@@ -824,8 +889,15 @@ void passportClerk(int myLine) {
             me->state = BUSY;
         } else {
             
-            printf("%s has no one in his line \n\n", me->name);
-            me->state = AVAILABLE;
+            printf("There is no one in %s's line so he is going on break\n\n", me->name);
+            passportClerkLock->Release();
+            me->breakLock->Acquire();
+            me->state = ONBREAK;
+            me->breakCondition->Wait(me->breakLock);
+            me->breakLock->Release();
+            passportClerkLock->Acquire();
+            
+            me->lineCondition->Signal(passportClerkLock);
         }
 
         me->clerkLock->Acquire();
@@ -863,8 +935,15 @@ void cashier (int myLine) {
     		me->lineCondition->Signal(cashierLock);
     		me->state = BUSY;
     	} else {
-            printf("There is no one in %s's line so we are making him available \n\n", me->name);
-    		me->state = AVAILABLE;
+            printf("There is no one in %s's line so he is going on break\n\n", me->name);
+            cashierLock->Release();
+            me->breakLock->Acquire();
+            me->state = ONBREAK;
+            me->breakCondition->Wait(me->breakLock);
+            me->breakLock->Release();
+            cashierLock->Acquire();
+            
+            me->lineCondition->Signal(cashierLock);
     	}
 
     	me->clerkLock->Acquire();
@@ -905,6 +984,11 @@ void manager() {
         bool signalPassportClerk=false;
         bool signalCashier=false;
         
+        bool pictureClerksAllOnBreak = true;
+        bool applicationClerksAllOnBreak = true;
+        bool passportClerksAllOnBreak = true;
+        bool cashiersAllOnBreak = true;
+        
         for(int i = 0; i< NUM_CLERKS;i ++)
         {
             if(pictureClerks[i]->lineCount>=3)
@@ -915,6 +999,51 @@ void manager() {
                 signalPassportClerk=true;
             if(cashiers[i]->lineCount>=3)
                 signalCashier=true;
+            if(pictureClerks[i]->state == (BUSY || AVAILABLE))
+                pictureClerksAllOnBreak = false;
+            if(applicationClerks[i]->state == (BUSY || AVAILABLE))
+                applicationClerksAllOnBreak = false;
+            if(passportClerks[i]->state == (BUSY || AVAILABLE))
+                passportClerksAllOnBreak = false;
+            if(cashiers[i]->state == (BUSY || AVAILABLE))
+                cashiersAllOnBreak = false;
+        }
+        
+        if(pictureClerksAllOnBreak)
+        {
+            printf("All picture clerks are on break so waking up %s \n\n",pictureClerks[0]->name);
+            pictureClerkLock->Acquire();
+            pictureClerks[0]->state = AVAILABLE;
+            pictureClerks[0]->breakCondition->Signal(pictureClerks[0]->breakLock);
+            pictureClerkLock->Release();
+            pictureClerksAllOnBreak=false;
+        }
+        if(applicationClerksAllOnBreak)
+        {
+            printf("All application clerks are on break so waking up %s \n\n",applicationClerks[0]->name);
+            applicationClerkLock->Acquire();
+            applicationClerks[0]->state = AVAILABLE;
+            applicationClerks[0]->breakCondition->Signal(applicationClerks[0]->breakLock);
+            applicationClerkLock->Release();
+            applicationClerksAllOnBreak=false;
+        }
+        if(passportClerksAllOnBreak)
+        {
+            printf("All passport clerks are on break so waking up %s \n\n",passportClerks[0]->name);
+            passportClerkLock->Acquire();
+            passportClerks[0]->state = AVAILABLE;
+            passportClerks[0]->breakCondition->Signal(passportClerks[0]->breakLock);
+            passportClerkLock->Release();
+            passportClerksAllOnBreak=false;
+        }
+        if(cashiersAllOnBreak)
+        {
+            printf("All cashiers are on break so waking up %s \n\n",cashiers[0]->name);
+            cashierLock->Acquire();
+            cashiers[0]->state = AVAILABLE;
+            cashiers[0]->breakCondition->Signal(cashiers[0]->breakLock);
+            cashierLock->Release();
+            cashiersAllOnBreak = false;
         }
         
         for(int i = 0; i < NUM_CLERKS; i++)
@@ -924,7 +1053,7 @@ void manager() {
                 printf("%s is on break and has %d people in his line, so signalling him and setting him as available. \n\n",pictureClerks[i]->name, pictureClerks[i]->lineCount);
                 pictureClerkLock->Acquire();
                 pictureClerks[i]->state = AVAILABLE;
-                pictureClerks[i]->lineCondition->Signal(pictureClerks[i]->clerkLock);
+                pictureClerks[i]->breakCondition->Signal(pictureClerks[i]->breakLock);
                 pictureClerkLock->Release();
                 signalPictureClerk=false;
             }
@@ -933,7 +1062,7 @@ void manager() {
                 printf("%s is on break and has %d people in his line, so signalling him and setting him as available. \n\n",applicationClerks[i]->name, applicationClerks[i]->lineCount);
                 applicationClerkLock->Acquire();
                 applicationClerks[i]->state = AVAILABLE;
-                applicationClerks[i]->lineCondition->Signal(applicationClerks[i]->clerkLock);
+                applicationClerks[i]->breakCondition->Signal(applicationClerks[i]->breakLock);
                 applicationClerkLock->Release();
                 signalAppClerk=false;
                 
@@ -943,7 +1072,7 @@ void manager() {
                 printf("%s is on break and has %d people in his line, so signalling him and setting him as available. \n\n",passportClerks[i]->name, passportClerks[i]->lineCount);
                 passportClerkLock->Acquire();
                 passportClerks[i]->state = AVAILABLE;
-                passportClerks[i]->lineCondition->Signal(passportClerks[i]->clerkLock);
+                passportClerks[i]->breakCondition->Signal(passportClerks[i]->breakLock);
                 passportClerkLock->Release();
                 signalPassportClerk=false;
             }
@@ -952,7 +1081,7 @@ void manager() {
                 printf("%s is on break and has %d people in his line, so signalling him and setting him as available. \n\n",cashiers[i]->name, cashiers[i]->lineCount);
                 cashierLock->Acquire();
                 cashiers[i]->state = AVAILABLE;
-                cashiers[i]->lineCondition->Signal(cashiers[i]->clerkLock);
+                cashiers[i]->breakCondition->Signal(cashiers[i]->breakLock);
                 cashierLock->Release();
                 signalCashier = false;
             }
@@ -989,6 +1118,20 @@ void manager() {
     }
 }
 
+int isValidNumber(char* number, int limit) {
+    int num;
+    try 
+    {
+        num = atoi(number);
+        if (num < 1 || num > limit) {
+            num = -1;
+        }
+    } catch (int e) {
+        num = -1;
+    }
+    return num;
+}
+
 // --------------------------------------------------
 // TestSuite()
 //     This is the main thread of the test suite.  It runs the
@@ -1009,20 +1152,6 @@ void manager() {
 //
 //     Fatal errors terminate the thread in question.
 // --------------------------------------------------
-int isValidNumber(char* number, int limit) {
-	int num;
-	try 
-	{
-		num = atoi(number);
-		if (num < 1 || num > limit) {
-			num = -1;
-		}
-	} catch (int e) {
-		num = -1;
-	}
-	return num;
-}
-
 void TestSuite() {
     Thread *t;
     char *name;
@@ -1031,57 +1160,54 @@ void TestSuite() {
     bool valid = false;
     while (!valid) 
     {
-    	char* z = new char[20];
-  		std::cout << "Please enter the number of customers (1-50): ";
-  		std::cin >> z;	
+        char* z = new char[20];
+        std::cout << "Please enter the number of customers (1-50): ";
+        std::cin >> z;  
 
-  		int num_cust = isValidNumber(z, 50);
+        int num_cust = isValidNumber(z, 50);
 
-    	if (num_cust != -1){
-    		valid = true;
-    		NUM_CUSTOMERS = num_cust;
-    	} else {
-    		printf("That was an invalid number. \n");
-    	}
+        if (num_cust != -1){
+            valid = true;
+            NUM_CUSTOMERS = num_cust;
+        } else {
+            printf("That was an invalid number. \n");
+        }
     }
 
     valid = false;
     while (!valid) 
     {
-    	char* z = new char[20];
-  		std::cout << "Please enter the number of clerks and cashiers (1-5): ";
-  		std::cin >> z;	
+        char* z = new char[20];
+        std::cout << "Please enter the number of clerks and cashiers (1-5): ";
+        std::cin >> z;  
 
-  		int num_clerk = isValidNumber(z, 5);
+        int num_clerk = isValidNumber(z, 5);
 
-    	if (num_clerk != -1){
-    		valid = true;
-    		NUM_CLERKS = num_clerk;
-    	} else {
-    		printf("That was an invalid number. \n");
-    	}
+        if (num_clerk != -1){
+            valid = true;
+            NUM_CLERKS = num_clerk;
+        } else {
+            printf("That was an invalid number. \n");
+        }
     }
 
     valid = false;
     while (!valid) 
     {
-    	char* z = new char[20];
-  		std::cout << "Please enter the number of senators (1-10): ";
-  		std::cin >> z;	
+        char* z = new char[20];
+        std::cout << "Please enter the number of senators (1-10): ";
+        std::cin >> z;  
 
-  		int num_sen = isValidNumber(z, 10);
+        int num_sen = isValidNumber(z, 10);
 
-    	if (num_sen != -1){
-    		valid = true;
-    		NUM_SENATORS = num_sen;
-    	} else {
-    		printf("That was an invalid number. \n");
-    	}
+        if (num_sen != -1){
+            valid = true;
+            NUM_SENATORS = num_sen;
+        } else {
+            printf("That was an invalid number. \n");
+        }
     }
-
-
-
- 	    
+    
     /*
     // Test 1
     
@@ -1166,7 +1292,7 @@ void TestSuite() {
     
     //Part 2
     
-    printf("\n \n \n Starting Part 2 \n \n \n");
+   printf("\n \n \n Starting Part 2 \n \n \n");
     
     pictureClerkLock = new Lock("Picture Lock");
     applicationClerkLock = new Lock("Application Lock");
