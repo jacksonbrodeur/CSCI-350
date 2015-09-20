@@ -74,7 +74,16 @@ I. Requirements
             - The behavior of Customers is proper when a Senator arrives
 
 II. Assumptions:
-    - Reasonable assumptions you take for your scheme.
+
+    Part 1
+        - If a lock tries to be re-acquired by a thread, the request is ignored
+        - If a a thread tries to release a lock it does not own, the request is ignored
+        - If a lock signalled is different than the lock a thread went to sleep with, it does nothing.
+
+    Part 2
+        - There are at most 5 of any type of Clerk or Cashier
+        - Ther is a 10% chance of a Customer not liking their picture
+
 
 III. Design:
 - This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
