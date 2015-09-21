@@ -1240,6 +1240,7 @@ void launchPassportOffice()
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer,NUM_CUSTOMERS + i);
     }
+
 }
 
 // Customers always take the shortest line, but no 2 customers ever choose the same shortest line at the same time
@@ -1293,7 +1294,8 @@ void testOne()
     {
         name = new char [20];
         sprintf(name,"Customer %d", i);
-        customers.push_back(new Customer(name, false));
+        Customer * c = new Customer(name, false);
+        customers.push_back(c);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer, i);
     }
@@ -1327,7 +1329,60 @@ void testFive()
 // Total sales never suffers from a race condition
 void testSix()
 {
+    Thread *t;
+    char *name;
+    int i;
 
+    NUM_CUSTOMERS = 5;
+    NUM_CLERKS = 2;
+
+    pictureClerkLock = new Lock("Picture Lock");
+    applicationClerkLock = new Lock("Application Lock");
+    passportClerkLock = new Lock("Passport Lock");
+    cashierLock = new Lock("Cashier Lock");
+      
+    clerkManager = new Manager("Manager 0");
+    t = new Thread("Manager 0");
+    t->Fork((VoidFunctionPtr)manager, 0);
+
+    for( i = 0; i < NUM_CLERKS; i ++)
+    {
+        name = new char [20];
+        sprintf(name,"Picture Clerk %d",i);
+        pictureClerks.push_back(new Clerk(name, PICTURECLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)pictureClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Application Clerk %d",i);
+        applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)applicationClerk, i);
+
+        
+        name = new char [20];
+        sprintf(name,"Passport Clerk %d",i);
+        passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)passportClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Cashier %d",i);
+        cashiers.push_back(new Clerk(name, CASHIER));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)cashier, i);
+    }
+    
+    for( i = 0;i < NUM_CUSTOMERS; i++)
+    {
+        name = new char [20];
+        sprintf(name,"Customer %d", i);
+        Customer * c = new Customer(name, false);
+        c->money = 100;
+        customers.push_back(c);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)customer, i);
+    }
 }
 
 // The behavior of Customers is proper when Senators arrive. This is before, during, and after. 
@@ -1454,7 +1509,7 @@ void TestSuite() {
     // testThree();
     // testFour();
     // testFive();
-    // testSix();
+    testSix();
     // testSeven();
 }
 #endif

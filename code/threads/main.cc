@@ -60,6 +60,8 @@ extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
+extern void launchPassportOffice();
+extern void testOne(), testTwo(), testThree(), testFour(), testFive(), testSix(), testSeven();
 
 //----------------------------------------------------------------------
 // main
@@ -87,6 +89,9 @@ main(int argc, char **argv)
 #ifdef THREADS
     //ThreadTest();
     extern void Part2(void), TestSuite(void);
+    extern void launchPassportOffice();
+    extern void testOne(), testTwo(), testThree(), testFour(), testFive(), testSix(), testSeven();
+
 #endif
 
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
@@ -96,8 +101,12 @@ main(int argc, char **argv)
 #ifdef THREADS
         if (!strcmp(*argv, "-T"))               // Test Suite
             TestSuite();
-        //if (!strcmp(*argv, "-P2"))               // Problem 2
-           // Part2();
+        if (!strcmp(*argv, "-P2"))               // Problem 2
+           launchPassportOffice();
+        if (!strcmp(*argv, "-P2T1"))            //Problem 2 Test 1
+            testOne();
+        if (!strcmp(*argv, "-P2T6"))             //Problem 2 Test 6
+            testSix();
 #endif //THREADS
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
