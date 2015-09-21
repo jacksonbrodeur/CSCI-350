@@ -244,9 +244,23 @@ IV. Implementation:
 
 V. Testing:  (For each test case, you must show)
     + How to test
-- How to run the test cases, the commands, the arguments and so on.
+        To run each test case 1 through 7, run the following command in the code/threads directory:
+            nachos -P2Tn
+        where n is the number of the test to run.
     + Test Output
-- Describe the testing output. You don't have to dump all the output info. Just make sure your description can exactly reflect your output. The grader of your submission will be wanting to compare the output they get with what you say the output is.
+        T1
+
+        T2
+
+        T3
+
+        T4
+
+        T5
+
+        T6
+
+        T7
 
 VI. Discussion:
     + Experiment expectation.  (What is supposed to happen.)

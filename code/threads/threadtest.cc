@@ -1379,6 +1379,7 @@ void testSix()
         sprintf(name,"Customer %d", i);
         Customer * c = new Customer(name, false);
         c->money = 100;
+        printf("%s: %i\n", c->name, c->money);
         customers.push_back(c);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer, i);
@@ -1504,12 +1505,12 @@ void TestSuite() {
 
     // launchPassportOffice();
 
-    testOne();
+    //testOne();
     // testTwo();
     // testThree();
     // testFour();
     // testFive();
-    testSix();
+    //testSix();
     // testSeven();
 }
 #endif
