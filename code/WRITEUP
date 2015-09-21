@@ -120,7 +120,7 @@ III. Design:
             int money;
 
         - The Manager struct has the following data
-            char * name;;
+            char * name;
 
         - Clerk, Cashier, and Manager threads run until all Customers, including Senators, have received their passport. They will be invoked by forking the methods with the following signatures:
             void pictureClerk(int myLine)
