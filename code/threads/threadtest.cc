@@ -1116,6 +1116,7 @@ void manager() {
         printf("Total revenue generated: %d \n\n", (pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue));
         printf("Total money walking in the door: %d \n\n", Customer::totalCustomerMoney);
     }
+    // TODO:deallocation and terminate
 }
 
 int isValidNumber(char* number, int limit) {
@@ -1132,27 +1133,8 @@ int isValidNumber(char* number, int limit) {
     return num;
 }
 
-// --------------------------------------------------
-// TestSuite()
-//     This is the main thread of the test suite.  It runs the
-//     following tests:
-//
-//       1.  Show that a thread trying to release a lock it does not
-//       hold does not work
-//
-//       2.  Show that Signals are not stored -- a Signal with no
-//       thread waiting is ignored
-//
-//       3.  Show that Signal only wakes 1 thread
-//
-//	 4.  Show that Broadcast wakes all waiting threads
-//
-//       5.  Show that Signalling a thread waiting under one lock
-//       while holding another is a Fatal error
-//
-//     Fatal errors terminate the thread in question.
-// --------------------------------------------------
-void TestSuite() {
+void launchPassportOffice() 
+{
     Thread *t;
     char *name;
     int i;
@@ -1207,6 +1189,186 @@ void TestSuite() {
             printf("That was an invalid number. \n");
         }
     }
+
+    pictureClerkLock = new Lock("Picture Lock");
+    applicationClerkLock = new Lock("Application Lock");
+    passportClerkLock = new Lock("Passport Lock");
+    cashierLock = new Lock("Cashier Lock");
+    
+    senatorSemaphore = new Semaphore("Senator Semaphore", NUM_SENATORS);
+    senatorLock = new Lock("Senator Lock");
+    senatorCondition = new Condition("Senator Condition");
+   
+    clerkManager = new Manager("Manager 0");
+    t = new Thread("Manager 0");
+    t->Fork((VoidFunctionPtr)manager, 0);
+
+    for( i = 0; i < NUM_CLERKS; i ++)
+    {
+        name = new char [20];
+        sprintf(name,"Picture Clerk %d",i);
+        pictureClerks.push_back(new Clerk(name, PICTURECLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)pictureClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Application Clerk %d",i);
+        applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)applicationClerk, i);
+
+        
+        name = new char [20];
+        sprintf(name,"Passport Clerk %d",i);
+        passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)passportClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Cashier %d",i);
+        cashiers.push_back(new Clerk(name, CASHIER));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)cashier, i);
+    }
+    
+    for( i = 0;i < NUM_CUSTOMERS; i++)
+    {
+        name = new char [20];
+        sprintf(name,"Customer %d", i);
+        customers.push_back(new Customer(name, false));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)customer, i);
+    }
+    
+    for(i =0;i<NUM_SENATORS;i++)
+    {
+        name = new char [20];
+        sprintf(name,"Senator %d", i);
+        customers.push_back(new Customer(name,true));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)customer,NUM_CUSTOMERS + i);
+    }
+}
+
+// Customers always take the shortest line, but no 2 customers ever choose the same shortest line at the same time
+void testOne() 
+{
+    Thread *t;
+    char *name;
+    int i;
+
+    NUM_CUSTOMERS = 5;
+    NUM_CLERKS = 2;
+
+    pictureClerkLock = new Lock("Picture Lock");
+    applicationClerkLock = new Lock("Application Lock");
+    passportClerkLock = new Lock("Passport Lock");
+    cashierLock = new Lock("Cashier Lock");
+      
+    clerkManager = new Manager("Manager 0");
+    t = new Thread("Manager 0");
+    t->Fork((VoidFunctionPtr)manager, 0);
+
+    for( i = 0; i < NUM_CLERKS; i ++)
+    {
+        name = new char [20];
+        sprintf(name,"Picture Clerk %d",i);
+        pictureClerks.push_back(new Clerk(name, PICTURECLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)pictureClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Application Clerk %d",i);
+        applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)applicationClerk, i);
+
+        
+        name = new char [20];
+        sprintf(name,"Passport Clerk %d",i);
+        passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)passportClerk, i);
+        
+        name = new char [20];
+        sprintf(name,"Cashier %d",i);
+        cashiers.push_back(new Clerk(name, CASHIER));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)cashier, i);
+    }
+    
+    for( i = 0;i < NUM_CUSTOMERS; i++)
+    {
+        name = new char [20];
+        sprintf(name,"Customer %d", i);
+        customers.push_back(new Customer(name, false));
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)customer, i);
+    }
+}
+
+// Managers only read one from one Clerk's total money received, at a time.
+void testTwo()
+{
+
+}
+
+
+// Customers do not leave until they are given their passport by the Cashier. The Cashier does not start on another customer until they know that the last Customer has left their area
+void testThree()
+{
+
+}    
+
+// Clerks go on break when they have no one waiting in their line
+void testFour()
+{
+
+}
+
+// Managers get Clerks off their break when lines get too long
+void testFive()
+{
+
+}
+
+// Total sales never suffers from a race condition
+void testSix()
+{
+
+}
+
+// The behavior of Customers is proper when Senators arrive. This is before, during, and after. 
+void testSeven()
+{
+
+}
+
+
+// --------------------------------------------------
+// TestSuite()
+//     This is the main thread of the test suite.  It runs the
+//     following tests:
+//
+//       1.  Show that a thread trying to release a lock it does not
+//       hold does not work
+//
+//       2.  Show that Signals are not stored -- a Signal with no
+//       thread waiting is ignored
+//
+//       3.  Show that Signal only wakes 1 thread
+//
+//	 4.  Show that Broadcast wakes all waiting threads
+//
+//       5.  Show that Signalling a thread waiting under one lock
+//       while holding another is a Fatal error
+//
+//     Fatal errors terminate the thread in question.
+// --------------------------------------------------
+void TestSuite() {
+    Thread *t;
+    char *name;
+    int i;
     
     /*
     // Test 1
@@ -1291,66 +1453,16 @@ void TestSuite() {
     
     
     //Part 2
-    
-   printf("\n \n \n Starting Part 2 \n \n \n");
-    
-    pictureClerkLock = new Lock("Picture Lock");
-    applicationClerkLock = new Lock("Application Lock");
-    passportClerkLock = new Lock("Passport Lock");
-    cashierLock = new Lock("Cashier Lock");
-    
-    senatorSemaphore = new Semaphore("Senator Semaphore", NUM_SENATORS);
-    senatorLock = new Lock("Senator Lock");
-    senatorCondition = new Condition("Senator Condition");
-   
-    clerkManager = new Manager("Manager 0");
-    t = new Thread("Manager 0");
-    t->Fork((VoidFunctionPtr)manager, 0);
+    printf("\n \n \n Starting Part 2 \n \n \n");
 
-    for( i = 0; i < NUM_CLERKS; i ++)
-    {
-        name = new char [20];
-        sprintf(name,"Picture Clerk %d",i);
-        pictureClerks.push_back(new Clerk(name, PICTURECLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)pictureClerk, i);
-        
-        name = new char [20];
-        sprintf(name,"Application Clerk %d",i);
-        applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)applicationClerk, i);
+    // launchPassportOffice();
 
-        
-        name = new char [20];
-        sprintf(name,"Passport Clerk %d",i);
-        passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)passportClerk, i);
-        
-        name = new char [20];
-        sprintf(name,"Cashier %d",i);
-        cashiers.push_back(new Clerk(name, CASHIER));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)cashier, i);
-    }
-    
-    for( i = 0;i < NUM_CUSTOMERS; i++)
-    {
-        name = new char [20];
-        sprintf(name,"Customer %d", i);
-        customers.push_back(new Customer(name, false));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)customer, i);
-    }
-    
-    for(i =0;i<NUM_SENATORS;i++)
-    {
-        name = new char [20];
-        sprintf(name,"Senator %d", i);
-        customers.push_back(new Customer(name,true));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)customer,NUM_CUSTOMERS + i);
-    }
+    testOne();
+    // testTwo();
+    // testThree();
+    // testFour();
+    // testFive();
+    // testSix();
+    // testSeven();
 }
 #endif
