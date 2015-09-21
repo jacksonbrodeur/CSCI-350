@@ -8,7 +8,7 @@ I. Requirements
 
     Part 1
         Implement locks and condition variables. To do this we implement the
-        provided methods in the Lock class nad Condition class. The methods to be implemented are as follows:
+        provided methods in the Lock class and Condition class. The methods to be implemented are as follows:
             Lock
                 - Lock(char* debugName)
                 - ~Lock()
@@ -24,7 +24,7 @@ I. Requirements
                 - Wait(Lock* conditionLock)
                 - Signal(Lock* conditionLock)
                     [Note: Signal should be implemented with Mesa semantics 
-                    where the signalled thread is added to the ready queue]
+                    where the signaled thread is added to the ready queue]
                 - Broadcast(Lock* conditionLock)
 
         In addition to implementing these methods, the necessary member 
@@ -78,30 +78,169 @@ II. Assumptions:
     Part 1
         - If a lock tries to be re-acquired by a thread, the request is ignored
         - If a a thread tries to release a lock it does not own, the request is ignored
-        - If a lock signalled is different than the lock a thread went to sleep with, it does nothing.
+        - If a lock signaled is different than the lock a thread went to sleep with, it does nothing.
 
     Part 2
         - There are at most 5 of any type of Clerk or Cashier
-        - Ther is a 10% chance of a Customer not liking their picture
+        - There is a 10% chance of a Customer not liking their picture
+        - Customers will always bribe if they have enough money
 
 
 III. Design:
-- This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
+
+    Part 1
+
+    Part 2
+        - The entities required for the project are all represented by a method that will be forked into a new thread when it needs to start running.
+        - There are three separate structs to hold the data for the entities. There is a Customer, Clerk, and Manager struct. For this purpose, a Senator will be considered a Customer and a Cashier will be considered a Clerk.
+
+        - The Customer struct has the following data
+            char * name;
+            bool applicationFiled;
+            bool pictureTaken;
+            bool pictureFiled;
+            bool passportCertified;
+            bool passportGiven;
+            bool cashierPaid;
+            int money;
+            static int totalCustomerMoney;
+            bool isSenator;
+
+        - The Clerk struct has the following data
+            char * name;
+            int lineCount;
+            int bribeLineCount;
+            int state;
+            Condition * lineCondition;
+            Condition * bribeLineCondition;
+            Condition * clerkCondition;
+            Lock * clerkLock;
+            int clerkType;
+            Customer * customer;
+            int money;
+
+        - The Manager struct has the following data
+            char * name;;
+
+        - Clerk, Cashier, and Manager threads run until all Customers, including Senators, have received their passport. They will be invoked by forking the methods with the following signatures:
+            void pictureClerk(int myLine)
+            void applicationClerk(int myLine)
+            void passportClerk(int myLine)
+            void cashier(int myLine)
+            void manager()
+
+        - Customer threads run until that Customer has received their passport and are created by forking the following method (Note: Senators will be handled by the same method as regular customers):
+            void customer(int customerNumber)
+
+        - Each Customer side of the interactions with Clerks will be abstracted into separate methods, which are called within the customer method, with the following signatures:
+            void pictureTransaction(Clerk * clerk, Customer * customer)
+            void applicationTransaction(Clerk * clerk, Customer * customer)
+            void passportTransaction(Clerk * clerk, Customer * customer)
+            void cashierTransaction(Clerk * clerk, Customer * customer)\
+
+        - There is a convenience method 
+            int getInShortestLine(Customer * customer, std::vector<Clerk*> clerkToVisit, Lock * clerkLock)
+        This method places the Customer in the shortest line for the clerk type it is trying to visit and also handles bribes. This method will terminate after the Customer is signaled by the Clerk to come to the counter
+
+        - There is a helper method for handling I/O 
+            int isValidNumber (char* number, int limit) 
+         This method converts the given number from a string to an int and then returns it if it is between 1 and limit, inclusive, otherwise it returns -1
+
+        - When the simulation is run, the user will be prompted for several input value including the number of customers (between 1 and 50), the number of clerks/cashiers (between 1 and 5), and the number of senators (between 1 and 10). The number of clerks is not set on a per-type basis. That is a user cannot make it so that there are 3 PictureClerks and 4 ApplicationClerks. An input of 3 would mean that there are 3 PictureClerks, 3 ApplicationClerks, 3 PassportClerks, and 3 Cashiers. There is always only 1 Manager.
+
+
+
 
 IV. Implementation:
     + Files Modified
+
+        Part 1
+            - synch.h
+            - synch.cc
+            - threadtest.cc
+
+        Part 2
+            - threadtest.cc
+
     + Files added
+        N/A
 
     + Data Structures added, and the file they were added to.
+        
+        Part 1
+            N/A
+
+        Part 2
+            threadtest.cc
+                struct Customer
+                struct Clerk
+                struct Manager
+
     + Data Structures modified, and the file they were added to.
-        -For example,
-            class Lock      -- in file threads.cc/threads.h
-            {
-                //. Modified fields.
-            }
+        
+        Part 1
+            synch.h
+                class Lock {
+                   
+                    ...
+
+                    List *waitQueue;
+                    Thread *owner;
+                    bool isBusy;
+                }
+
+                class Condition {
+
+                    ...
+
+                    Lock *waitingLock;
+                    List *cvWaitQueue;
+                }
+
+        Part 2
+            N/A
 
     + Functions added and in which file.
+
+        Part 1
+            N/A
+
+        Part 2
+            threadtest.cc
+                void customer(int customerNumber)
+                void passportClerk(int myLine)
+                void cashier(int myLine)
+                void manager()
+                void applicationClerk(int myLine)
+                void pictureClerk(int myLine)
+
+                void pictureTransaction(Clerk * clerk, Customer * customer)
+                void applicationTransaction(Clerk * clerk, Customer * customer)
+                void passportTransaction(Clerk * clerk, Customer * customer)
+                void cashierTransaction(Clerk * clerk, Customer * customer)
+
+                int getInShortestLine(Customer * customer, std::vector<Clerk*> clerk to Visit, Lock * clerkLock)
+                int isValidNumber(char * number, int limit)
+
     + Functions modified and in which file.
+
+        Part 1
+            synch.cc
+                Lock::Lock(char* debugName)
+                Lock::~Lock()
+                void Lock::Acquire()
+                void Lock::Release()
+                bool Lock::isHeldByCurrentThread()
+
+                Condition::Condition(char* debugName)
+                Condition::~Condition()
+                void Condition::Wait(Lock* conditionLock)
+                void Condition::Signal(Lock* condition Lock)
+                void Condition::Broadcast(Lock* conditionLock)
+
+        Part 2
+            threadtest.cc
+                void TestSuite()
 
 V. Testing:  (For each test case, you must show)
     + How to test
