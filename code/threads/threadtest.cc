@@ -527,7 +527,7 @@ void pictureClerk(int myLine) {
         
         //printf("%s is waiting for customer data \n \n", me->name);
         me->clerkCondition->Wait(me->clerkLock);
-        printf("%s has received SSN from %s", me->name,me->customer->name);
+        printf("%s has received SSN from %s\n", me->name,me->customer->name);
         bool firstTime = true;
         while(!me->customer->pictureTaken) {
             
@@ -942,7 +942,7 @@ void cashier (int myLine) {
     	// taking payment
     	me->customer->money -= 100;
     	me->money += 100;
-        printf("%s has received the $100 from %s after certification\n\n", me->name, me->customer->name);
+        printf("%s has received the $100 from %s after certification\n", me->name, me->customer->name);
         
     	me->customer->passportGiven = true;
     	me->clerkCondition->Signal(me->clerkLock);
