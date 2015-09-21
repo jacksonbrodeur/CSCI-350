@@ -586,7 +586,7 @@ void applicationClerk(int myLine) {
         } else if(me->lineCount > 0) {
             me->lineCondition->Signal(applicationClerkLock);
             me->state = BUSY;
-            printf("%s has signalled a customer to come to their counter\n", me->name, me->lineCount);
+            printf("%s has signalled a customer to come to their counter\n", me->name);
         } else {
             
             printf("%s is going on break\n", me->name);
@@ -868,7 +868,7 @@ void passportClerk(int myLine) {
             me->bribeLineCondition->Signal(passportClerkLock);
             me->state = BUSY;
         } else if(me->lineCount > 0) {
-            printf("%s has signalled a customer to come to their counter\n", me->name, me->lineCount);
+            printf("%s has signalled a customer to come to their counter\n", me->name);
             me->lineCondition->Signal(passportClerkLock);
             me->state = BUSY;
         } else {
@@ -922,7 +922,7 @@ void cashier (int myLine) {
             me->state = ONBREAK;
             me->breakCondition->Wait(me->breakLock);
             
-            printf("%s is coming off break\n");
+            printf("%s is coming off break\n", me->name);
             me->breakLock->Release();
             cashierLock->Acquire();
             
@@ -1118,69 +1118,22 @@ int isValidNumber(char* number, int limit) {
     return num;
 }
 
-void launchPassportOffice() 
+void printInitValues() 
 {
-    Thread *t;
+	printf("Number of Customers = %d\n", NUM_CUSTOMERS);
+    printf("Number of ApplicationClerks = %d\n", NUM_CLERKS);
+    printf("Number of PictureClerks = %d\n", NUM_CLERKS);
+    printf("Number of PassportClerks = %d\n", NUM_CLERKS);
+    printf("Number of Cashiers = %d\n", NUM_CLERKS);
+    printf("Number of Senators = %d\n", NUM_SENATORS);
+}
+
+void runPassportOffice() {
+	printInitValues();
+
+	Thread *t;
     char *name;
     int i;
-
-    bool valid = false;
-    while (!valid) 
-    {
-        char* z = new char[20];
-        std::cout << "Please enter the number of customers (1-50): ";
-        std::cin >> z;  
-
-        int num_cust = isValidNumber(z, 50);
-
-        if (num_cust != -1){
-            valid = true;
-            NUM_CUSTOMERS = num_cust;
-        } else {
-            printf("That was an invalid number. \n");
-        }
-    }
-
-    valid = false;
-    while (!valid) 
-    {
-        char* z = new char[20];
-        std::cout << "Please enter the number of clerks and cashiers (1-5): ";
-        std::cin >> z;  
-
-        int num_clerk = isValidNumber(z, 5);
-
-        if (num_clerk != -1){
-            valid = true;
-            NUM_CLERKS = num_clerk;
-        } else {
-            printf("That was an invalid number. \n");
-        }
-    }
-
-    valid = false;
-    while (!valid) 
-    {
-        char* z = new char[20];
-        std::cout << "Please enter the number of senators (1-10): ";
-        std::cin >> z;  
-
-        int num_sen = isValidNumber(z, 10);
-
-        if (num_sen != -1){
-            valid = true;
-            NUM_SENATORS = num_sen;
-        } else {
-            printf("That was an invalid number. \n");
-        }
-    }
-    
-    printf("Number of Customers = %d\n", NUM_CUSTOMERS);
-    printf("Number of ApplicationClerks = %d\n\n", NUM_CLERKS);
-    printf("Number of PictureClerks = %d\n\n", NUM_CLERKS);
-    printf("Number of PassportClerks = %d\n\n", NUM_CLERKS);
-    printf("Number of Cashiers = %d\n\n", NUM_CLERKS);
-    printf("Number of Senators = %d\n\n", NUM_SENATORS);
 
     pictureClerkLock = new Lock("Picture Lock");
     applicationClerkLock = new Lock("Application Lock");
@@ -1240,158 +1193,86 @@ void launchPassportOffice()
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer,NUM_CUSTOMERS + i);
     }
-
 }
 
-// Customers always take the shortest line, but no 2 customers ever choose the same shortest line at the same time
-void testOne() 
+void testMin() 
 {
-    Thread *t;
-    char *name;
-    int i;
-
     NUM_CUSTOMERS = 5;
     NUM_CLERKS = 2;
+    NUM_SENATORS = 1;
+	runPassportOffice();
+}
 
-    pictureClerkLock = new Lock("Picture Lock");
-    applicationClerkLock = new Lock("Application Lock");
-    passportClerkLock = new Lock("Passport Lock");
-    cashierLock = new Lock("Cashier Lock");
-      
-    clerkManager = new Manager("Manager 0");
-    t = new Thread("Manager 0");
-    t->Fork((VoidFunctionPtr)manager, 0);
+void testAvg()
+{
+    NUM_CUSTOMERS = 25;
+    NUM_CLERKS = 3;
+    NUM_SENATORS = 5;
+    runPassportOffice();
+}
 
-    for( i = 0; i < NUM_CLERKS; i ++)
+void testMax()
+{
+    NUM_CUSTOMERS = 50;
+    NUM_CLERKS = 5;
+    NUM_SENATORS = 10;
+    runPassportOffice();
+}  
+
+void launchPassportOffice() 
+{
+ 	bool valid = false;
+    while (!valid) 
     {
-        name = new char [20];
-        sprintf(name,"Picture Clerk %d",i);
-        pictureClerks.push_back(new Clerk(name, PICTURECLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)pictureClerk, i);
-        
-        name = new char [20];
-        sprintf(name,"Application Clerk %d",i);
-        applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)applicationClerk, i);
+        char* z = new char[20];
+        std::cout << "Please enter the number of customers (1-50): ";
+        std::cin >> z;  
 
-        
-        name = new char [20];
-        sprintf(name,"Passport Clerk %d",i);
-        passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)passportClerk, i);
-        
-        name = new char [20];
-        sprintf(name,"Cashier %d",i);
-        cashiers.push_back(new Clerk(name, CASHIER));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)cashier, i);
+        int num_cust = isValidNumber(z, 50);
+
+        if (num_cust != -1){
+            valid = true;
+            NUM_CUSTOMERS = num_cust;
+        } else {
+            printf("That was an invalid number. \n");
+        }
     }
-    
-    for( i = 0;i < NUM_CUSTOMERS; i++)
+
+    valid = false;
+    while (!valid) 
     {
-        name = new char [20];
-        sprintf(name,"Customer %d", i);
-        Customer * c = new Customer(name, false);
-        customers.push_back(c);
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)customer, i);
+        char* z = new char[20];
+        std::cout << "Please enter the number of clerks and cashiers (1-5): ";
+        std::cin >> z;  
+
+        int num_clerk = isValidNumber(z, 5);
+
+        if (num_clerk != -1){
+            valid = true;
+            NUM_CLERKS = num_clerk;
+        } else {
+            printf("That was an invalid number. \n");
+        }
     }
-}
 
-// Managers only read one from one Clerk's total money received, at a time.
-void testTwo()
-{
-
-}
-
-
-// Customers do not leave until they are given their passport by the Cashier. The Cashier does not start on another customer until they know that the last Customer has left their area
-void testThree()
-{
-
-}    
-
-// Clerks go on break when they have no one waiting in their line
-void testFour()
-{
-
-}
-
-// Managers get Clerks off their break when lines get too long
-void testFive()
-{
-
-}
-
-// Total sales never suffers from a race condition
-void testSix()
-{
-    Thread *t;
-    char *name;
-    int i;
-
-    NUM_CUSTOMERS = 5;
-    NUM_CLERKS = 2;
-
-    pictureClerkLock = new Lock("Picture Lock");
-    applicationClerkLock = new Lock("Application Lock");
-    passportClerkLock = new Lock("Passport Lock");
-    cashierLock = new Lock("Cashier Lock");
-      
-    clerkManager = new Manager("Manager 0");
-    t = new Thread("Manager 0");
-    t->Fork((VoidFunctionPtr)manager, 0);
-
-    for( i = 0; i < NUM_CLERKS; i ++)
+    valid = false;
+    while (!valid) 
     {
-        name = new char [20];
-        sprintf(name,"Picture Clerk %d",i);
-        pictureClerks.push_back(new Clerk(name, PICTURECLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)pictureClerk, i);
-        
-        name = new char [20];
-        sprintf(name,"Application Clerk %d",i);
-        applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)applicationClerk, i);
+        char* z = new char[20];
+        std::cout << "Please enter the number of senators (1-10): ";
+        std::cin >> z;  
 
-        
-        name = new char [20];
-        sprintf(name,"Passport Clerk %d",i);
-        passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)passportClerk, i);
-        
-        name = new char [20];
-        sprintf(name,"Cashier %d",i);
-        cashiers.push_back(new Clerk(name, CASHIER));
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)cashier, i);
+        int num_sen = isValidNumber(z, 10);
+
+        if (num_sen != -1){
+            valid = true;
+            NUM_SENATORS = num_sen;
+        } else {
+            printf("That was an invalid number. \n");
+        }
     }
-    
-    for( i = 0;i < NUM_CUSTOMERS; i++)
-    {
-        name = new char [20];
-        sprintf(name,"Customer %d", i);
-        Customer * c = new Customer(name, false);
-        c->money = 100;
-        printf("%s: %i\n", c->name, c->money);
-        customers.push_back(c);
-        t = new Thread(name);
-        t->Fork((VoidFunctionPtr)customer, i);
-    }
+    runPassportOffice(); 
 }
-
-// The behavior of Customers is proper when Senators arrive. This is before, during, and after. 
-void testSeven()
-{
-
-}
-
 
 // --------------------------------------------------
 // TestSuite()
@@ -1418,7 +1299,7 @@ void TestSuite() {
     char *name;
     int i;
     
-    /*
+    
     // Test 1
     
     printf("Starting Test 1\n");
@@ -1496,21 +1377,5 @@ void TestSuite() {
     t->Fork((VoidFunctionPtr)t5_t2,0);
     
     t5_done.P();
-     
-    */
-    
-    
-    //Part 2
-    printf("\n \n \n Starting Part 2 \n \n \n");
-
-    // launchPassportOffice();
-
-    //testOne();
-    // testTwo();
-    // testThree();
-    // testFour();
-    // testFive();
-    //testSix();
-    // testSeven();
 }
 #endif
