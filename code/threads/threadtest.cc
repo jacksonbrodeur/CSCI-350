@@ -379,6 +379,10 @@ struct Customer {
         }
         Customer::totalCustomerMoney += money;
     }
+
+    ~Customer() {
+        delete name;
+    }
 };
 
 int Customer::totalCustomerMoney = 0;
@@ -437,6 +441,16 @@ struct Clerk {
         clerkType = type;
         money = 0;
     }
+
+    ~Clerk() {
+        delete name;
+        delete lineCondition;
+        delete bribeLineCondition;
+        delete clerkCondition;
+        delete breakLock;
+        delete breakCondition;
+        delete clerkLock;
+    }
 };
 
 
@@ -447,6 +461,10 @@ struct Manager {
     Manager(char * _name)
     {
         name = _name;
+    }
+
+    ~Manager() {
+        delete name;
     }
     
 };
@@ -1102,6 +1120,35 @@ void manager() {
         //printf("Total money walking in the door: %d \n\n", Customer::totalCustomerMoney);
     }
     // TODO:deallocation and terminate
+
+    //Delete customers
+    for(int i = 0; i < NUM_CUSTOMERS + NUM_SENATORS; i++) {
+        delete customers[i];
+    }
+    //Delete clerks
+    for(int i = 0; i < NUM_CLERKS; i++) {
+        delete pictureClerks[i];
+        delete applicationClerks[i];
+        delete passportClerks[i];
+        delete cashiers[i];
+    }
+
+    //Delete other stuff
+    delete applicationClerkLock;
+    delete pictureClerkLock;
+    delete passportClerkLock;
+    delete cashierLock;
+
+    delete senatorSemaphore;
+    delete senatorLock;
+    delete senatorCondition;
+
+    //Suicide
+    delete clerkManager;
+
+
+
+
 }
 
 int isValidNumber(char* number, int limit) {
