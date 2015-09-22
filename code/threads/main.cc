@@ -90,7 +90,7 @@ main(int argc, char **argv)
     //ThreadTest();
     extern void Part2(void), TestSuite(void);
     extern void launchPassportOffice();
-    extern void testOne(), testTwo(), testThree(), testFour(), testFive(), testSix(), testSeven();
+    extern void testMin(), testAvg(), testMax();
 
 #endif
 
@@ -103,20 +103,12 @@ main(int argc, char **argv)
             TestSuite();
         if (!strcmp(*argv, "-P2"))               // Problem 2
            launchPassportOffice();
-        if (!strcmp(*argv, "-P2T1"))            //Problem 2 Test 1
-            testOne();
-        if (!strcmp(*argv, "-P2T2"))            //Problem 2 Test 2
-            testTwo();
-        if (!strcmp(*argv, "-P2T3"))            //Problem 2 Test 3
-            testThree();
-        if (!strcmp(*argv, "-P2T4"))            //Problem 2 Test 4
-            testFour();
-        if (!strcmp(*argv, "-P2T5"))            //Problem 2 Test 5
-            testFive();
-        if (!strcmp(*argv, "-P2T6"))            //Problem 2 Test 6
-            testSix();
-        if (!strcmp(*argv, "-P2T7"))            //Problem 2 Test 7
-            testSeven();
+        if (!strcmp(*argv, "-P2Tm"))            //Problem 2 Tests - Min Values
+            testMin();
+        if (!strcmp(*argv, "-P2TA"))            //Problem 2 Tests - Avg Values
+            testAvg();
+        if (!strcmp(*argv, "-P2TM"))            //Problem 2 Tests - Max Values
+            testMax();
 #endif //THREADS
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
