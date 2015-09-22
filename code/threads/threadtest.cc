@@ -1139,9 +1139,7 @@ void runPassportOffice() {
     senatorLock = new Lock("Senator Lock");
     senatorCondition = new Condition("Senator Condition");
    
-    clerkManager = new Manager("Manager 0");
-    t = new Thread("Manager 0");
-    t->Fork((VoidFunctionPtr)manager, 0);
+    
 
     for( i = 0; i < NUM_CLERKS; i ++)
     {
@@ -1150,20 +1148,28 @@ void runPassportOffice() {
         pictureClerks.push_back(new Clerk(name, PICTURECLERK));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)pictureClerk, i);
-        
+    }
+
+    for( i = 0; i < NUM_CLERKS; i ++)
+    {
         name = new char [20];
         sprintf(name,"Application Clerk %d",i);
         applicationClerks.push_back(new Clerk(name, APPLICATIONCLERK));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)applicationClerk, i);
+    }
 
-        
+    for( i = 0; i < NUM_CLERKS; i ++)
+    {
         name = new char [20];
         sprintf(name,"Passport Clerk %d",i);
         passportClerks.push_back(new Clerk(name, PASSPORTCLERK));
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)passportClerk, i);
-        
+    }
+
+    for( i = 0; i < NUM_CLERKS; i ++)
+    {
         name = new char [20];
         sprintf(name,"Cashier %d",i);
         cashiers.push_back(new Clerk(name, CASHIER));
@@ -1188,6 +1194,10 @@ void runPassportOffice() {
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)customer,NUM_CUSTOMERS + i);
     }
+
+    clerkManager = new Manager("Manager 0");
+    t = new Thread("Manager 0");
+    t->Fork((VoidFunctionPtr)manager, 0);
 }
 
 void testMin() 
