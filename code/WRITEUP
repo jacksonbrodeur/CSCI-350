@@ -242,7 +242,7 @@ IV. Implementation:
             threadtest.cc
                 void TestSuite()
 
-V. Testing:  (For each test case, you must show)
+V. Testing:
     + How to test
         To run each test case 1 through 7, run the following command in the code/threads directory:
             nachos -P2Tn
