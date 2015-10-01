@@ -151,7 +151,7 @@ void Wait(int condition);
 
 void Signal(int condition);
 
-void Broadcase(int condition);
+void Broadcast(int condition);
 
 
 
