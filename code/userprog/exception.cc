@@ -270,17 +270,17 @@ void ExceptionHandler(ExceptionType which) {
 
     case SC_Exec:
       DEBUG('a', "Exec syscall.\n");
-      //Do Exec
+      rv = ExecSyscall(machine->ReadRegister(4));
       break;
 
     case SC_Exit:
       DEBUG('a', "Exit syscall.\n");
-      //Do Exit
+      ExitSyscall(machine->ReadRegister(4));
       break;
 
     case SC_Fork:
       DEBUG('a', "Fork syscall.\n");
-      // Do Fork
+      ForkSyscall(machine->ReadRegister(4));
       break;
 
     case SC_Yield:
