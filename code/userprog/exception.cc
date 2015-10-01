@@ -231,6 +231,7 @@ void Close_Syscall(int fd) {
     }
 }
 
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
     int rv=0; 	// the return value from a syscall
@@ -270,7 +271,8 @@ void ExceptionHandler(ExceptionType which) {
 
     case SC_Exec:
       DEBUG('a', "Exec syscall.\n");
-      rv = ExecSyscall(machine->ReadRegister(4));
+      rv = ExecSyscall(machine->ReadRegister(4),
+                        machine->ReadRegister(5));
       break;
 
     case SC_Exit:
@@ -290,7 +292,8 @@ void ExceptionHandler(ExceptionType which) {
 
     case SC_CreateLock:
       DEBUG('a', "CreateLock syscall.\n");
-      rv = CreateLockSyscall(machine->ReadRegister(4));
+      rv = CreateLockSyscall(machine->ReadRegister(4),
+                              machine->ReadRegister(5));
       break;
 
     case SC_DestroyLock:
@@ -310,7 +313,8 @@ void ExceptionHandler(ExceptionType which) {
 
     case SC_CreateCondition:
       DEBUG('a', "CreateCondition syscall.\n");
-      rv = CreateConditionSyscall(machine->ReadRegister(4));
+      rv = CreateConditionSyscall(machine->ReadRegister(4),
+                                  machine->ReadRegister(5));
       break;
 
     case SC_DestroyCondition:
