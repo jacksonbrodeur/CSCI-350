@@ -231,6 +231,58 @@ void Close_Syscall(int fd) {
     }
 }
 
+int ExecSyscall(int vaddr, int len) {
+  return 0;
+}
+
+void ExitSyscall(int status) {
+
+}
+
+void ForkSyscall(int vaddr) {
+
+}
+
+void YieldSyscall() {
+
+}
+
+int CreateLockSyscall(int vaddr, int len) {
+  return 0;
+}
+
+void DestroyLockSyscall(int index) {
+
+}
+
+void AcquireSyscall(int index) {
+
+}
+
+void ReleaseSyscall(int index) {
+
+}
+
+int CreateConditionSyscall(int vaddr, int len) {
+  return 0;
+}
+
+void DestroyConditionSyscall(int index) {
+
+}
+
+void WaitSyscall(int index) {
+
+}
+
+void SignalSyscall(int index) {
+
+}
+
+void BroadcastSyscall(int index) {
+  
+}
+
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
