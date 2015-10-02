@@ -29,6 +29,22 @@ extern Interrupt *interrupt;			// interrupt status
 extern Statistics *stats;			// performance metrics
 extern Timer *timer;				// the hardware alarm clock
 
+struct KernelLock
+{
+    Lock* lock = NULL;
+    AddrSpace* addrSpace;
+    bool isToBeDeleted;
+
+    KernelLock(char * name) {
+        lock = new Lock(name);
+        addrSpace = currentThread->space;
+        isToBeDeleted = false;
+    }
+};
+
+extern KernelLock * locks[];
+#define MAX_LOCKS 1000000
+
 #ifdef USER_PROGRAM
 #include "machine.h"
 extern Machine* machine;	// user program memory and registers

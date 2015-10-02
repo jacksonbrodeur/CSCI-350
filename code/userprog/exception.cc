@@ -71,9 +71,9 @@ int copyout(unsigned int vaddr, int len, char *buf) {
       result = machine->WriteMem( vaddr, 1, (int)(buf[n++]) );
 
       if ( !result ) {
-	//translation failed
-	return -1;
-      }
+	   //translation failed
+	   return -1;
+    }
 
       vaddr++;
     }
@@ -90,9 +90,9 @@ void Create_Syscall(unsigned int vaddr, int len) {
     if (!buf) return;
 
     if( copyin(vaddr,len,buf) == -1 ) {
-	printf("%s","Bad pointer passed to Create\n");
-	delete buf;
-	return;
+    	printf("%s","Bad pointer passed to Create\n");
+    	delete buf;
+    	return;
     }
 
     buf[len]='\0';
@@ -113,8 +113,8 @@ int Open_Syscall(unsigned int vaddr, int len) {
     int id;				// The openfile id
 
     if (!buf) {
-	printf("%s","Can't allocate kernel buffer in Open\n");
-	return -1;
+    	printf("%s","Can't allocate kernel buffer in Open\n");
+    	return -1;
     }
 
     if( copyin(vaddr,len,buf) == -1 ) {
@@ -247,8 +247,37 @@ void YieldSyscall() {
 
 }
 
+// Returns -1 if there is an error
 int CreateLockSyscall(int vaddr, int len) {
-  return 0;
+  
+  char * name = new char[len+1];
+
+  if(len < 0 || len > MAXFILENAME) {
+    printf("Invalid string length in CreateLockSyscall\n");
+    return -1;
+  }
+
+  if(copyin(vaddr, len, name) == -1) {
+    printf("Bad vaddr passed in to CreateLockSyscall\n");
+    return -1;
+  }
+
+  name[len] = '\0';
+
+  KernelLock * lock = new KernelLock(name);
+
+  int index = -1;
+  for(int i = 0; i < MAX_LOCKS; i++) {
+    if (locks[i]->lock == NULL) {
+      locks[i] = lock;
+      index = i;
+      break;
+    }
+  }
+
+  printf("%s\n", locks[index]->lock->getName());
+  delete[] name;
+  return index;
 }
 
 void DestroyLockSyscall(int index) {
@@ -280,7 +309,7 @@ void SignalSyscall(int index) {
 }
 
 void BroadcastSyscall(int index) {
-  
+
 }
 
 

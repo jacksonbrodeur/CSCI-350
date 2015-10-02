@@ -81,6 +81,8 @@ Initialize(int argc, char **argv)
     char* debugArgs = "";
     bool randomYield = FALSE;
 
+    locks = new KernelLock[MAX_LOCKS];
+
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
 #endif
