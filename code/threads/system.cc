@@ -19,6 +19,20 @@ Statistics *stats;			// performance metrics
 Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
+KernelLock::KernelLock() {
+    this->lock = NULL;
+    this->addrSpace = NULL;
+    isToBeDeleted = false;
+}
+
+KernelLock::KernelLock(char * name) {
+        this->lock = new Lock(name);
+        this->addrSpace = currentThread->space;
+        this->isToBeDeleted = false;
+}
+
+KernelLock ** locks;
+
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
 #endif
@@ -82,6 +96,9 @@ Initialize(int argc, char **argv)
     bool randomYield = FALSE;
 
     locks = new KernelLock*[MAX_LOCKS];
+    for(int i = 0; i < MAX_LOCKS; i++) {
+        locks[i] = new KernelLock();
+    }
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
