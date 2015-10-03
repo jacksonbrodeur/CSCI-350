@@ -81,7 +81,7 @@ Initialize(int argc, char **argv)
     char* debugArgs = "";
     bool randomYield = FALSE;
 
-    locks = new KernelLock[MAX_LOCKS];
+    locks = new KernelLock*[MAX_LOCKS];
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
@@ -164,6 +164,7 @@ Initialize(int argc, char **argv)
 #ifdef NETWORK
     postOffice = new PostOffice(netname, rely, 10);
 #endif
+
 }
 
 //----------------------------------------------------------------------

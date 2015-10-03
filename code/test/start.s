@@ -176,7 +176,7 @@ DestroyCondition:
 	addiu $2,$0,SC_DestroyCondition
 	syscall
 	j	$31
-	.end DesroyCondition
+	.end DestroyCondition
 
 		.globl Wait
 	.ent	Wait
