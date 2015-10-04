@@ -6,6 +6,7 @@
 
 int main() {
 
+
   OpenFileId fd;
   int bytesread;
   char buf[20];

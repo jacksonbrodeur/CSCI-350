@@ -278,7 +278,7 @@ int CreateLockSyscall(int vaddr, int len) {
     }
   }
 
-  printf("%s\n", locks[index]->lock->getName());
+  DEBUG('d', "Creating Lock: %s\n", locks[index]->lock->getName());
   delete[] name;
   return index;
 }

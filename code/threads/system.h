@@ -16,6 +16,7 @@
 #include "stats.h"
 #include "timer.h"
 #include "synch.h"
+#include "../userprog/addrspace.h"
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv); 	// Initialization,
@@ -32,21 +33,13 @@ extern Timer *timer;				// the hardware alarm clock
 
 struct KernelLock
 {
-    Lock* lock;
-    AddrSpace* addrSpace;
+    Lock *lock;
+    AddrSpace *addrSpace;
     bool isToBeDeleted;
 
-    KernelLock() {
-        this->lock = NULL;
-        this->addrSpace = NULL;
-        isToBeDeleted = false;
-    }
+    KernelLock();
 
-    KernelLock(char * name) {
-        this->lock = new Lock(name);
-        this->addrSpace = currentThread->space;
-        this->isToBeDeleted = false;
-    }
+    KernelLock(char * name);
 };
 
 #define MAX_LOCKS 1000000
