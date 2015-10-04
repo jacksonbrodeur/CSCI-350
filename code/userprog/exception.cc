@@ -232,11 +232,13 @@ void Close_Syscall(int fd) {
 }
 
 int ExecSyscall(int vaddr, int len) {
+    
   return 0;
 }
 
 void ExitSyscall(int status) {
 
+    if(currentThread->)
 }
 
 void ForkSyscall(int vaddr) {
@@ -245,6 +247,7 @@ void ForkSyscall(int vaddr) {
 
 void YieldSyscall() {
 
+    currentThread->Yield();
 }
 
 // Returns -1 if there is an error
@@ -293,7 +296,25 @@ void ReleaseSyscall(int index) {
 }
 
 int CreateConditionSyscall(int vaddr, int len) {
-  return 0;
+  
+    char * name = new char[len+1];
+    
+    if(len < 0 || len > MAXFILENAME) {
+        printf("Invalid string length in CreateLockSyscall\n");
+        return -1;
+    }
+    
+    if(copyin(vaddr, len, name) == -1) {
+        printf("Bad vaddr passed in to CreateLockSyscall\n");
+        return -1;
+    }
+    
+    name[len] = '\0';
+    
+    //Create the condition variable here
+    
+    delete[] name;
+    return index;
 }
 
 void DestroyConditionSyscall(int index) {

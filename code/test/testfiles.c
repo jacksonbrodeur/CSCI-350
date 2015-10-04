@@ -6,7 +6,6 @@
 
 int main() {
 
-  CreateLock("ABC", 3);
   OpenFileId fd;
   int bytesread;
   char buf[20];
