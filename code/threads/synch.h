@@ -77,6 +77,7 @@ class Lock {
 					// holds this lock.  Useful for
 					// checking in Release, and in
 					// Condition variable ops below.
+    bool isInUse();
 
   private:
     char* name;				// for debugging

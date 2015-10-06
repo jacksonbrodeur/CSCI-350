@@ -165,6 +165,13 @@ bool Lock::isHeldByCurrentThread() {
     return (currentThread == owner);
 }
 
+bool Lock::isInUse() {
+    
+    if(owner!=NULL || !(waitQueue->IsEmpty()))
+        return true;
+    return false;
+}
+
 Condition::Condition() {
 
 }

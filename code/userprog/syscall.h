@@ -139,7 +139,7 @@ int CreateLock(char * name, int len);
 
 void DestroyLock(int lock);
 
-void Acquire(int lock);
+int Acquire(int lock);
 
 void Release(int lock);
 

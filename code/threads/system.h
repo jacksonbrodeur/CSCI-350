@@ -16,7 +16,7 @@
 #include "stats.h"
 #include "timer.h"
 #include "synch.h"
-#include "../userprog/addrspace.h"
+#include "addrspace.h"
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv); 	// Initialization,
@@ -40,6 +40,17 @@ struct KernelLock
     KernelLock();
 
     KernelLock(char * name);
+};
+
+struct KernelCV
+{
+    Condition * condition;
+    AddrSpace *addrSpace;
+    bool isToBeDeleted;
+    
+    KernelCV();
+    
+    KernelCV(char * name);
 };
 
 #define MAX_LOCKS 1000000

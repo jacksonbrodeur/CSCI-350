@@ -238,7 +238,9 @@ int ExecSyscall(int vaddr, int len) {
 
 void ExitSyscall(int status) {
 
-    if(currentThread->)
+    //check if this thread is the last process
+    
+    currentThread->Finish();
 }
 
 void ForkSyscall(int vaddr) {
@@ -247,7 +249,9 @@ void ForkSyscall(int vaddr) {
 
 void YieldSyscall() {
 
+    printf("Current thread: %s\n", currentThread->getName());
     currentThread->Yield();
+    printf("Current thread: %s\n", currentThread->getName());
 }
 
 // Returns -1 if there is an error
@@ -285,14 +289,47 @@ int CreateLockSyscall(int vaddr, int len) {
 
 void DestroyLockSyscall(int index) {
 
+    if(index <0 || index > MAX_LOCKS) {
+        
+        printf("The index supplied was invalid.\n");
+        return;
+    }
+    if(!locks[index]->lock->isInUse()) {
+        
+        //see if the lock is busy, delete it here immediately if it is not
+        locks[index]->lock=NULL;
+    } else {
+        
+        //otherwise mark the lock for deletion and wait for people to stop using it
+        locks[index]->isToBeDeleted=true;
+    }
 }
 
-void AcquireSyscall(int index) {
+int AcquireSyscall(int index) {
 
+    if(index <0 || index > MAX_LOCKS) {
+        
+        //the index is not valid so print error message
+        return -1;
+    }
+    locks[index]->lock->Acquire();
+    return 1;
 }
 
 void ReleaseSyscall(int index) {
 
+    if(index < 0 || index > MAX_LOCKS) {
+        
+        //the index is not valid so print error message
+        return;
+    }
+    locks[index]->lock->Release();
+    
+    //need to figure out how to check if the lock is in use (owner is a private variable)
+    if(locks[index]->isToBeDeleted && !(locks[index]->lock->isInUse())) {
+        
+        locks[index]->lock=NULL;
+    }
 }
 
 int CreateConditionSyscall(int vaddr, int len) {
@@ -312,6 +349,7 @@ int CreateConditionSyscall(int vaddr, int len) {
     name[len] = '\0';
     
     //Create the condition variable here
+    int index = -1;
     
     delete[] name;
     return index;
@@ -319,6 +357,7 @@ int CreateConditionSyscall(int vaddr, int len) {
 
 void DestroyConditionSyscall(int index) {
 
+    
 }
 
 void WaitSyscall(int index) {
