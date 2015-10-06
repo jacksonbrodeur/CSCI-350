@@ -98,9 +98,7 @@ Semaphore::V()
     (void) interrupt->SetLevel(oldLevel);
 }
 
-Lock::Lock() {
-    
-}
+Lock::Lock() {}
 
 // Dummy functions -- so we can compile our later assignments 
 // Note -- without a correct implementation of Condition::Wait(), 
@@ -150,7 +148,6 @@ void Lock::Release() {
         return;
     }
     if (!waitQueue->IsEmpty()) {
-
         owner = (Thread *)waitQueue->Remove();
         scheduler->ReadyToRun(owner);
     } else {
@@ -161,20 +158,14 @@ void Lock::Release() {
 }
 
 bool Lock::isHeldByCurrentThread() {
-    
     return (currentThread == owner);
 }
 
 bool Lock::isInUse() {
-    
-    if(owner!=NULL || !(waitQueue->IsEmpty()))
-        return true;
-    return false;
+    return (owner != NULL);
 }
 
-Condition::Condition() {
-
-}
+Condition::Condition() {}
 
 Condition::Condition(char* debugName) {
 
@@ -184,7 +175,6 @@ Condition::Condition(char* debugName) {
 }
 
 Condition::~Condition() {
-
     delete cvWaitQueue;
 }
 
@@ -261,4 +251,8 @@ void Condition::Broadcast(Lock* conditionLock) {
         Signal(conditionLock);
     }
     
+}
+
+bool Condition::isInUse() {
+    return !cvWaitQueue->IsEmpty();
 }

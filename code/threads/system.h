@@ -53,8 +53,9 @@ struct KernelCV
     KernelCV(char * name);
 };
 
-#define MAX_LOCKS 1000000
-extern KernelLock** locks;
+#define MAX_LOCKS 100000
+extern KernelLock** kernelLocks;
+extern KernelCV** kernelCVs;
 
 
 #ifdef USER_PROGRAM

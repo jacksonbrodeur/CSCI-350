@@ -33,7 +33,8 @@ Table::~Table() {
     if (table) {
 	delete table;
 	table = 0;
-    }
+    } 
+
     if (lock) {
 	delete lock;
 	lock = 0;
@@ -159,7 +160,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
-    bzero(machine->mainMemory, size);
+    // bzero(machine->mainMemory, size);
 
 // then, copy in the code and data segments into memory
     if (noffH.code.size > 0) {

@@ -26,12 +26,27 @@ KernelLock::KernelLock() {
 }
 
 KernelLock::KernelLock(char * name) {
-        this->lock = new Lock(name);
-        this->addrSpace = currentThread->space;
-        this->isToBeDeleted = false;
+    this->lock = new Lock(name);
+    this->addrSpace = currentThread->space;
+    this->isToBeDeleted = false;
 }
 
-KernelLock ** locks;
+KernelLock ** kernelLocks;
+
+
+KernelCV::KernelCV() {
+    this->condition =  NULL;
+    this->addrSpace = NULL;
+    this->isToBeDeleted = false;
+}
+
+KernelCV::KernelCV(char * name) {
+    this->condition =  new Condition(name);
+    this->addrSpace = currentThread->space;
+    this->isToBeDeleted = false;
+}
+
+KernelCV ** kernelCVs;
 
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
@@ -95,9 +110,16 @@ Initialize(int argc, char **argv)
     char* debugArgs = "";
     bool randomYield = FALSE;
 
-    locks = new KernelLock*[MAX_LOCKS];
+    // initialize all locks within array of KernelLock objects 
+    kernelLocks = new KernelLock*[MAX_LOCKS];
     for(int i = 0; i < MAX_LOCKS; i++) {
-        locks[i] = new KernelLock();
+        kernelLocks[i] = new KernelLock();
+    }
+
+    // initialize all CVs within array of KernelCV objects 
+    kernelCVs = new KernelCV*[MAX_LOCKS];
+    for(int i = 0; i < MAX_LOCKS; i++) {
+        kernelCVs[i] = new KernelCV();
     }
 
 #ifdef USER_PROGRAM

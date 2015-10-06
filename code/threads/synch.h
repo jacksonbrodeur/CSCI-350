@@ -140,6 +140,8 @@ class Condition {
         return (int)cvWaitQueue;
     }
 
+    bool isInUse();
+
   private:
     char* name;
     Lock *waitingLock;

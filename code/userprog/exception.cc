@@ -29,6 +29,38 @@
 
 using namespace std;
 
+int validateLock(int index) {
+    if (index < 0 || index > MAX_LOCKS) {
+        printf("The index: %d was invalid.\n", index);
+        return 0;
+    }
+    if (kernelLocks[index]->lock == NULL) {
+        printf("There is no lock at index: %d\n", index);
+        return 0;
+    }
+    if (kernelLocks[index]->addrSpace != currentThread->space) {
+        printf("The lock trying to be accessed belongs to another thread.");
+        return 0;
+    }
+    return 1;
+}
+
+int validateCV(int index) {
+    if (index < 0 || index > MAX_LOCKS) {
+        printf("The index: %d was invalid.\n", index);
+        return 0;
+    }
+    if (kernelCVs[index]->condition == NULL) {
+        printf("There is no condition at index: %d\n", index);
+        return 0;
+    }
+    if (kernelCVs[index]->addrSpace != currentThread->space) {
+        printf("The condition trying to be accessed belongs to another thread.");
+        return 0;
+    }
+    return 1;
+}
+
 int copyin(unsigned int vaddr, int len, char *buf) {
     // Copy len bytes from the current thread's virtual address vaddr.
     // Return the number of bytes so read, or -1 if an error occors.
@@ -271,64 +303,54 @@ int CreateLockSyscall(int vaddr, int len) {
 
   name[len] = '\0';
 
-  KernelLock * lock = new KernelLock(name);
+  KernelLock * kernelLock = new KernelLock(name);
 
   int index = -1;
   for(int i = 0; i < MAX_LOCKS; i++) {
-    if (locks[i]->lock == NULL) {
-      locks[i] = lock;
+    if (kernelLocks[i]->lock == NULL) {
+      kernelLocks[i] = kernelLock;
       index = i;
       break;
     }
   }
 
-  DEBUG('d', "Creating Lock: %s\n", locks[index]->lock->getName());
+  DEBUG('d', "Creating Lock: %s\n", kernelLocks[index]->lock->getName());
   delete[] name;
   return index;
 }
 
 void DestroyLockSyscall(int index) {
 
-    if(index <0 || index > MAX_LOCKS) {
-        
-        printf("The index supplied was invalid.\n");
-        return;
+    if(validateLock(index)) {
+        if(!kernelLocks[index]->lock->isInUse()) {
+            //see if the lock is busy, delete it here immediately if it is not
+            kernelLocks[index]->lock = NULL;
+        } else {
+            //otherwise mark the lock for deletion and wait for people to stop using it
+            kernelLocks[index]->isToBeDeleted = true;
+        }
     }
-    if(!locks[index]->lock->isInUse()) {
-        
-        //see if the lock is busy, delete it here immediately if it is not
-        locks[index]->lock=NULL;
-    } else {
-        
-        //otherwise mark the lock for deletion and wait for people to stop using it
-        locks[index]->isToBeDeleted=true;
-    }
+    
 }
 
 int AcquireSyscall(int index) {
 
-    if(index <0 || index > MAX_LOCKS) {
-        
-        //the index is not valid so print error message
-        return -1;
+    if(validateLock(index)) {
+        kernelLocks[index]->lock->Acquire();
+        return 1;
     }
-    locks[index]->lock->Acquire();
-    return 1;
+    return 0;
 }
 
 void ReleaseSyscall(int index) {
 
-    if(index < 0 || index > MAX_LOCKS) {
-        
-        //the index is not valid so print error message
-        return;
-    }
-    locks[index]->lock->Release();
+    if(validateLock(index)) {
+        kernelLocks[index]->lock->Release();
     
-    //need to figure out how to check if the lock is in use (owner is a private variable)
-    if(locks[index]->isToBeDeleted && !(locks[index]->lock->isInUse())) {
-        
-        locks[index]->lock=NULL;
+        // if the lock is not in use (owner == NULL) then delete it (set lock to NULL)
+        if(kernelLocks[index]->isToBeDeleted && !(kernelLocks[index]->lock->isInUse())) {
+            kernelLocks[index]->lock = NULL;
+        }
     }
 }
 
@@ -349,27 +371,57 @@ int CreateConditionSyscall(int vaddr, int len) {
     name[len] = '\0';
     
     //Create the condition variable here
+    KernelCV * kernelCV = new KernelCV(name);
+
     int index = -1;
+    for(int i = 0; i < MAX_LOCKS; i++) {
+        if (kernelCVs[i]->condition == NULL) {
+            kernelCVs[i] = kernelCV;
+            index = i;
+            break;
+        }
+    }
     
+    DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
     delete[] name;
     return index;
 }
 
 void DestroyConditionSyscall(int index) {
-
-    
+    if(validateCV(index)) {
+        if(!kernelCVs[index]->condition->isInUse()) {
+            //see if the CV is busy, delete it here immediately if it is not
+            kernelCVs[index]->condition = NULL;
+        } else {
+            // otherwise mark the CV for deletion and wait for people to stop using it
+            kernelCVs[index]->isToBeDeleted = true;
+        }
+    }    
 }
 
-void WaitSyscall(int index) {
 
+void WaitSyscall(int conditionIndex, int lockIndex) {
+    if(validateCV(conditionIndex) && validateLock(lockIndex)) {
+        DEBUG('d', "Waiting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
+            kernelLocks[lockIndex]->lock->getName());
+        kernelCVs[conditionIndex]->condition->Wait(kernelLocks[lockIndex]->lock);
+    }
 }
 
-void SignalSyscall(int index) {
-
+void SignalSyscall(int conditionIndex, int lockIndex) {
+    if(validateCV(conditionIndex) && validateLock(lockIndex)) {
+        DEBUG('d', "Signalling on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
+            kernelLocks[lockIndex]->lock->getName());
+        kernelCVs[conditionIndex]->condition->Signal(kernelLocks[lockIndex]->lock);
+    }
 }
 
-void BroadcastSyscall(int index) {
-
+void BroadcastSyscall(int conditionIndex, int lockIndex) {
+    if(validateCV(conditionIndex) && validateLock(lockIndex)) {
+        DEBUG('d', "Broadcasting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
+            kernelLocks[lockIndex]->lock->getName());
+        kernelCVs[conditionIndex]->condition->Broadcast(kernelLocks[lockIndex]->lock);
+    }
 }
 
 
@@ -465,17 +517,17 @@ void ExceptionHandler(ExceptionType which) {
 
     case SC_Wait:
       DEBUG('a', "Wait syscall.\n");
-      WaitSyscall(machine->ReadRegister(4));
+      WaitSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
       break;
 
     case SC_Signal:
       DEBUG('a', "Signal syscall.\n");
-      SignalSyscall(machine->ReadRegister(4));
+      SignalSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
       break;
 
     case SC_Broadcast:
       DEBUG('a', "Broadcast syscall.\n");
-      BroadcastSyscall(machine->ReadRegister(4));
+      BroadcastSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
       break;
 	}
 
