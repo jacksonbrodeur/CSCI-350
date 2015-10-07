@@ -37,7 +37,8 @@
 #define SC_DestroyCondition     16
 #define SC_Wait                 17
 #define SC_Signal               18
-#define SC_Broadcast            19   
+#define SC_Broadcast            19
+#define SC_Print                20   
 
 #define MAXFILENAME 256
 
@@ -152,6 +153,8 @@ void Wait(int condition);
 void Signal(int condition);
 
 void Broadcast(int condition);
+
+void Print(char * string, int len, int intParams, int charParams);
 
 
 

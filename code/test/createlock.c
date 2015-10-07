@@ -19,5 +19,5 @@ main()
 {
     int l = CreateLock("abc",3);
     Acquire(l);
-    Exit();
+    Exit(0);
 }
