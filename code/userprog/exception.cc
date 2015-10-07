@@ -263,20 +263,112 @@ void Close_Syscall(int fd) {
     }
 }
 
+void exec_thread() {
+    
+    currentThread->space->InitRegisters();		// set the initial register values
+    currentThread->space->RestoreState();		// load page table register
+    
+    machine->Run();			// jump to the user progam
+    ASSERT(FALSE);			// machine->Run never returns;
+}
+
 int ExecSyscall(int vaddr, int len) {
     
-  return 0;
+    //int Read_Syscall(unsigned int vaddr, int len, int id)
+    
+    char * filename = new char[len+1];
+
+    if(!filename) {
+        
+        printf("Error allocating kernel file name buffer in exec\n");
+        return;
+    }
+    
+    if ( copyin(vaddr, len, filename) == -1 ) {
+        printf("%s","Bad pointer passed to copyin\n");
+    }
+    
+    
+    filename[len]='\0';
+                    
+    
+    OpenFile *executable = fileSystem->Open(filename);
+    
+    delete[] filename;
+    
+    if (executable == NULL) {
+        printf("Unable to open file %s\n", filename);
+        return;
+    }
+    
+    AddrSpace mySpace = new AddrSpace(executable);
+    
+    Thread * t = new Thread("executable thread")
+    
+    t->space = mySpace;
+    
+    delete executable;			// close file
+    
+    t->Fork(exec_thread, vaddr);
+}
+
+bool isLastExecutingThread() {
+    
+    return true;
+}
+
+bool isLastExecutingProcess() {
+    
+    return true;
 }
 
 void ExitSyscall(int status) {
 
     //check if this thread is the last process
-    
+    if(!isLastExecutingThread()) {
+        //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
+    }
+    else if(isLastExecutingThread() && isLastExecutingProcess()) {
+        interrupt->Halt();
+    }
+    else if(isLastExecutingThread() && !isLastExecutingProcess()) {
+        //if valid bit = true, memoryBitMap->Clear(physical page #)
+        for(int i =0;i<MAX_LOCKS;i++) {
+            kernelLocks[i]->lock=NULL;
+            kernelCVs[i]->kernelCV=NULL;
+        }
+        
+    }
     currentThread->Finish();
+}
+
+void kernel_thread(int vaddr) {
+    
+    //****ask crowley about this
+    
+    machine->WriteRegister(PCReg, vaddr);
+    machine->WriteRegister(NextPCReg, vaddr + 4);
+
+    
+    int numPages = divRoundUp(noffH.code.size + noffH.initData.size + noffH.uninitData.size, PageSize);
+    
+    numPages += /*numThreads*/ * UserStackSize/PageSize;
+    //machine->WriteRegister(StackReg, numPages);
+    
+    currentThread->space->RestoreState();
+    
+    machine->Run();
 }
 
 void ForkSyscall(int vaddr) {
 
+    Thread * t = new Thread("forking thread");
+    
+    t->space = currentThread->space;
+    
+    t->Fork(kernel_thread, machine->ReadRegister(4));
+    
+    return;
 }
 
 void YieldSyscall() {
