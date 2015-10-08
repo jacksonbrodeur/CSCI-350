@@ -570,6 +570,42 @@ void BroadcastSyscall(int conditionIndex, int lockIndex) {
     }
 }
 
+void PrintSyscall(int vaddr, int len, int params1, int params2) {
+
+  if(len < 0 || len > MAXFILENAME) {
+        printf("Invalid string length in CreateLockSyscall\n");
+        return;
+  }
+
+  char * string = new char[len + 1];
+
+  if(copyin(vaddr, len, string) == -1) {
+        printf("Bad vaddr passed in to CreateLockSyscall\n");
+        return;
+  }
+    
+  int * params = new int[4];
+  params[0] = params1 / 1000;
+  params[1] = params1 % 1000;
+  params[2] = params2 / 1000;
+  params[3] = params2 % 1000;
+  int index = 0;
+  string[len] = '\0';
+  for(int i = 0; i < len; i++) {
+    if (string[i] == '%')
+    {
+      if(string[i+1] == 'i'){
+        printf("%i", params[index]);
+        index++;
+        i++;
+      }
+    } else {
+      printf("%c", string[i]);
+    }
+  }
+
+}
+
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
@@ -674,6 +710,14 @@ void ExceptionHandler(ExceptionType which) {
     case SC_Broadcast:
       DEBUG('a', "Broadcast syscall.\n");
       BroadcastSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
+      break;
+
+    case SC_Print:
+      DEBUG('a', "Print syscall.\n");
+      PrintSyscall(machine->ReadRegister(4), 
+        machine->ReadRegister(5), 
+        machine->ReadRegister(6), 
+        machine->ReadRegister(7));
       break;
 	}
 
