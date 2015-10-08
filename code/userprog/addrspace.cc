@@ -133,7 +133,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
-    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
+    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize) + 400;
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;

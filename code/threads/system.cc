@@ -19,6 +19,9 @@ Statistics *stats;			// performance metrics
 Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
+Thread ** processTable;
+BitMap * bitMap;
+
 KernelLock::KernelLock() {
     this->lock = NULL;
     this->addrSpace = NULL;
@@ -109,6 +112,10 @@ Initialize(int argc, char **argv)
     int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
+    
+    //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
+    processTable = new Thread*[100];
+    bitMap = new BitMap[NumPhysPages];
 
     // initialize all locks within array of KernelLock objects 
     kernelLocks = new KernelLock*[MAX_LOCKS];

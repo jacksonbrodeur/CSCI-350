@@ -57,6 +57,8 @@ struct KernelCV
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
 
+extern Thread** processTable;
+extern BitMap * bitMap;
 
 #ifdef USER_PROGRAM
 #include "machine.h"

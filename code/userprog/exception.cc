@@ -314,12 +314,35 @@ int ExecSyscall(int vaddr, int len) {
 
 bool isLastExecutingThread() {
     
-    return true;
+    bool isLastThread = true;
+    
+    for(int i = 0; i < 100 ; i++) {
+        
+        if(processTable[i]!=NULL) {
+         
+            if(processTable[i]->space == currentThread->space && processTable[i]!=currentThread) {
+                
+                isLastThread = false;
+            }
+        }
+    }
+    return isLastThread;
 }
 
 bool isLastExecutingProcess() {
     
-    return true;
+    //here we can just check our system.h/.cc process table to see if this is the only thread left in it
+    bool isLastProcess = false;
+    
+    for(int i = 0; i <100;i++) {
+        
+        if(processTable[i]!=NULL && processTable[i]!=currentThread) {
+            
+            isLastProcess = false;
+        }
+    }
+    
+    return isLastProcess;
 }
 
 void ExitSyscall(int status) {
@@ -334,12 +357,43 @@ void ExitSyscall(int status) {
     else if(isLastExecutingThread() && !isLastExecutingProcess()) {
         //if valid bit = true, memoryBitMap->Clear(physical page #)
         for(int i =0;i<MAX_LOCKS;i++) {
-            kernelLocks[i]->lock=NULL;
-            kernelCVs[i]->kernelCV=NULL;
+            if(kernelLocks[i]->space == currentThread->space) {
+                
+                kernelLocks[i]->lock=NULL;
+            }
+            if(kernelCVs[i]->space == currentThread->space) {
+                
+                kernelCVs[i]->kernelCV=NULL;
+            }
+        }
+        
+        for(int i = 0; i < 100; i ++) {
+            
+            if(processTable[i]!=NULL) {
+                if(processTable[i]->space == currentThread->space) {
+        
+                    processTable[i] = NULL;
+                }
+            }
         }
         
     }
     currentThread->Finish();
+}
+
+int findNumThreads() {
+    
+    int numThreads = 0;
+    
+    for(int i = 0; i < 100; i ++) {
+        
+        if(processTable[i]!=NULL) {
+            
+            numThreads++;
+        }
+    }
+    
+    return numThreads;
 }
 
 void kernel_thread(int vaddr) {
@@ -350,10 +404,10 @@ void kernel_thread(int vaddr) {
     machine->WriteRegister(NextPCReg, vaddr + 4);
 
     
-    int numPages = divRoundUp(noffH.code.size + noffH.initData.size + noffH.uninitData.size, PageSize);
+    int numPages = divRoundUp(noffH.code.size + noffH.initData.size + noffH.uninitData.size, PageSize) +
+    findNumThreads() * UserStackSize/PageSize;
     
-    numPages += /*numThreads*/ * UserStackSize/PageSize;
-    //machine->WriteRegister(StackReg, numPages);
+    machine->WriteRegister(StackReg, numPages);
     
     currentThread->space->RestoreState();
     
