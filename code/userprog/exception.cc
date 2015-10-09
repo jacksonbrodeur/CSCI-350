@@ -281,7 +281,7 @@ int ExecSyscall(int vaddr, int len) {
     if(!filename) {
         
         printf("Error allocating kernel file name buffer in exec\n");
-        return;
+        return -1;
     }
     
     if ( copyin(vaddr, len, filename) == -1 ) {
@@ -298,18 +298,23 @@ int ExecSyscall(int vaddr, int len) {
     
     if (executable == NULL) {
         printf("Unable to open file %s\n", filename);
-        return;
+        return -1;
     }
     
-    AddrSpace mySpace = new AddrSpace(executable);
+    AddrSpace * mySpace = new AddrSpace(executable);
     
-    Thread * t = new Thread("executable thread")
+    Thread * t = new Thread("executable thread");
     
     t->space = mySpace;
     
     delete executable;			// close file
     
-    t->Fork(exec_thread, vaddr);
+    //THIS ISNT COMPILING
+    //t->Fork(exec_thread, vaddr);
+    
+    
+    //UPDATE THIS WITH THE PROCESSES LOCATION IN THE PROCESS TABLE I THINK
+    return 1;
 }
 
 bool isLastExecutingThread() {
@@ -357,13 +362,13 @@ void ExitSyscall(int status) {
     else if(isLastExecutingThread() && !isLastExecutingProcess()) {
         //if valid bit = true, memoryBitMap->Clear(physical page #)
         for(int i =0;i<MAX_LOCKS;i++) {
-            if(kernelLocks[i]->space == currentThread->space) {
+            if(kernelLocks[i]->addrSpace == currentThread->space) {
                 
                 kernelLocks[i]->lock=NULL;
             }
-            if(kernelCVs[i]->space == currentThread->space) {
+            if(kernelCVs[i]->addrSpace == currentThread->space) {
                 
-                kernelCVs[i]->kernelCV=NULL;
+                kernelCVs[i]->condition=NULL;
             }
         }
         
@@ -403,9 +408,10 @@ void kernel_thread(int vaddr) {
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr + 4);
 
-    
-    int numPages = divRoundUp(noffH.code.size + noffH.initData.size + noffH.uninitData.size, PageSize) +
-    findNumThreads() * UserStackSize/PageSize;
+    int numPages = 0;
+    //THIS DOES NOT COMPILE. FIGURE OUT HOW TO REFERENCE NOFF
+    //int numPages = divRoundUp(noffH.code.size + noffH.initData.size + noffH.uninitData.size, PageSize) +
+    //findNumThreads() * UserStackSize/PageSize;
     
     machine->WriteRegister(StackReg, numPages);
     
