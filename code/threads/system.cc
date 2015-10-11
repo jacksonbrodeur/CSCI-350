@@ -19,8 +19,8 @@ Statistics *stats;			// performance metrics
 Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
-Thread ** processTable;
-BitMap * bitMap;
+KernelProcess ** processTable;
+BitMap * stackBitMap;
 
 KernelLock::KernelLock() {
     this->lock = NULL;
@@ -47,6 +47,21 @@ KernelCV::KernelCV(char * name) {
     this->condition =  new Condition(name);
     this->addrSpace = currentThread->space;
     this->isToBeDeleted = false;
+}
+
+KernelThread::KernelThread(Thread * userThread) {
+    
+    this->startingStackPage = -1;
+    this->myThread = userThread;
+}
+
+KernelProcess::KernelProcess(Thread * processThread) {
+    
+    this->threadList = new KernelThread*[50];
+    this->totalThreads = 0;
+    this->numThreadsExecuting = 0;
+    this->myThread = processThread;
+    this->mySpace = NULL;
 }
 
 KernelCV ** kernelCVs;
@@ -114,8 +129,8 @@ Initialize(int argc, char **argv)
     bool randomYield = FALSE;
     
     //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
-    processTable = new Thread*[100];
-    bitMap = new BitMap(NumPhysPages);
+    processTable = new KernelProcess*[100];
+    stackBitMap = new BitMap(NumPhysPages);
 
     // initialize all locks within array of KernelLock objects 
     kernelLocks = new KernelLock*[MAX_LOCKS];

@@ -53,12 +53,37 @@ struct KernelCV
     KernelCV(char * name);
 };
 
+struct KernelThread
+{
+    int startingStackPage;
+    Thread * myThread;
+   
+    KernelThread();
+    
+    KernelThread(Thread* userThread);
+};
+
+struct KernelProcess
+{
+    KernelThread ** threadList;
+    Thread * myThread;
+    int totalThreads;
+    int numThreadsExecuting;
+    AddrSpace * mySpace;
+    
+    KernelProcess();
+    
+    KernelProcess(Thread * processThread);
+};
+
 #define MAX_LOCKS 100000
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
 
-extern Thread** processTable;
-extern BitMap * bitMap;
+extern KernelProcess** processTable;
+extern BitMap * stackBitMap;
+
+
 
 #ifdef USER_PROGRAM
 #include "machine.h"

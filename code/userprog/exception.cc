@@ -29,6 +29,24 @@
 
 using namespace std;
 
+int currentThreadIndex = -1;
+
+int findCurrentProcess() {
+    
+    int processIndex = -1;
+    //we need to iterate through the process table to find the process that this new thread is being forked from
+    for(int i = 0; i < 100; i ++) {
+        
+        //if this evaluates to true, we have found the current process
+        if(processTable[i]!=NULL && processTable[i]->mySpace == currentThread->space) {
+            
+            processIndex = i;
+            break;
+        }
+    }
+    return processIndex;
+}
+
 int validateLock(int index) {
     if (index < 0 || index > MAX_LOCKS) {
         printf("The index: %d was invalid.\n", index);
@@ -263,7 +281,7 @@ void Close_Syscall(int fd) {
     }
 }
 
-void exec_thread() {
+void exec_thread(int vaddr) {
     
     currentThread->space->InitRegisters();		// set the initial register values
     currentThread->space->RestoreState();		// load page table register
@@ -273,8 +291,6 @@ void exec_thread() {
 }
 
 int ExecSyscall(int vaddr, int len) {
-    
-    //int Read_Syscall(unsigned int vaddr, int len, int id)
     
     char * filename = new char[len+1];
 
@@ -309,12 +325,24 @@ int ExecSyscall(int vaddr, int len) {
     
     delete executable;			// close file
     
-    //THIS ISNT COMPILING
-    //t->Fork(exec_thread, vaddr);
+    KernelProcess * newProcess = new KernelProcess(t);
+    newProcess->mySpace = mySpace;
     
-    
+    int index = -1;
     //UPDATE THIS WITH THE PROCESSES LOCATION IN THE PROCESS TABLE I THINK
-    return 1;
+    for(int i =0;i < 100;i ++) {
+        
+        if(processTable[i]==NULL) {
+            processTable[i] = newProcess;
+            index = i;
+            break;
+        }
+    }
+    
+    
+    t->Fork(exec_thread, vaddr);
+    
+    return index;
 }
 
 bool isLastExecutingThread() {
@@ -325,7 +353,7 @@ bool isLastExecutingThread() {
         
         if(processTable[i]!=NULL) {
          
-            if(processTable[i]->space == currentThread->space && processTable[i]!=currentThread) {
+            if(processTable[i]->mySpace == currentThread->space && processTable[i]->mySpace!=currentThread->space) {
                 
                 isLastThread = false;
             }
@@ -337,30 +365,59 @@ bool isLastExecutingThread() {
 bool isLastExecutingProcess() {
     
     //here we can just check our system.h/.cc process table to see if this is the only thread left in it
-    bool isLastProcess = false;
     
     for(int i = 0; i <100;i++) {
         
-        if(processTable[i]!=NULL && processTable[i]!=currentThread) {
+        if(processTable[i]!=NULL && processTable[i]->mySpace!=currentThread->space) {
             
-            isLastProcess = false;
+            return false;
         }
     }
     
-    return isLastProcess;
+    return true;
 }
 
 void ExitSyscall(int status) {
 
+    int currentProcess = findCurrentProcess();
     //check if this thread is the last process
     if(!isLastExecutingThread()) {
         //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
+        int threadListIndex = -1;
+        //iterate through the current process's thread list to find the exiting thread
+        for(int i = 0; i < 50; i ++) {
+            
+            if(processTable[currentProcess]->threadList[i]->myThread == currentThread) {
+                //keep track of the exiting thread's index in the process's thread list
+                threadListIndex = i;
+                break;
+            }
+        }
+        //reclaim the exiting threads memory
+        stackBitMap->Clear(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage);
+        //one thread has finished executing so keep track of this in the current process
+        processTable[currentProcess]->numThreadsExecuting--;
     }
     else if(isLastExecutingThread() && isLastExecutingProcess()) {
         interrupt->Halt();
     }
     else if(isLastExecutingThread() && !isLastExecutingProcess()) {
-        //if valid bit = true, memoryBitMap->Clear(physical page #)
+        
+        //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
+        int threadListIndex = -1;
+        //iterate through the current process's thread list to find the exiting thread
+        for(int i = 0; i < 50; i ++) {
+            
+            if(processTable[currentProcess]->threadList[i]->myThread == currentThread) {
+                //keep track of the exiting thread's index in the process's thread list
+                threadListIndex = i;
+                break;
+            }
+        }
+
+        //reclaim the exiting threads memory
+        stackBitMap->Clear(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage);
+        
         for(int i =0;i<MAX_LOCKS;i++) {
             if(kernelLocks[i]->addrSpace == currentThread->space) {
                 
@@ -375,7 +432,7 @@ void ExitSyscall(int status) {
         for(int i = 0; i < 100; i ++) {
             
             if(processTable[i]!=NULL) {
-                if(processTable[i]->space == currentThread->space) {
+                if(processTable[i]->mySpace == currentThread->space) {
         
                     processTable[i] = NULL;
                 }
@@ -386,34 +443,40 @@ void ExitSyscall(int status) {
     currentThread->Finish();
 }
 
-int findNumThreads() {
+int findThreadListIndex (int processIndex) {
     
-    int numThreads = 0;
+    int threadListIndex = -1;
     
-    for(int i = 0; i < 100; i ++) {
+    //now iterate through the thread list of this process to find an empty location
+    for(int j = 0; j < 50; j ++) {
         
-        if(processTable[i]!=NULL) {
+        //we have found an empty spot in the list, now we store our new KernelThread there
+        if(processTable[processIndex]->threadList[j]==NULL) {
             
-            numThreads++;
+            threadListIndex = j;
+            break;
         }
     }
     
-    return numThreads;
+    return threadListIndex;
 }
 
 void kernel_thread(int vaddr) {
     
     //****ask crowley about this
     
+    currentThread->space->InitRegisters();
+    
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr + 4);
-
-    int numPages = 0;
-    //THIS DOES NOT COMPILE. FIGURE OUT HOW TO REFERENCE NOFF
-    //int numPages = divRoundUp(noffH.code.size + noffH.initData.size + noffH.uninitData.size, PageSize) +
-    //findNumThreads() * UserStackSize/PageSize;
     
-    machine->WriteRegister(StackReg, numPages);
+    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (stackBitMap->Find() + 1) * 8) - 16;
+    
+    //find the current process and set the new threads starting stack page variable
+    int currentProcess = findCurrentProcess();
+    processTable[currentProcess]->threadList[currentThreadIndex]->startingStackPage = startingStackPage;
+    
+    machine->WriteRegister(StackReg, startingStackPage);
     
     currentThread->space->RestoreState();
     
@@ -425,6 +488,17 @@ void ForkSyscall(int vaddr) {
     Thread * t = new Thread("forking thread");
     
     t->space = currentThread->space;
+    
+    KernelThread * newThread = new KernelThread(t);
+    
+    //find the current process running (the process this new thread being forked belongs to) and set the global variable to keep track of where this thread is stored in the current process's thread list
+    int currentProcess = findCurrentProcess();
+    currentThreadIndex = findThreadListIndex(currentProcess);
+    
+    processTable[currentProcess]->threadList[currentThreadIndex] = newThread;
+    
+    processTable[currentProcess]->totalThreads++;
+    processTable[currentProcess]->numThreadsExecuting++;
     
     t->Fork(kernel_thread, machine->ReadRegister(4));
     

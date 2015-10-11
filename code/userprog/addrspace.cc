@@ -133,7 +133,10 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
-    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize) + 400;
+    
+    codeDataPages = divRoundUp(size, PageSize);
+    
+    numPages = divRoundUp(size, PageSize) /* + divRoundUp(UserStackSize,PageSize)*/ + 400;
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;
@@ -163,6 +166,8 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     // bzero(machine->mainMemory, size);
 
 // then, copy in the code and data segments into memory
+    
+    //ASK CROWLEY IF WE NEED TO REMOVE THIS
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
