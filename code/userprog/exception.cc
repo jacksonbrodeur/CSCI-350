@@ -682,6 +682,10 @@ void PrintSyscall(int vaddr, int len, int params1, int params2) {
         index++;
         i++;
       }
+    } else if(string[i] == '\\') {
+        if(string[i+1] == 'n') {
+            printf("\n");
+        }
     } else {
       printf("%c", string[i]);
     }
