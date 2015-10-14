@@ -12,10 +12,28 @@
 
 #include "syscall.h"
 
-int
+int l;
+
+void acquirelock_t1() {
+    
+    Acquire(l);
+    
+    Exit(0);
+}
+
+void acquirelock_t2() {
+    
+    Acquire(l);
+    
+    Exit(0);
+}
+
 main()
 {
-    int l = CreateLock("abc",3);
-    Acquire(l);
+    l = CreateLock("abc",3);
+    
+    Fork(acquirelock_t1);
+    Fork(acquirelock_t2);
+    
     Exit(0);
 }

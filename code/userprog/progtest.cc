@@ -14,6 +14,7 @@
 #include "addrspace.h"
 #include "synch.h"
 #include "string.h"
+#include "machine.h"
 
 #define QUANTUM 100
 
@@ -38,8 +39,30 @@ StartProcess(char *filename)
     currentThread->space = space;
 
     delete executable;			// close file
+    
+    KernelProcess * newProcess = new KernelProcess(currentThread);
+    newProcess->mySpace = space;
+    
+    KernelThread * newThread = new KernelThread(currentThread);
+    newProcess->threadList[0] = newThread;
+
+    
+    int index = -1;
+    //UPDATE THIS WITH THE PROCESSES LOCATION IN THE PROCESS TABLE I THINK
+    for(int i =0;i < 100;i ++) {
+        
+        if(processTable[i]==NULL) {
+            processTable[i] = newProcess;
+            index = i;
+            break;
+        }
+    }
 
     space->InitRegisters();		// set the initial register values
+    
+    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (stackBitMap->Find() + 1) * 8) - 16;
+    newThread->startingStackPage = startingStackPage;
+    
     space->RestoreState();		// load page table register
 
     machine->Run();			// jump to the user progam

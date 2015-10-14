@@ -19,6 +19,9 @@ Statistics *stats;			// performance metrics
 Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
+KernelProcess ** processTable;
+BitMap * stackBitMap;
+
 KernelLock::KernelLock() {
     this->lock = NULL;
     this->addrSpace = NULL;
@@ -33,6 +36,13 @@ KernelLock::KernelLock(char * name) {
 
 KernelLock ** kernelLocks;
 
+Lock * lockTableLock;
+Lock * cvTableLock;
+Lock * printLock;
+Lock * forkLock;
+Lock * exitLock;
+Lock * execLock;
+
 
 KernelCV::KernelCV() {
     this->condition =  NULL;
@@ -44,6 +54,21 @@ KernelCV::KernelCV(char * name) {
     this->condition =  new Condition(name);
     this->addrSpace = currentThread->space;
     this->isToBeDeleted = false;
+}
+
+KernelThread::KernelThread(Thread * userThread) {
+    
+    this->startingStackPage = -1;
+    this->myThread = userThread;
+}
+
+KernelProcess::KernelProcess(Thread * processThread) {
+    
+    this->threadList = new KernelThread*[50];
+    this->totalThreads = 0;
+    this->numThreadsExecuting = 0;
+    this->myThread = processThread;
+    this->mySpace = NULL;
 }
 
 KernelCV ** kernelCVs;
@@ -109,6 +134,10 @@ Initialize(int argc, char **argv)
     int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
+    
+    //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
+    processTable = new KernelProcess*[100];
+    stackBitMap = new BitMap(NumPhysPages*PageSize);
 
     // initialize all locks within array of KernelLock objects 
     kernelLocks = new KernelLock*[MAX_LOCKS];
@@ -121,6 +150,13 @@ Initialize(int argc, char **argv)
     for(int i = 0; i < MAX_LOCKS; i++) {
         kernelCVs[i] = new KernelCV();
     }
+    
+    lockTableLock = new Lock("lockTableLock");
+    cvTableLock = new Lock("cvTableLock");
+    printLock = new Lock("printLock");
+    forkLock = new Lock("forkLock");
+    exitLock = new Lock("exitLock");
+    execLock = new Lock("execLock");
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
