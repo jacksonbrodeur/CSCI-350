@@ -75,10 +75,12 @@ int validateCV(int index) {
         printf("There is no condition at index: %d\n", index);
         return 0;
     }
+    /*
     if (kernelCVs[index]->addrSpace != currentThread->space) {
         printf("The condition trying to be accessed belongs to another thread.");
         return 0;
     }
+     */
     return 1;
 }
 
@@ -286,14 +288,19 @@ void Close_Syscall(int fd) {
 
 void exec_thread(int vaddr) {
     
+    execLock->Acquire();
+    
     currentThread->space->InitRegisters();		// set the initial register values
     currentThread->space->RestoreState();		// load page table register
     
+    execLock->Release();
     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
 }
 
 int ExecSyscall(int vaddr, int len) {
+    
+    execLock->Acquire();
     
     char * filename = new char[len+1];
 
@@ -332,7 +339,7 @@ int ExecSyscall(int vaddr, int len) {
     newProcess->mySpace = mySpace;
     
     int index = -1;
-    //UPDATE THIS WITH THE PROCESSES LOCATION IN THE PROCESS TABLE I THINK
+
     for(int i =0;i < 100;i ++) {
         
         if(processTable[i]==NULL) {
@@ -345,8 +352,8 @@ int ExecSyscall(int vaddr, int len) {
     KernelThread * newThread = new KernelThread(t);
     newProcess->threadList[0]=newThread;
     
+    execLock->Release();
     t->Fork(exec_thread, vaddr);
-    
     return index;
 }
 
@@ -385,6 +392,8 @@ bool isLastExecutingProcess() {
 
 void ExitSyscall(int status) {
 
+    exitLock->Acquire();
+    
     int currentProcess = findCurrentProcess();
     //check if this thread is the last process
     if(!isLastExecutingThread()) {
@@ -446,6 +455,8 @@ void ExitSyscall(int status) {
         }
         
     }
+    
+    exitLock->Release();
     currentThread->Finish();
 }
 
@@ -471,6 +482,9 @@ int findThreadListIndex (int processIndex) {
 
 void kernel_thread(int vaddr) {
     
+    forkLock->Acquire();
+    //IntStatus old = interrupt->SetLevel(IntOff);
+    
     printf("We are inside the kernel_thread method\n");
     
     currentThread->space->InitRegisters();
@@ -478,7 +492,15 @@ void kernel_thread(int vaddr) {
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr + 4);
     
-    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (stackBitMap->Find() + 1) * 8) - 16;
+    int ppn = stackBitMap->Find();
+    
+    if(ppn==-1) {
+        
+        printf("Bitmap Find returned -1, halting\n");
+        interrupt->Halt();
+    }
+    
+    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
     
     printf("The starting stack page is %d\n",startingStackPage);
     
@@ -494,12 +516,18 @@ void kernel_thread(int vaddr) {
     
     currentThread->space->RestoreState();
     
+    //(void) interrupt->SetLevel(old);
+    forkLock->Release();
     machine->Run();
 }
 
 void ForkSyscall(int vaddr) {
 
+    forkLock->Acquire();
+    //IntStatus old = interrupt->SetLevel(IntOff);
+    
     printf("Entering fork syscall\n");
+    
     Thread * t = new Thread("forking thread");
     
     t->space = currentThread->space;
@@ -508,7 +536,12 @@ void ForkSyscall(int vaddr) {
     
     //find the current process running (the process this new thread being forked belongs to) and set the global variable to keep track of where this thread is stored in the current process's thread list
     int currentProcess = findCurrentProcess();
+    
+    printf("The current process running is proccess %d\n", currentProcess);
+    
     currentThreadIndex = findThreadListIndex(currentProcess);
+    
+    printf("The thread that is about to be forked will have index %d in the process\n", currentThreadIndex);
     
     processTable[currentProcess]->threadList[currentThreadIndex] = newThread;
     
@@ -517,9 +550,9 @@ void ForkSyscall(int vaddr) {
     
     printf("We are forking the new thread\n");
     
+    forkLock->Release();
     t->Fork(kernel_thread, vaddr);
-    
-    return;
+    //(void) interrupt->SetLevel(old);
 }
 
 void YieldSyscall() {
@@ -588,16 +621,19 @@ int AcquireSyscall(int index) {
 
     lockTableLock->Acquire();
     if(validateLock(index)) {
+        
         if(kernelLocks[index]->lock->isInUse())
             printf("Lock is busy so I will wait\n");
         else
             printf("Lock is available so I will be the owner\n");
+        
         kernelLocks[index]->lock->Acquire();
 
-        printf("Lock acquired");
         lockTableLock->Release();
+        
         return 1;
     }
+    
     lockTableLock->Release();
     printf("Lock is invalid\n");
     return 0;
