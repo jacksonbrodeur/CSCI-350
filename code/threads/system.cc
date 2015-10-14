@@ -130,7 +130,7 @@ Initialize(int argc, char **argv)
     
     //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
     processTable = new KernelProcess*[100];
-    stackBitMap = new BitMap(NumPhysPages);
+    stackBitMap = new BitMap(NumPhysPages*PageSize);
 
     // initialize all locks within array of KernelLock objects 
     kernelLocks = new KernelLock*[MAX_LOCKS];

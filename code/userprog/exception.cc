@@ -1,4 +1,4 @@
-// exception.cc 
+// exception.cc
 //	Entry point into the Nachos kernel from user programs.
 //	There are two kinds of things that can cause control to
 //	transfer back to here from user code:
@@ -21,6 +21,7 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
+#include "machine.h"
 #include "copyright.h"
 #include "system.h"
 #include "syscall.h"
@@ -56,10 +57,12 @@ int validateLock(int index) {
         printf("There is no lock at index: %d\n", index);
         return 0;
     }
-    if (kernelLocks[index]->addrSpace != currentThread->space) {
+    /*
+    if (kernelLocks[index]->lock->isInUse != currentThread) {
         printf("The lock trying to be accessed belongs to another thread.");
         return 0;
     }
+     */
     return 1;
 }
 
@@ -339,6 +342,8 @@ int ExecSyscall(int vaddr, int len) {
         }
     }
     
+    KernelThread * newThread = new KernelThread(t);
+    newProcess->threadList[0]=newThread;
     
     t->Fork(exec_thread, vaddr);
     
@@ -352,11 +357,12 @@ bool isLastExecutingThread() {
     for(int i = 0; i < 100 ; i++) {
         
         if(processTable[i]!=NULL) {
-         
-            if(processTable[i]->mySpace == currentThread->space && processTable[i]->mySpace!=currentThread->space) {
+            
+            for(int j = 0; j < 50; j++)
+                if(processTable[i]->threadList[j]!=NULL && (processTable[i]->threadList[j]->myThread)!=currentThread) {
                 
-                isLastThread = false;
-            }
+                    isLastThread = false;
+                }
         }
     }
     return isLastThread;
@@ -458,12 +464,14 @@ int findThreadListIndex (int processIndex) {
         }
     }
     
+    printf("Found a new threadListIndex, %d\n", threadListIndex);
+    
     return threadListIndex;
 }
 
 void kernel_thread(int vaddr) {
     
-    //****ask crowley about this
+    printf("We are inside the kernel_thread method\n");
     
     currentThread->space->InitRegisters();
     
@@ -472,9 +480,15 @@ void kernel_thread(int vaddr) {
     
     int startingStackPage = PageSize * (currentThread->space->codeDataPages + (stackBitMap->Find() + 1) * 8) - 16;
     
+    printf("The starting stack page is %d\n",startingStackPage);
+    
     //find the current process and set the new threads starting stack page variable
     int currentProcess = findCurrentProcess();
+    printf("The current process is %d and the current thread index in that process is %d\n", currentProcess, currentThreadIndex);
+    
     processTable[currentProcess]->threadList[currentThreadIndex]->startingStackPage = startingStackPage;
+    
+    printf("Assigning process %d thread %d starting stack page value of %d\n", currentProcess,currentThreadIndex,startingStackPage);
     
     machine->WriteRegister(StackReg, startingStackPage);
     
@@ -485,6 +499,7 @@ void kernel_thread(int vaddr) {
 
 void ForkSyscall(int vaddr) {
 
+    printf("Entering fork syscall\n");
     Thread * t = new Thread("forking thread");
     
     t->space = currentThread->space;
@@ -500,7 +515,9 @@ void ForkSyscall(int vaddr) {
     processTable[currentProcess]->totalThreads++;
     processTable[currentProcess]->numThreadsExecuting++;
     
-    t->Fork(kernel_thread, machine->ReadRegister(4));
+    printf("We are forking the new thread\n");
+    
+    t->Fork(kernel_thread, vaddr);
     
     return;
 }
@@ -565,9 +582,17 @@ void DestroyLockSyscall(int index) {
 int AcquireSyscall(int index) {
 
     if(validateLock(index)) {
+        if(kernelLocks[index]->lock->isInUse())
+            printf("Lock is busy so I will wait\n");
+        else
+            printf("Lock is available so I will be the owner\n");
         kernelLocks[index]->lock->Acquire();
+        
+        printf("Lock acquired");
+        
         return 1;
     }
+    printf("Lock is invalid\n");
     return 0;
 }
 
