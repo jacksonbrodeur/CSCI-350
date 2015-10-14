@@ -79,6 +79,10 @@ struct KernelProcess
 #define MAX_LOCKS 100000
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
+extern Lock * lockTableLock;
+extern Lock * cvTableLock;
+
+extern Lock * printLock;
 
 extern KernelProcess** processTable;
 extern BitMap * stackBitMap;

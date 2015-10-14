@@ -35,6 +35,7 @@ KernelLock::KernelLock(char * name) {
 }
 
 KernelLock ** kernelLocks;
+Lock * lockTableLock;
 
 
 KernelCV::KernelCV() {
@@ -65,6 +66,9 @@ KernelProcess::KernelProcess(Thread * processThread) {
 }
 
 KernelCV ** kernelCVs;
+Lock * cvTableLock;
+
+Lock * printLock;
 
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
@@ -143,6 +147,9 @@ Initialize(int argc, char **argv)
     for(int i = 0; i < MAX_LOCKS; i++) {
         kernelCVs[i] = new KernelCV();
     }
+    lockTableLock = new Lock("lockTableLock");
+    cvTableLock = new Lock("cvTableLock");
+    printLock = new Lock("printLock");
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
