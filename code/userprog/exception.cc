@@ -515,22 +515,23 @@ void YieldSyscall() {
 // Returns -1 if there is an error
 int CreateLockSyscall(int vaddr, int len) {
   
-  char * name = new char[len+1];
+    char * name = new char[len+1];
 
-  if(len < 0 || len > MAXFILENAME) {
+    if(len < 0 || len > MAXFILENAME) {
     printf("Invalid string length in CreateLockSyscall\n");
     return -1;
-  }
+    }
 
-  if(copyin(vaddr, len, name) == -1) {
+    if(copyin(vaddr, len, name) == -1) {
     printf("Bad vaddr passed in to CreateLockSyscall\n");
     return -1;
-  }
+    }
 
-  name[len] = '\0';
+    name[len] = '\0';
 
-  KernelLock * kernelLock = new KernelLock(name);
+    KernelLock * kernelLock = new KernelLock(name);
 
+    lockTableLock->Acquire();
     int index = -1;
     for(int i = 0; i < MAX_LOCKS; i++) {
       if (kernelLocks[i]->lock == NULL) {
@@ -542,12 +543,16 @@ int CreateLockSyscall(int vaddr, int len) {
 
     //DEBUG('d', "Creating Lock: %s\n", kernelLocks[index]->lock->getName());
     printf("Creating Lock: %s\n", kernelLocks[index]->lock->getName());
+
+    lockTableLock->Release();
+
     delete[] name;
     return index;
 }
 
 void DestroyLockSyscall(int index) {
 
+    lockTableLock->Acquire();
     if(validateLock(index)) {
         if(!kernelLocks[index]->lock->isInUse()) {
             //see if the lock is busy, delete it here immediately if it is not
@@ -559,20 +564,24 @@ void DestroyLockSyscall(int index) {
             printf("Marking lock %d for deletion\n", index);
         }
     }
-    
+    lockTableLock->Release();
 }
 
 int AcquireSyscall(int index) {
 
+    lockTableLock->Acquire();
     if(validateLock(index)) {
         kernelLocks[index]->lock->Acquire();
+        lockTableLock->Release();
         return 1;
     }
+    lockTableLock->Release();
     return 0;
 }
 
 void ReleaseSyscall(int index) {
 
+    lockTableLock->Acquire();
     if(validateLock(index)) {
         kernelLocks[index]->lock->Release();
     
@@ -581,6 +590,7 @@ void ReleaseSyscall(int index) {
             kernelLocks[index]->lock = NULL;
         }
     }
+    lockTableLock->Release();
 }
 
 int CreateConditionSyscall(int vaddr, int len) {
@@ -602,6 +612,7 @@ int CreateConditionSyscall(int vaddr, int len) {
     //Create the condition variable here
     KernelCV * kernelCV = new KernelCV(name);
 
+    cvTableLock->Acquire();
     int index = -1;
     for(int i = 0; i < MAX_LOCKS; i++) {
         if (kernelCVs[i]->condition == NULL) {
@@ -612,11 +623,14 @@ int CreateConditionSyscall(int vaddr, int len) {
     }
     
     DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
+    cvTableLock->Release();
     delete[] name;
     return index;
 }
 
 void DestroyConditionSyscall(int index) {
+
+    cvTableLock->Acquire();
     if(validateCV(index)) {
         if(!kernelCVs[index]->condition->isInUse()) {
             //see if the CV is busy, delete it here immediately if it is not
@@ -626,31 +640,38 @@ void DestroyConditionSyscall(int index) {
             kernelCVs[index]->isToBeDeleted = true;
         }
     }    
+    cvTableLock->Release();
 }
 
 
 void WaitSyscall(int conditionIndex, int lockIndex) {
+    cvTableLock->Acquire();
     if(validateCV(conditionIndex) && validateLock(lockIndex)) {
         DEBUG('d', "Waiting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
             kernelLocks[lockIndex]->lock->getName());
         kernelCVs[conditionIndex]->condition->Wait(kernelLocks[lockIndex]->lock);
     }
+    cvTableLock->Release();
 }
 
 void SignalSyscall(int conditionIndex, int lockIndex) {
+    cvTableLock->Acquire();
     if(validateCV(conditionIndex) && validateLock(lockIndex)) {
         DEBUG('d', "Signalling on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
             kernelLocks[lockIndex]->lock->getName());
         kernelCVs[conditionIndex]->condition->Signal(kernelLocks[lockIndex]->lock);
     }
+    cvTableLock->Release();
 }
 
 void BroadcastSyscall(int conditionIndex, int lockIndex) {
+    cvTableLock->Acquire();
     if(validateCV(conditionIndex) && validateLock(lockIndex)) {
         DEBUG('d', "Broadcasting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
             kernelLocks[lockIndex]->lock->getName());
         kernelCVs[conditionIndex]->condition->Broadcast(kernelLocks[lockIndex]->lock);
     }
+    cvTableLock->Release();
 }
 
 void PrintSyscall(int vaddr, int len, int params1, int params2) {
