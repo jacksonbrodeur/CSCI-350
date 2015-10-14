@@ -695,6 +695,9 @@ void PrintSyscall(int vaddr, int len, int params1, int params2) {
   params[3] = params2 % 1000;
   int index = 0;
   string[len] = '\0';
+
+  printLock->Acquire();
+  //Prevent another print syscall from being executed until this one is done
   for(int i = 0; i < len; i++) {
     if (string[i] == '%')
     {
@@ -711,6 +714,7 @@ void PrintSyscall(int vaddr, int len, int params1, int params2) {
       printf("%c", string[i]);
     }
   }
+  printLock->Release();
 
 }
 

@@ -68,6 +68,8 @@ KernelProcess::KernelProcess(Thread * processThread) {
 KernelCV ** kernelCVs;
 Lock * cvTableLock;
 
+Lock * printLock;
+
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
 #endif
@@ -147,6 +149,7 @@ Initialize(int argc, char **argv)
     }
     lockTableLock = new Lock("lockTableLock");
     cvTableLock = new Lock("cvTableLock");
+    printLock = new Lock("printLock");
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
