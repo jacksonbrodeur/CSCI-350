@@ -133,8 +133,8 @@ void t1_t2() {
 void t1_t3() {
     
     t1_s2.P();	// Wait until t2 is ready to try to acquire the lock
-    
     t1_s3.V();	// Let t1 do it's stuff
+    
     for ( int i = 0; i < 3; i++ ) {
         printf("%s: Trying to release Lock %s\n",currentThread->getName(),
                t1_l1.getName());
