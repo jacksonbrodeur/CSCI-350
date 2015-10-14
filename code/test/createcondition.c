@@ -12,20 +12,11 @@
 
 #include "syscall.h"
 
-int
-main()
+int main()
 {
-    int l = CreateLock("abc",3);
-    Acquire(l);
-
-    int c = CreateConditionSyscall("abc", 3);
-    SignalSyscall(l, c);
-    // BroadcastSyscall(l, c);
-    // WaitSyscall(l, c);
-
-    Release(l);
+    int c = CreateCondition("def", 3);
+ 
     DestroyCondition(c);
-    DestroyLock(l);
 
-    Exit()
+    Exit(0);
 }

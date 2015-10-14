@@ -57,12 +57,11 @@ int validateLock(int index) {
         printf("There is no lock at index: %d\n", index);
         return 0;
     }
-    /*
-    if (kernelLocks[index]->lock->isInUse != currentThread) {
-        printf("The lock trying to be accessed belongs to another thread.");
+    if (kernelLocks[index]->addrSpace != currentThread->space)
+    {
+        printf("The lock belongs to a different process\n");
         return 0;
     }
-     */
     return 1;
 }
 
@@ -75,12 +74,11 @@ int validateCV(int index) {
         printf("There is no condition at index: %d\n", index);
         return 0;
     }
-    /*
-    if (kernelCVs[index]->addrSpace != currentThread->space) {
-        printf("The condition trying to be accessed belongs to another thread.");
+    if (kernelCVs[index]->addrSpace != currentThread->space)
+    {
+        printf("The CV belongs to a different process\n");
         return 0;
     }
-     */
     return 1;
 }
 
@@ -460,7 +458,7 @@ void ExitSyscall(int status) {
     currentThread->Finish();
 }
 
-int findThreadListIndex (int processIndex) {
+int findAvailableThreadListIndex (int processIndex) {
     
     int threadListIndex = -1;
     
@@ -475,17 +473,18 @@ int findThreadListIndex (int processIndex) {
         }
     }
     
-    printf("Found a new threadListIndex, %d\n", threadListIndex);
+    //printf("Found a new threadListIndex, %d\n", threadListIndex);
     
     return threadListIndex;
 }
 
 void kernel_thread(int vaddr) {
     
+    //printf("Vaddr: %d\n", vaddr);
     forkLock->Acquire();
     //IntStatus old = interrupt->SetLevel(IntOff);
     
-    printf("We are inside the kernel_thread method\n");
+    //printf("We are inside the kernel_thread method\n");
     
     currentThread->space->InitRegisters();
     
@@ -502,15 +501,26 @@ void kernel_thread(int vaddr) {
     
     int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
     
-    printf("The starting stack page is %d\n",startingStackPage);
+    //printf("The starting stack page is %d\n",startingStackPage);
     
     //find the current process and set the new threads starting stack page variable
     int currentProcess = findCurrentProcess();
-    printf("The current process is %d and the current thread index in that process is %d\n", currentProcess, currentThreadIndex);
+    //printf("The current process is %d and the current thread index in that process is %d\n", currentProcess, currentThreadIndex);
+    
+    for(int i = 0; i < 50; i++) {
+        
+        if(processTable[currentProcess]->threadList[i]->myThread == currentThread)
+        {
+            currentThreadIndex = i;
+            break;
+        }
+    }
+    
+    //printf("The thread that is about to be forked will have index %d in the process\n", currentThreadIndex);
     
     processTable[currentProcess]->threadList[currentThreadIndex]->startingStackPage = startingStackPage;
     
-    printf("Assigning process %d thread %d starting stack page value of %d\n", currentProcess,currentThreadIndex,startingStackPage);
+    //printf("Assigning process %d thread %d starting stack page value of %d\n", currentProcess,currentThreadIndex,startingStackPage);
     
     machine->WriteRegister(StackReg, startingStackPage);
     
@@ -526,7 +536,7 @@ void ForkSyscall(int vaddr) {
     forkLock->Acquire();
     //IntStatus old = interrupt->SetLevel(IntOff);
     
-    printf("Entering fork syscall\n");
+    //printf("Entering fork syscall\n");
     
     Thread * t = new Thread("forking thread");
     
@@ -537,18 +547,18 @@ void ForkSyscall(int vaddr) {
     //find the current process running (the process this new thread being forked belongs to) and set the global variable to keep track of where this thread is stored in the current process's thread list
     int currentProcess = findCurrentProcess();
     
-    printf("The current process running is proccess %d\n", currentProcess);
+    //printf("The current process running is proccess %d\n", currentProcess);
     
-    currentThreadIndex = findThreadListIndex(currentProcess);
+    currentThreadIndex = findAvailableThreadListIndex(currentProcess);
     
-    printf("The thread that is about to be forked will have index %d in the process\n", currentThreadIndex);
+    //printf("The thread that is about to be forked will have index %d in the process\n", currentThreadIndex);
     
     processTable[currentProcess]->threadList[currentThreadIndex] = newThread;
     
     processTable[currentProcess]->totalThreads++;
     processTable[currentProcess]->numThreadsExecuting++;
     
-    printf("We are forking the new thread\n");
+    //printf("We are forking the new thread with vaddr: %d\n", vaddr);
     
     forkLock->Release();
     t->Fork(kernel_thread, vaddr);
@@ -655,6 +665,8 @@ void ReleaseSyscall(int index) {
 
 int CreateConditionSyscall(int vaddr, int len) {
   
+    cvTableLock->Acquire();
+    
     char * name = new char[len+1];
     
     if(len < 0 || len > MAXFILENAME) {
@@ -672,7 +684,6 @@ int CreateConditionSyscall(int vaddr, int len) {
     //Create the condition variable here
     KernelCV * kernelCV = new KernelCV(name);
 
-    cvTableLock->Acquire();
     int index = -1;
     for(int i = 0; i < MAX_LOCKS; i++) {
         if (kernelCVs[i]->condition == NULL) {

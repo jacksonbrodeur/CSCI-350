@@ -633,7 +633,9 @@ void passportTransaction(Clerk * clerk, Customer * customer) {
     clerk->customer = customer;
     
     printf("%s has given SSN to %s\n", customer->name, clerk->name);
+    
     clerk->clerkCondition->Signal(clerk->clerkLock);
+    
     clerk->clerkCondition->Wait(clerk->clerkLock);
     
     
@@ -643,6 +645,7 @@ void passportTransaction(Clerk * clerk, Customer * customer) {
 void cashierTransaction(Clerk * clerk, Customer * customer) {
     
     clerk->clerkLock->Acquire();
+    
     clerk->customer = customer;
     
     clerk->clerkCondition->Signal(clerk->clerkLock);
