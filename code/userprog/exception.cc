@@ -605,8 +605,6 @@ int CreateLockSyscall(int vaddr, int len) {
     printf("Creating Lock: %s\n", kernelLocks[index]->lock->getName());
 
     lockTableLock->Release();
-
-    delete[] name;
     return index;
 }
 
@@ -671,11 +669,13 @@ int CreateConditionSyscall(int vaddr, int len) {
     
     if(len < 0 || len > MAXFILENAME) {
         printf("Invalid string length in CreateLockSyscall\n");
+        cvTableLock->Release();
         return -1;
     }
     
     if(copyin(vaddr, len, name) == -1) {
         printf("Bad vaddr passed in to CreateLockSyscall\n");
+        cvTableLock->Release();
         return -1;
     }
     
@@ -695,7 +695,6 @@ int CreateConditionSyscall(int vaddr, int len) {
     
     DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
     cvTableLock->Release();
-    delete[] name;
     return index;
 }
 
@@ -720,6 +719,7 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
     if(validateCV(conditionIndex) && validateLock(lockIndex)) {
         DEBUG('d', "Waiting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
             kernelLocks[lockIndex]->lock->getName());
+        cvTableLock->Release();
         kernelCVs[conditionIndex]->condition->Wait(kernelLocks[lockIndex]->lock);
     }
     cvTableLock->Release();
@@ -731,6 +731,8 @@ void SignalSyscall(int conditionIndex, int lockIndex) {
         DEBUG('d', "Signalling on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
             kernelLocks[lockIndex]->lock->getName());
         kernelCVs[conditionIndex]->condition->Signal(kernelLocks[lockIndex]->lock);
+    } else {
+        DEBUG('d', "Invalid lock or condition to Signal\n");
     }
     cvTableLock->Release();
 }
