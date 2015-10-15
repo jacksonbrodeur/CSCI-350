@@ -148,11 +148,11 @@ int CreateCondtion(char * name, int len);
 
 void DestroyCondtion(int condtion);
 
-void Wait(int condition);
+void Wait(int condition, int lock);
 
-void Signal(int condition);
+void Signal(int condition, int lock);
 
-void Broadcast(int condition);
+void Broadcast(int condition, int lock);
 
 void Print(char * string, int len, int intParams, int charParams);
 

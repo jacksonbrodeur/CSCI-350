@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock createcondition
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock createcondition cv_wait_signal
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -97,6 +97,12 @@ createcondition.o: createcondition.c
 createcondition: createcondition.o start.o
 	$(LD) $(LDFLAGS) start.o createcondition.o -o createcondition.coff
 	../bin/coff2noff createcondition.coff createcondition
+
+cv_wait_signal.o: cv_wait_signal.c
+	$(CC) $(CFLAGS) -c cv_wait_signal.c
+cv_wait_signal: cv_wait_signal.o start.o
+	$(LD) $(LDFLAGS) start.o cv_wait_signal.o -o cv_wait_signal.coff
+	../bin/coff2noff cv_wait_signal.coff cv_wait_signal
 
 
 clean:
