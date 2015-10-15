@@ -346,7 +346,7 @@ int NUM_SENATORS;
 int NUM_CLERKS;
 int customersFinished = 0;
 
-bool senatorHere = false;
+int numSenators=0;
 
 struct Customer {
     
@@ -497,7 +497,7 @@ void pictureTransaction(Clerk * clerk, Customer * customer) {
             printf("%s does like thier picture from %s\n", customer->name,clerk->name);
             clerk->customer->pictureTaken = true;
             clerk->clerkCondition->Signal(clerk->clerkLock);
-            clerk->clerkCondition->Wait(clerk->clerkLock);
+            //clerk->clerkCondition->Wait(clerk->clerkLock);
         }
     }
     
@@ -527,7 +527,12 @@ void pictureClerk(int myLine) {
             pictureClerkLock->Release();
             me->breakLock->Acquire();
             me->state = ONBREAK;
-            me->breakCondition->Wait(me->breakLock);
+            
+            while(me->state==ONBREAK) {
+                me->breakCondition->Wait(me->breakLock);
+            }
+            
+            
             printf("%s is coming off break\n", me->name);
             me->breakLock->Release();
             pictureClerkLock->Acquire();
@@ -600,7 +605,11 @@ void applicationClerk(int myLine) {
             applicationClerkLock->Release();
             me->breakLock->Acquire();
             me->state = ONBREAK;
-            me->breakCondition->Wait(me->breakLock);
+            
+            while(me->state == ONBREAK) {
+                me->breakCondition->Wait(me->breakLock);
+            }
+            
             printf("%s is coming off break\n",me->name);
             me->breakLock->Release();
             applicationClerkLock->Acquire();
@@ -751,8 +760,10 @@ void customer(int customerNumber) {
     //This will prevent any new customers from entering the store while the senator is still there.
     if(me->isSenator)
     {
+        senatorLock->Acquire();
         senatorSemaphore->P();
-        senatorHere = true;
+        numSenators++;
+        senatorLock->Release();
     }
     
     int randomNum = rand() % 2;
@@ -764,7 +775,7 @@ void customer(int customerNumber) {
         
          //if there is a senator in the office then we still need to wait
 
-        if(senatorHere && !(me->isSenator))
+        while(numSenators>0 && !(me->isSenator))
         {
             printf("%s is going outside the Passport Office because there is a Senator present\n", me->name);
             senatorLock->Acquire();
@@ -780,7 +791,7 @@ void customer(int customerNumber) {
         int myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
         applicationTransaction(applicationClerks[myLine], me);
         
-   		if(senatorHere && !(me->isSenator))
+   		while(numSenators>0 && !(me->isSenator))
         {
             printf("%s is going outside the Passport Office because there is a Senator present\n", me->name);
             senatorLock->Acquire();
@@ -794,7 +805,7 @@ void customer(int customerNumber) {
 
     while(!me->passportCertified) {
                 
-    	if(senatorHere && !(me->isSenator))
+    	while(numSenators>0 && !(me->isSenator))
         {
             printf("%s is going outside the Passport Office because there is a Senator present\n", me->name);
             senatorLock->Acquire();
@@ -814,7 +825,7 @@ void customer(int customerNumber) {
     
     while(!me->cashierPaid) {
 
-		if(senatorHere && !(me->isSenator))
+		while(numSenators>0 && !(me->isSenator))
         {
             printf("%s is going outside the Passport Office because there is a Senator present\n", me->name);
             senatorLock->Acquire();
@@ -834,7 +845,9 @@ void customer(int customerNumber) {
     
     if(me->isSenator)
     {
-        senatorHere = false;
+        senatorLock->Acquire();
+        numSenators--;
+        senatorLock->Release();
         senatorCondition->Broadcast(senatorLock);
         senatorSemaphore->V();
     }
@@ -862,7 +875,11 @@ void passportClerk(int myLine) {
             passportClerkLock->Release();
             me->breakLock->Acquire();
             me->state = ONBREAK;
-            me->breakCondition->Wait(me->breakLock);
+            
+            while(me->state == ONBREAK) {
+                me->breakCondition->Wait(me->breakLock);
+            }
+            
             printf("%s is coming off break\n", me->name);
             me->breakLock->Release();
             passportClerkLock->Acquire();
@@ -873,7 +890,9 @@ void passportClerk(int myLine) {
         me->clerkLock->Acquire();
         passportClerkLock->Release();
 
+        //wait for customer data
         me->clerkCondition->Wait(me->clerkLock);
+        
 
         printf("%s has received SSN from %s\n", me->name, me->customer->name);
         printf("%s has determined that %s does have both their application and picture completed\n",me->name,me->customer->name);
@@ -904,7 +923,10 @@ void cashier (int myLine) {
             cashierLock->Release();
             me->breakLock->Acquire();
             me->state = ONBREAK;
-            me->breakCondition->Wait(me->breakLock);
+            
+            while(me->state == ONBREAK) {
+                me->breakCondition->Wait(me->breakLock);
+            }
             
             printf("%s is coming off break\n", me->name);
             me->breakLock->Release();
