@@ -194,8 +194,17 @@ void pictureClerk() {
 
 }
 
-void applicationTransaction() {
+void applicationTransaction(Clerk * clerk, Customer * customer) {
     
+    Acquire(clerk->clerkLock);
+    clerk->customer = customer;
+    Print("Customer %i has given SSn to ApplicationClerk %i", 48, customer->id * 1000 + clerk->myLine, 0);
+
+    Signal(clerk->clerkCondition, clerk->clerkLock);
+
+    Wait(clerk->clerkCondition, clerk->clerkLock);
+
+    Release(clerk->clerkLock);
     
 }
 
