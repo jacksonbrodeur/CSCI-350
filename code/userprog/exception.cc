@@ -669,7 +669,7 @@ int CreateConditionSyscall(int vaddr, int len) {
     char * name = new char[len+1];
     
     if(len < 0 || len > MAXFILENAME) {
-        printf("Invalid string length in CreateLockSyscall\n");
+        printf("Invalid string length in CreateConditionSyscall\n");
         cvTableLock->Release();
         return -1;
     }

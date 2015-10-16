@@ -10,6 +10,16 @@
 
 #include "syscall.h"
 
+void diff_lock() {
+	DestroyLock(0); /* should be 'lock1' */
+	Exit(0);
+}
+
+void diff_cond() {
+	DestroyCondition(0); /* should be 'cond1' */
+	Exit(0);
+}
+
 int main()
 {
 
@@ -30,13 +40,13 @@ int main()
 	/* Conditions - Create */
     int c1 = CreateCondition("c1", -1); /* below range */
 	int c2 = CreateCondition("c2", 300); /* above range */
-	int c3 = CreateCondition("", 0); /* is this valid? */
 
 	/* Locks - the rest */
 	DestroyLock(-1); /* below range */
 	DestroyLock(100001); /* above range */
 	DestroyLock(9999); /* lock should be NULL */
-	/* diff addr space (exec) */
+	int lock1 = CreateLock("lock1", 5);
+	Exec(diff_lock, 9);	/* diff addr space (exec) */
 
 
 	
@@ -44,7 +54,8 @@ int main()
 	DestroyCondition(-1); /* below range */
 	DestroyCondition(100001); /* above range */
 	DestroyCondition(9999); /* condition should be NULL */
-	/* diff addr space (exec) */
+	int cond1 = CreateCondition("cond1", 5);
+	Exec(diff_cond, 9);	/* diff addr space (exec) */
 
 
     Exit(0);
