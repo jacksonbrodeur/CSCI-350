@@ -14,6 +14,12 @@ int pictureClerkLock;
 int passportClerkLock;
 int cashierLock;
 
+int senatorLock;
+int senatorCondition;
+int numSenatorsHere;
+
+int totalCustomerMoney;
+
 Customer customers[150];
 Clerk pictureClerks[50];
 Clerk applicationClerks[50];
@@ -49,7 +55,6 @@ struct Customer {
     int money;
     int isSenator;
 };
-int totalCustomerMoney;
 
 struct Clerk createClerk(int line, int type) {
     int myLine = line;
@@ -393,16 +398,294 @@ void cashier() {
     }   
 }
 
-int getInShortestLine() {
+int getInShortestLine(Customer * customer, Clerk clerkToVisit, int clerkLock) {
+    
+    
     
 }
 
-void customer() {
+void customer(int customerNumber) {
     
+    Customer * me = customers[customerNumber];
+    
+    /*Increment the number of senators currently using the office*/
+    if(me->isSenator)
+    {
+        Acquire(senatorLock);
+        numSenatorsHere++;
+        Release(senatorLock);
+    }
+    /*Make any customer who enters the office wait if there are any senators currently using the office */
+    while((!me->isSenator) && numSenators > 0) {
+        
+        Wait(senatorCondition, senatorLock);
+    }
+    
+    /*Randomly decide to go to the picture clerk first or application clerk first*/
+    if(rand() % 2 == 0)
+    {
+        /*find the shortest line and then perform a transaction with the clerk of that line*/
+        int myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
+        pictureTransaction(pictureClerks[myLine], me);
+        
+        /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
+        while(numSenatorsHere>0 && !(me->isSenator))
+        {
+            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Acquire(senatorLock);
+            Wait(senatorCondition, senatorLock);
+            Release(senatorLock);
+        }
+        
+        /*go to the application clerk second*/
+        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
+        applicationTransaction(applicationClerks[myLine], me);
+    }
+    else
+    {
+        /*find the shortest line and then perform a transaction with the clerk of that line*/
+        int myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
+        applicationTransaction(applicationClerks[myLine], me);
+        
+        /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
+        while(numSenatorsHere>0 && !(me->isSenator))
+        {
+            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Acquire(senatorLock);
+            Wait(senatorCondition, senatorLock);
+            Release(senatorLock);
+        }
+        
+        /*go to the application clerk second*/
+        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
+        pictureTransaction(pictureClerks[myLine], me);
+    }
+    
+    /*do not go any further until the customer has gotten his passport certified*/
+    while(!me->passportCertified) {
+        
+        /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
+        while(numSenatorsHere>0 && !(me->isSenator))
+        {
+            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Acquire(senatorLock);
+            Wait(senatorCondition, senatorLock);
+            Release(senatorLock);
+        }
+        
+        /*punish the customer if they tried to go to the passport clerk before the app and/or picture was filed*/
+        if(!me->pictureFiled || !me->applicationFiled) {
+            for(int i = 0; i < rand() % 900 + 100; i++) {
+                Yield();
+            }
+        } else { /*if the customer is has gotten both app and picture filed then go to passport clerk*/
+            int myLine = getInShortestLine(me, passportClerks, passportClerkLock);
+            passportTransaction(passportClerks[myLine], me);
+        }
+    }
+    
+    /*make sure the customer pays */
+    while(!me->cashierPaid) {
+        
+        /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
+        while(numSenatorsHere>0 && !(me->isSenator))
+        {
+            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Acquire(senatorLock);
+            Wait(senatorCondition, senatorLock);
+            Release(senatorLock);
+        }
+        
+        /*punish the customer if he tries to pay before his passport is certified */
+        if(!me->passportCertified) {
+            for(int i = 0; i < rand() % 900 + 100; i++) {
+                Yield();
+            }
+        } else { /*if his passport is certified then let the customer pay*/
+            int myLine = getInShortestLine(me, cashiers, cashierLock);
+            cashierTransaction(cashiers[myLine], me);
+        }
+    }
+    
+    /*1 senator is done using the office so decrement the counter of senators currently in the office and signal all waiting customers if the last senator is leaving the office*/
+    if(me->isSenator)
+    {
+        Acquire(senatorLock);
+        numSenatorsHere--;
+        Release(senatorLock);
+        if(numSenatorsHere==0) {
+            Broadcast(senatorCondition, senatorLock);
+        }
+    }
+
 }
 
 void manager() {
     
+    while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
+        
+        bool signalPictureClerk=false;
+        bool signalAppClerk=false;
+        bool signalPassportClerk=false;
+        bool signalCashier=false;
+        
+        bool pictureClerksAllOnBreak = true;
+        bool applicationClerksAllOnBreak = true;
+        bool passportClerksAllOnBreak = true;
+        bool cashiersAllOnBreak = true;
+        
+        for(int i = 0; i< NUM_CLERKS;i ++)
+        {
+            if(pictureClerks[i]->lineCount + pictureClerks[i]->bribeLineCount >= 3)
+                signalPictureClerk=true;
+            if(applicationClerks[i]->lineCount + applicationClerks[i]->bribeLineCount >= 3)
+                signalAppClerk=true;
+            if(passportClerks[i]->lineCount + passportClerks[i]->bribeLineCount >=3)
+                signalPassportClerk=true;
+            if(cashiers[i]->lineCount>=3)
+                signalCashier=true;
+            if(pictureClerks[i]->state == (BUSY || AVAILABLE))
+                pictureClerksAllOnBreak = false;
+            if(applicationClerks[i]->state == (BUSY || AVAILABLE))
+                applicationClerksAllOnBreak = false;
+            if(passportClerks[i]->state == (BUSY || AVAILABLE))
+                passportClerksAllOnBreak = false;
+            if(cashiers[i]->state == (BUSY || AVAILABLE))
+                cashiersAllOnBreak = false;
+        }
+        
+        if(pictureClerksAllOnBreak)
+        {
+            Print("Manager has woken up a PictureClerk\n");
+            Acquire(pictureClerkLock);
+            pictureClerks[0]->state = AVAILABLE;
+            Signal(pictureclerks[0]->breakCondition, pictureClerks[0]->breakLock);
+            Release(pictureClerkLock);
+            pictureClerksAllOnBreak=false;
+        }
+        if(applicationClerksAllOnBreak)
+        {
+            Print("Manager has woken up an ApplicationClerk\n");
+            Acquire(applicationClerkLock);
+            applicationClerks[0]->state = AVAILABLE;
+            Signal(applicationClerks[0]->breakCondition, applicationClerks[0]->breakLock);
+            Release(applicationClerkLock);
+            applicationClerksAllOnBreak=false;
+        }
+        if(passportClerksAllOnBreak)
+        {
+            Print("Manager has woken up a PassportClerk\n");
+            Acquire(passportClerkLock);
+            passportClerks[0]->state = AVAILABLE;
+            Signal(passportClerks[0]->breakCondition, passportClerks[0]->breakLock);
+            Release(passportClerkLock);
+            passportClerksAllOnBreak=false;
+        }
+        if(cashiersAllOnBreak)
+        {
+            Print("Manager has woken up a Cashier\n");
+            Acquire(cashierLock);
+            cashiers[0]->state = AVAILABLE;
+            Signal(cashiers[0]->breakCondition->, cashiers[0]->breakLock);
+            Release(cashierLock);
+            cashiersAllOnBreak = false;
+        }
+        
+        for(int i = 0; i < NUM_CLERKS; i++)
+        {
+            if(signalPictureClerk && pictureClerks[i]->state == ONBREAK)
+            {
+                Print("Manager has woken up a PictureClerk\n");
+                Acquire(pictureClerkLock);
+                pictureClerks[i]->state = AVAILABLE;
+                Signal(pictureClerks[i]->breakCondition, pictureClerks[i]->breakLock);
+                Release(pictureClerkLock);
+                signalPictureClerk=false;
+            }
+            if(signalAppClerk && applicationClerks[i]->state == ONBREAK)
+            {
+                Print("Manager has woken up an ApplicationClerk\n");
+                Acquire(applicationClerkLock);
+                applicationClerks[i]->state = AVAILABLE;
+                Signal(applicationClerks[i]->breakCondition, applicationClerks[i]->breakLock);
+                Release(applicationClerkLock);
+                signalAppClerk=false;
+                
+            }
+            if(signalPassportClerk && passportClerks[i]->state == ONBREAK)
+            {
+                Print("Manager has woken up a PassportClerk\n");
+                Acquire(passportClerkLock);
+                passportClerks[i]->state = AVAILABLE;
+                Signal(passportClerks[i]->breakCondition, passportClerks[i]->breakLock);
+                Release(passportClerkLock);
+                signalPassportClerk=false;
+            }
+            if(signalCashier && cashiers[i]->state == ONBREAK)
+            {
+                Print("Manager has woken up a Cashier\n");
+                Acquire(cashierLock);
+                cashiers[i]->state = AVAILABLE;
+                Signal(cashiers[i]->breakCondition, cashiers[i]->breakLock);
+                Release(cashierLock);
+                signalCashier = false;
+            }
+        }
+        
+        //printf("Manager waiting a bit to print the revenue \n\n");
+        
+        for(int i =0;i<400;i++)
+        {
+            Yield();
+        }
+        
+        //printf("Manager will print the revenue now: \n\n\n");
+        
+        int pictureRevenue = 0;
+        int applicationRevenue = 0;
+        int passportRevenue = 0;
+        int cashierRevenue = 0;
+        
+        for (int i = 0; i < NUM_CLERKS; i++)
+        {
+            pictureRevenue += pictureClerks[i]->money;
+            applicationRevenue += applicationClerks[i]->money;
+            passportRevenue += passportClerks[i]->money;
+            cashierRevenue += cashiers[i]->money;
+        }
+        
+        Print("Manager has counted a total of $%d for PictureClerks\n", pictureRevenue);
+        Print("Manager has counted a total of $%d for ApplicationClerks\n", applicationRevenue);
+        Print("Manager has counted a total of $%d for PassportClerks\n", passportRevenue);
+        Print("Manager has counted a total of $%d for Cashiers\n", cashierRevenue);
+        Print("Manager has counted a total of $%d for the passport office\n", (pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue));
+    }
+    
+    //Delete customers
+    for(int i = 0; i < NUM_CUSTOMERS + NUM_SENATORS; i++) {
+        delete customers[i];
+    }
+    //Delete clerks
+    for(int i = 0; i < NUM_CLERKS; i++) {
+        delete pictureClerks[i];
+        delete applicationClerks[i];
+        delete passportClerks[i];
+        delete cashiers[i];
+    }
+    
+    //Delete other stuff
+    delete applicationClerkLock;
+    delete pictureClerkLock;
+    delete passportClerkLock;
+    delete cashierLock;
+    
+    delete senatorSemaphore;
+    delete senatorLock;
+    delete senatorCondition;
+    
+    //Suicide
+    delete clerkManager;
+
 }
 
 
