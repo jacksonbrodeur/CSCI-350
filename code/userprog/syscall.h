@@ -38,7 +38,8 @@
 #define SC_Wait                 17
 #define SC_Signal               18
 #define SC_Broadcast            19
-#define SC_Print                20   
+#define SC_Print                20
+#define SC_Rand                 21
 
 #define MAXFILENAME 256
 
@@ -155,6 +156,8 @@ void Signal(int condition, int lock);
 void Broadcast(int condition, int lock);
 
 void Print(char * string, int len, int intParams, int charParams);
+
+int Rand();
 
 
 

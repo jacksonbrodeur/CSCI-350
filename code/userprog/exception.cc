@@ -27,6 +27,7 @@
 #include "syscall.h"
 #include <stdio.h>
 #include <iostream>
+#include <stdlib.h> 
 
 using namespace std;
 
@@ -791,6 +792,10 @@ void PrintSyscall(int vaddr, int len, int params1, int params2) {
 
 }
 
+int RandSyscall() {
+    return rand();
+}
+
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
@@ -903,6 +908,11 @@ void ExceptionHandler(ExceptionType which) {
                              machine->ReadRegister(5), 
                              machine->ReadRegister(6), 
                              machine->ReadRegister(7));
+                break;
+
+            case SC_Rand:
+                DEBUG('a', "Rand syscall.\n");
+                rv = RandSyscall();
                 break;
         }
         

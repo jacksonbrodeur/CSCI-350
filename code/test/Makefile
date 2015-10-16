@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock releaselock createcondition cv_wait_signal invalidtest
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock releaselock createcondition cv_wait_signal invalidtest rand
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -116,5 +116,10 @@ releaselock: releaselock.o start.o
 	$(LD) $(LDFLAGS) start.o releaselock.o -o releaselock.coff
 	../bin/coff2noff releaselock.coff releaselock
 
+rand.o: rand.c
+	$(CC) $(CFLAGS) -c rand.c
+rand: rand.o start.o
+	$(LD) $(LDFLAGS) start.o rand.o -o rand.coff
+	../bin/coff2noff rand.coff rand
 clean:
 	rm -f *.o *.coff
