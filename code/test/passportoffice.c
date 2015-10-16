@@ -245,8 +245,64 @@ void passportTransaction() {
 }
 
 void passportClerk() {
+    Clerk * me = &passportClerks[myLine];
     
+    /* On duty while there are still customers who haven't completed process */
+    while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
+        Acquire(passportClerkLock);
+        
+        /* If there is a customer in line signal him to the counter */
+         if(me->bribeLineCount > 0) { /* Check bribe line first... */
+            Print("Passport Clerk %d has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
+            Signal(me->bribeLineCondition, passportClerkLock);
+            me->state = BUSY;
+        } else if(me->lineCount > 0) { /* then check regular line */
+            Print("Passport Clerk %d has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
+            Signal(me->lineCondition, passportClerkLock);
+            me->state = BUSY;
+        } else {
+            
+            if(storeJustOpened >= NUM_CLERKS * 4) {
+                Print("Passport Clerk %d is going on break\n", 37, myLine * 1000, 0);
+                Release(passportClerkLock);
+                Acquire(me->breakLock);
+                me->state = ONBREAK;
+                
+                /* Mesa style monitor, wait to be woken up by manager */
+                while(me->state == ONBREAK) {
+                    Wait(me->breakCondition, me->breakLock);
+                }
+                
+                Print("Passport Clerk %d is coming off break\n", 39, myLine * 1000, 0);
+                Release(me->breakLock);
+                Acquire(passportClerkLock);
+                
+                /* Tell the next customer in line that clerk is ready */
+                Signal(me->lineCondition, passportClerkLock);
+            }
+            else {
+                storeJustOpened++;
+            }
+        }
 
+        /* entering transaction so switch locks */
+        Acquire(me->clerkLock);
+        Release(passportClerkLock);
+
+        /* wait for customer data */
+        Wait(me->clerkCondition, me->clerkLock);
+        
+
+        Print("Passport Clerk %d has received SSN from Customer %d\n", 53, myLine * 1000 + me->customer->id, 0);
+        Print("Passport Clerk %d has determined that Customer %d does have both their application and picture completed\n", 106, myLine * 1000 + me->customer->id, 0);
+        for(int i = 0; i < Rand()% 80 + 20; i++) {
+            Yield(currentThread);
+        }
+        me->customer->passportCertified = true;
+        Print("Passport Clerk %d has recorded Customer %d passport documentation\n", 67, myLine * 1000 + me->customer->id, 0);
+        Signal(me->clerkCondition, me->clerkLock);
+        Release(me->clerkLock);
+    }
 }
 
 void cashierTransaction() {
@@ -255,8 +311,60 @@ void cashierTransaction() {
 }
 
 void cashier() {
+    Clerk * me = &cashiers[myLine];
     
-  
+    /* On duty while there are still customers who haven't completed process */
+    while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
+        Acquire(cashierLock);
+
+        if (me->lineCount > 0) {
+            Print("Cashier %d has signalled a customer to come to their counter\n", 62, myLine * 1000, 0);
+            Signal(me->lineCondition, cashierLock);
+            me->state = BUSY;
+        } else {
+            if(storeJustOpened>=NUM_CLERKS*4) {
+                Print("Cashier %d is going on break\n", 30, myLine * 1000, 0);
+                Release(cashierLock);
+                Acquire(me->breakLock);
+                me->state = ONBREAK;
+                
+                /* Mesa style monitor, wait to be woken up by manager */
+                while(me->state == ONBREAK) {
+                    Wait(me->breakCondition, me->breakLock);
+                }
+                
+                Print("Cashier %d is coming off break\n", 32, myLine * 1000, 0);
+                Release(me->breakLock);
+                Acquire(cashierLock);
+                
+                Signal(me->lineCondition, cashierLock);
+            }
+            else {
+                storeJustOpened++;
+            }
+        }
+
+        /* entering transaction so switch locks */
+        Acquire(me->clerkLock);
+        Release(cashierLock);
+
+        /* wait for customer to pay */
+        Wait(me->clerkCondition, me->clerkLock);
+
+        Print("Cashier %d has received SSN from Customer %d\n", 46, myLine * 1000 + me->customer->id, 0);
+        Print("Cashier %d has verified that Customer %d has been certified by a PassportClerk\n", 80, myLine * 1000 + me->customer->id, 0);
+        /* taking payment */
+        me->customer->money -= 100;
+        me->money += 100;
+        Print("Cashier %d has received the $100 from Customer %d after certification\n", 71, myLine * 1000 + me->customer->id, 0);
+        
+        me->customer->passportGiven = true;
+        me->clerkCondition->Signal(me->clerkLock);
+        Print("Cashier %d has provided Customer %d their completed passport\n", 62, myLine * 1000 + me->customer->id, 0);
+        Print("Cashier %d has recorded that Customer %d has been given their completed passport\n", 82, myLine * 1000 + me->customer->id, 0);
+        
+        Release(me->clerkLock);
+    }   
 }
 
 int getInShortestLine() {
