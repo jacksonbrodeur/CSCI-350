@@ -534,6 +534,7 @@ void manager() {
         bool passportClerksAllOnBreak = true;
         bool cashiersAllOnBreak = true;
         
+        /*see if 1) there are any clerks with 3 or more customers waiting on them and 2) if all clerks of a certain type are on break*/
         for(int i = 0; i< NUM_CLERKS;i ++)
         {
             if(pictureClerks[i]->lineCount + pictureClerks[i]->bribeLineCount >= 3)
@@ -554,6 +555,7 @@ void manager() {
                 cashiersAllOnBreak = false;
         }
         
+        /* wake up clerks of any type that are all on break*/
         if(pictureClerksAllOnBreak)
         {
             Print("Manager has woken up a PictureClerk\n");
@@ -591,6 +593,7 @@ void manager() {
             cashiersAllOnBreak = false;
         }
         
+        /*if a certain type of clerk has more than 3 customers waiting on them, wake up another clerk of that type*/
         for(int i = 0; i < NUM_CLERKS; i++)
         {
             if(signalPictureClerk && pictureClerks[i]->state == ONBREAK)
@@ -632,20 +635,18 @@ void manager() {
             }
         }
         
-        //printf("Manager waiting a bit to print the revenue \n\n");
-        
+        /*wait a bit to print the revenue*/
         for(int i =0;i<400;i++)
         {
             Yield();
         }
-        
-        //printf("Manager will print the revenue now: \n\n\n");
         
         int pictureRevenue = 0;
         int applicationRevenue = 0;
         int passportRevenue = 0;
         int cashierRevenue = 0;
         
+        /*tally up the revenues and print them*/
         for (int i = 0; i < NUM_CLERKS; i++)
         {
             pictureRevenue += pictureClerks[i]->money;
@@ -661,11 +662,11 @@ void manager() {
         Print("Manager has counted a total of $%d for the passport office\n", (pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue));
     }
     
-    //Delete customers
+    /*delete program data*/
     for(int i = 0; i < NUM_CUSTOMERS + NUM_SENATORS; i++) {
         delete customers[i];
     }
-    //Delete clerks
+    
     for(int i = 0; i < NUM_CLERKS; i++) {
         delete pictureClerks[i];
         delete applicationClerks[i];
@@ -673,7 +674,6 @@ void manager() {
         delete cashiers[i];
     }
     
-    //Delete other stuff
     delete applicationClerkLock;
     delete pictureClerkLock;
     delete passportClerkLock;
@@ -683,7 +683,6 @@ void manager() {
     delete senatorLock;
     delete senatorCondition;
     
-    //Suicide
     delete clerkManager;
 
 }
