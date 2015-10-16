@@ -18,6 +18,8 @@ int
 main()
 {
     int l = CreateLock("abc",3);
+    Acquire(l);
+    Release(l);
     DestroyLock(l);
     Exit(0);
 }
