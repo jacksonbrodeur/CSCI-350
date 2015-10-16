@@ -102,9 +102,26 @@ struct Customer createCustomer(int id, int senator) {
 }
 
 
-void pictureTransaction() {
+void pictureTransaction(Clerk * clerk, Customer * customer) {
     
-    
+    Acquire(clerk->clerkLock);
+    clerk->customer = customer;
+    Signal(clerk->clerkCondition, clerk->clerkLock);
+    Print("Customer %i has given SSN to PictureClerk %i\n", 46, customer->id * 1000 + clerk->myLine, 0);
+
+    while(customer->pictureTaken == 0) {
+
+        Wait(clerk->clerkCondition, clerk->clerkLock);
+        if((Rand() % 10) == 0) {
+            Print("Customer %i does not like their picture from PictureClerk %i\n", 62, customer->id * 1000 + clerk->myLine, 0);
+        } else {
+            Print("Customer %i does like their picture from PictureClerk %i\n", 58, customer->id * 1000 + clerk->myLine, 0);
+            customer->pictureTaken = 1;
+        }
+        Signal(clerk->clerkCondition, clerk->clerkLock);
+    }
+
+    Release(clerk->clerkLock);
 }
 
 void pictureClerk() {
