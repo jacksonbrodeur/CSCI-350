@@ -4,23 +4,27 @@ typedef BOOL int;
 #define TRUE 1;
 #define FALSE 0;
 
+/* Clerk States */
 int AVAILABLE = 0;
 int BUSY = 1;
 int ONBREAK = 2;
 
+/* Clerk Types */
 int PICTURECLERK = 0;
 int APPLICATIONCLERK = 1;
 int PASSPORTCLERK = 2;
 int CASHIER = 3;
 
+/* Clerk Locks */
 int applicationClerkLock;
 int pictureClerkLock;
 int passportClerkLock;
 int cashierLock;
 
+/* Senator data */
 int senatorLock;
 int senatorCondition;
-int numSenatorsHere;
+int numSenatorsHere = 0;
 
 int totalCustomerMoney = 0;
 int storeJustOpened = 0;
@@ -534,7 +538,7 @@ void customer(int customerNumber) {
         Release(senatorLock);
     }
     /*Make any customer who enters the office wait if there are any senators currently using the office */
-    while((!me->isSenator) && numSenators > 0) {
+    while((!me->isSenator) && numSenatorsHere > 0) {
         
         Wait(senatorCondition, senatorLock);
     }
@@ -797,28 +801,45 @@ void manager() {
     }
     
     /*delete program data*/
-    /*don't need to do this since all data is statically allocated*/
-    /*for(int i = 0; i < NUM_CUSTOMERS + NUM_SENATORS; i++) {
-        delete customers[i];
+
+    DestroyLock(pictureClerkLock);
+    DestroyLock(applicationClerkLock);
+    DestroyLock(passportClerkLock);
+    DestroyLock(cashierLock);
+
+    DestroyLock(senatorLock);
+    DestroyCondition(senatorCondition);
+
+    /* Destroy Locks and Conditions within each Clerk */
+    for(i = 0; i < NUM_CLERKS; i++) {
+        DestroyLock(applicationClerks[i].breakLock);
+        DestroyLock(applicationClerks[i].clerkLock);
+        DestroyCondition(applicationClerks[i].clerkCondition);
+        DestroyCondition(applicationClerks[i].breakCondition);
+        DestroyCondition(applicationClerk[i].bribeLineCondition);
+        DestroyCondition(applicationClerks[i].lineCondition);
+
+        DestroyLock(pictureClerks[i].breakLock);
+        DestroyLock(pictureClerks[i].clerkLock);
+        DestroyCondition(pictureClerks[i].clerkCondition);
+        DestroyCondition(pictureClerks[i].breakCondition);
+        DestroyCondition(pictureClerks[i].bribeLineCondition);
+        DestroyCondition(pictureClerks[i].lineCondition);
+
+        DestroyLock(passportClerks[i].breakLock);
+        DestroyLock(passportClerks[i].clerkLock);
+        DestroyCondition(passportClerks[i].clerkCondition);
+        DestroyCondition(passportClerks[i].breakCondition);
+        DestroyCondition(passportClerks[i].bribeLineCondition);
+        DestroyCondition(passportClerks[i].lineCondition);
+
+        DestroyLock(cashiers[i].breakLock);
+        DestroyLock(cashiers[i].clerkLock);
+        DestroyCondition(cashiers[i].clerkCondition);
+        DestroyCondition(cashiers[i].breakCondition);
+        DestroyCondition(cashiers[i].bribeLineCondition);
+        DestroyCondition(cashiers[i].lineCondition);
     }
-    
-    for(int i = 0; i < NUM_CLERKS; i++) {
-        delete pictureClerks[i];
-        delete applicationClerks[i];
-        delete passportClerks[i];
-        delete cashiers[i];
-    }
-    
-    delete applicationClerkLock;
-    delete pictureClerkLock;
-    delete passportClerkLock;
-    delete cashierLock;
-    
-    delete senatorSemaphore;
-    delete senatorLock;
-    delete senatorCondition;
-    
-    delete clerkManager;*/
 
 }
 
