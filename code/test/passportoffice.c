@@ -239,12 +239,20 @@ void applicationClerk() {
     }
 }
 
-void passportTransaction() {
+void passportTransaction(Clerk * clerk, Customer * customer) {
+    Acquire(clerk->clerkLock);
+    clerk->customer = customer;
     
-   
+    PRINT("Customer %d has given SSN to Passport Clerk %d\n", 48, customer->id * 1000 + clerk->name, 0);
+    
+    Signal(clerk->clerkCondition, clerk->clerkLock);
+    Wait(clerk->clerkCondition, clerk->clerkLock);
+    
+    
+    Release(clerk->clerkLock);   
 }
 
-void passportClerk() {
+void passportClerk(int myLine) {
     Clerk * me = &passportClerks[myLine];
     
     /* On duty while there are still customers who haven't completed process */
@@ -305,12 +313,25 @@ void passportClerk() {
     }
 }
 
-void cashierTransaction() {
+void cashierTransaction(Clerk * clerk, Customer * customer) {
+    Acquire(clerk->clerkLock);
     
+    clerk->customer = customer;
     
+    Signal(clerk->clerkCondition, clerk->clerkLock);
+    
+    customer->cashierPaid = true;
+    PRINT("Customer %d has given SSN to Cashier %d\n", 41, customer->id * 1000 + clerk->name, 0);
+    
+    Wait(clerk->clerkCondition, clerk->clerkLock);
+    
+    customersFinished++;
+    PRINT("Customer %d is leaving the passport office\n", 44, customer->id * 1000, 0);
+    
+    Release(clerk->clerkLock);   
 }
 
-void cashier() {
+void cashier(int myLine) {
     Clerk * me = &cashiers[myLine];
     
     /* On duty while there are still customers who haven't completed process */
