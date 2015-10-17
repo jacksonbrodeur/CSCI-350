@@ -1,0 +1,104 @@
+Title: Writeup for Project 2, Fall 2015
+Date: 10/17/15
+Group:  Jackson Brodeur     jbrodeur@usc.edu
+        Dylan Davis         dylandav@usc.edu
+        Matthew O'Brien     obrienm@usc.edu	
+ 
+I. Requirements:
+
+- Describe what's your understanding of the requirements from the assignment statement. With the requirement analysis, you would be clear about what you are supposed to do.
+
+Project 2 required us to implement system calls and multiprogramming for nachos. The system calls we created were create lock, acquire lock, release lock, destroy lock, create condition, signal condition, wait condition, destroy condition, thread fork, thread exec, thread exit, and thread yield. These system calls allow us to create user programs and run them in the operating system at the same time. We were required to test the system calls by creating various user programs that used all of the system calls’ functionalities to ensure they were implemented correctly.
+
+II. Assumptions:
+
+	- Reasonable assumptions you take for your scheme.
+
+All of our processes, threads, locks, and conditions are stored in different tables that are implemented by arrays. We assumed that any locations in the array set to null indicate that the validate bit for that memory location is false. Any locations that have a valid lock/condition/thread/process struct means that location’s valid bit is true.
+
+Other assumptions include the max amount of locks/conditions/threads/processes. We allocated a table of size 1000 for the locks and conditions to make sure that any instance of the passport office would not reach the end of these tables since there are a large amount of locks and conditions in the passport office (locks and CVs for each clerk). We also made a max size of 100 for our process table to ensure it was sufficiently large for any amount of passport office instances we wanted to run. Each of these processes has a thread list of 100 to account for any numbers of clerks and customers that the passport office may have.
+
+III. Design:
+
+- This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
+
+To implement multiprogramming in this project we needed to keep track of all the threads and processes running on the operating system. We also needed to keep track of locks and CVs associated with each address space of the processes. This required a tables to keep track of each of these. Since there is a large amount of information associated with each lock, CV, thread, and process, we had to implement these variables as structs. Each struct would have a member variable of its actual type (such as a thread if the struct represented a thread or a CV if the struct was representing a CV). We also included other information in the struct such as the location in memory and process ID in the case of processes.
+
+IV. Implementation:
+	+ Files Modified
+		exception.cc
+		threadtest.cc
+		system.h
+		system.cc
+		syscall.h
+		start.s
+		addrspace.h
+		addrspace.cc
+		machine.h
+		progtest.cc
+		threadtest.cc
+		test Makefile
+
+	+ Files added
+		acquirelock.c
+		createcondition.c
+		createlock.c
+		cv_wait_signal.c
+		destroylock.c
+		invalidtest.c
+		passportoffice.c
+		print.c
+		rand.c
+		releaselock.c
+		yieldtest.c
+
+	+ Data Structures added, and the file they were added to.
+		kernel process table - system.h/.cc
+		kernel lock table - system.h/.cc
+		kernel cv table - system.h/.cc
+		process struct - system.h/.cc
+		lock struct - system.h/.cc
+		cv struct - system.h/.cc
+		
+	+ Data Structures modified, and the file they were added to.
+		-For example,
+			class Lock		-- in file threads.cc/threads.h
+			{
+				//. Modified fields.
+			}
+
+		addrspace constructor
+		startprocess
+		
+
+	+ Functions added and in which file.
+
+		validatelock
+		validatecv 
+		findcurrentprocess
+		findavailablethreadindex
+		
+	+ Functions modified and in which file.
+
+V. Testing:  (For each test case, you must show)
+	+ How to test
+- How to run the test cases, the commands, the arguments and so on.
+	+ Test Output
+- Describe the testing output. You don't have to dump all the output info. Just make sure your description can exactly reflect your output. The grader of your submission will be wanting to compare the output they get with what you say the output is.
+
+VI. Discussion:
+
+	+ Experiment expectation.  (What is supposed to happen.)
+		User programs will be able to use system calls to create locks and child threads to carry out their functionality. System calls will create variables and keep track of their location in memory as well as performing whatever function is expected of them such as acquiring a lock or signaling a CV, among other things.
+	+ Experiment result.  (What actually happened.)
+		We were able to exec 2 passport offices that run as 2 different processes with various child threads. These processes carried out the expected functionality of the passport office and were able to run simultaneously. 
+	+ Explanation
+		- Explain your experiment result - how it proves what 
+		  you were supposed to prove.
+
+		The fact that our two passport office processes ran simultaneously proves that we solved the project problem. This is because we executed two process and they ran simultaneously while sharing the OS which is what is expected of multiprogramming.
+
+VIII. Miscellaneous:
+
+- Whatever else you want the grader know about your development.  You can create your own subsections headings here.
+

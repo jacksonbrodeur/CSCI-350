@@ -136,7 +136,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     
     codeDataPages = divRoundUp(size, PageSize);
     
-    numPages = divRoundUp(size, PageSize) /* + divRoundUp(UserStackSize,PageSize)*/ + 400;
+    numPages = divRoundUp(size, PageSize) /* + divRoundUp(UserStackSize,PageSize) */ + 400;
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;
