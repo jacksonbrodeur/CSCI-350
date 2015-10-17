@@ -3,6 +3,7 @@
 typedef BOOL int;
 #define TRUE 1;
 #define FALSE 0;
+
 int AVAILABLE = 0;
 int BUSY = 1;
 int ONBREAK = 2;
@@ -21,8 +22,8 @@ int senatorLock;
 int senatorCondition;
 int numSenatorsHere;
 
-int totalCustomerMoney;
-int storeJustOpened;
+int totalCustomerMoney = 0;
+int storeJustOpened = 0;
 
 #define MAX_CUSTOMERS 200
 #define MAX_CLERKS 50
@@ -66,6 +67,7 @@ typedef struct Customer {
 } Customer;
 
 Clerk createClerk(int line, int type) {
+    Clerk clerk;
     int myLine = line;
     int lineCount = 0;
     int bribeLineCount = 0;
@@ -82,7 +84,7 @@ Clerk createClerk(int line, int type) {
     Customer * customer = NULL;
     int money = 0;
 
-    struct Clerk clerk = {myLine, lineCount, bribeLineCount, 
+    clerk = {myLine, lineCount, bribeLineCount, 
                             state, lineCondition, bribeLineCondition,
                             lineCondition, bribeLineCondition, clerkCondition,
                             breakLock, breakCondition, clerkLock, 
@@ -92,6 +94,7 @@ Clerk createClerk(int line, int type) {
 }
 
 Customer createCustomer(int id, BOOL senator) {
+    Customer customer;
     int myId = id;
     BOOL applicationFiled = FALSE;
     BOOL pictureTaken = FALSE;
@@ -108,7 +111,7 @@ Customer createCustomer(int id, BOOL senator) {
     }
     totalCustomerMoney += money;
 
-    struct Customer customer = {myId, applicationFiled, pictureTaken,
+    customer = {myId, applicationFiled, pictureTaken,
                                 pictureFiled, passportCertified, passportGiven,
                                 cashierPaid, money, isSenator};
 
@@ -429,8 +432,92 @@ void cashier(int myLine) {
     }   
 }
 
-int getInShortestLine(Customer * customer, Clerk * clerkToVisit, int clerkLock) {
-    
+int getInShortestLine(Customer * customer, Clerk * clerkToVisit, int clerkLock, int clerkType) {
+    int myLine = -1;
+    int shortesLineSize = NUM_CUSTOMERS + NUM_SENATORS;
+    BOOL foundLine = FALSE;
+    BOOL bribed = FALSE;
+    BOOL allOnBreak = TRUE;
+    int i;
+
+    Acquire(clerkLock);
+
+    for(i = 0; i < NUM_CLERKS, i++) {
+        if(clerkToVisit[i].state == BUSY || clerkToVisit[i].state == AVAILABLE) {
+            allOnBreak = FALSE;
+            break;
+        }
+    }
+
+    if(!allOnBreak) {
+        while (!foundLine) {
+            for(i = 0; i < NUM_CLERKS; i++) {
+                if(clerkToVisit[i].lineCount + clerkToVisit[i].bribeLineCount < shortesLineSize && clerkToVisit[i].state != ONBREAK) {
+                    myLine = i;
+                    shortesLineSize = clerkToVisit[i].lineCount + clerkToVisit[i].bribeLineCount;
+                    foundLine = TRUE;
+                    bribed = FALSE;
+                }
+                if(customer->money >= 600 && clerkToVisit[i].bribeLineCount < shortesLineSize && clerkToVisit[i].state != ONBREAK) {
+                    myLine = i;
+                    shortesLineSize = clerkToVisit[i].bribeLineCount;
+                    foundLine = TRUE;
+                    bribed = TRUE;
+                } 
+            }
+        }
+    } else { /* all clerks of that type are on break */
+        if(customer->money >= 600) {
+            shortestLineSize = clerkToVisit[0].bribeLineCount;
+            bribed = TRUE;
+        } else {
+            shortestLineSize = clerkToVisit[0].bribeLineCount + clerkToVisit[0].lineCount;
+            bribed = FALSE;
+        }
+        myLine = 0;
+        foundLine = TRUE;
+    }
+
+    if(clerkToVisit[myLine].state == BUSY || clerkToVisit[myLine].state == ONBREAK) {
+        if(bribed) {
+            if (clerkType == PICTURECLERK) 
+                Print("Customer %i has gotten in bribe line for PictureClerk %i\n", 58, customer->id * 1000 + myLine, 0);
+            else if (clerkType == APPLICATIONCLERK)
+                Print("Customer %i has gotten in bribe line for ApplicationClerk %i\n", 62, customer->id * 1000 + myLine, 0);
+            else if (clerkType == PASSPORTCLERK)
+                Print("Customer %i has gotten in bribe line for PassportClerk %i\n", 59, customer->id * 1000 + myLine, 0);
+            else /* clerkType == CASHIER */
+                Print("Customer %i has gotten in bribe line for Cashier %i\n", 53, customer->id * 1000 + myLine, 0);
+
+            clerkToVisit[myLine].lineCount++;
+            Wait(clerkToVisit[myLine].lineCondition, clerkLock);
+            clerkToVisit[myLine].lineCondition--;
+        } else {
+            if (clerkType == PICTURECLERK) 
+                Print("Customer %i has gotten in regular line for PictureClerk %i\n", 60, customer->id * 1000 + myLine, 0);
+            else if (clerkType == APPLICATIONCLERK)
+                Print("Customer %i has gotten in regular line for ApplicationClerk %i\n", 64, customer->id * 1000 + myLine, 0);
+            else if (clerkType == PASSPORTCLERK)
+                Print("Customer %i has gotten in regular line for PassportClerk %i\n", 61, customer->id * 1000 + myLine, 0);
+            else /* clerkType == CASHIER */
+                Print("Customer %i has gotten in regular line for Cashier %i\n", 55, customer->id * 1000 + myLine, 0);
+
+            clerkToVisit[myLine].lineCount++;
+            Wait(clerkToVisit[myLine].lineCondition, clerkLock);
+            clerkToVisit[myLine].lineCount--;
+        }
+    }
+
+    if (bribed)
+    {
+        customer->money -= 500;
+        clerkToVisit[myLine].money += 500;
+    }
+
+    clerkToVisit[myLine].state = BUSY;
+    Release(clerkLock);
+
+    return myLine;
 }
 
 void customer(int customerNumber) {
@@ -456,7 +543,7 @@ void customer(int customerNumber) {
     if(Rand() % 2 == 0)
     {
         /*find the shortest line and then perform a transaction with the clerk of that line*/
-        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
+        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock, PICTURECLERK);
         pictureTransaction(&pictureClerks[myLine], me);
         
         /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
@@ -469,13 +556,13 @@ void customer(int customerNumber) {
         }
         
         /*go to the application clerk second*/
-        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
+        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock, APPLICATIONCLERK);
         applicationTransaction(applicationClerks[myLine], me);
     }
     else
     {
         /*find the shortest line and then perform a transaction with the clerk of that line*/
-        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
+        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock, APPLICATIONCLERK);
         applicationTransaction(&applicationClerks[myLine], me);
         
         /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
@@ -488,7 +575,7 @@ void customer(int customerNumber) {
         }
         
         /*go to the application clerk second*/
-        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
+        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock, PICTURECLERK);
         pictureTransaction(&pictureClerks[myLine], me);
     }
     
@@ -510,7 +597,7 @@ void customer(int customerNumber) {
                 Yield();
             }
         } else { /*if the customer  has gotten both app and picture filed then go to passport clerk*/
-            myLine = getInShortestLine(me, passportClerks, passportClerkLock);
+            myLine = getInShortestLine(me, passportClerks, passportClerkLock, PASSPORTCLERK);
             passportTransaction(&passportClerks[myLine], me);
         }
     }
@@ -533,7 +620,7 @@ void customer(int customerNumber) {
                 Yield();
             }
         } else { /*if his passport is certified then let the customer pay*/
-            myLine = getInShortestLine(me, cashiers, cashierLock);
+            myLine = getInShortestLine(me, cashiers, cashierLock, CASHIER);
             cashierTransaction(&cashiers[myLine], me);
         }
     }
