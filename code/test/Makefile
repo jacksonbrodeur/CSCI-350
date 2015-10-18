@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock releaselock createcondition cv_wait_signal invalidtest rand passportoffice
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock releaselock createcondition cv_wait_signal invalidtest rand diff_lock diff_cond exectest exechelper passportoffice
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -121,6 +121,30 @@ rand.o: rand.c
 rand: rand.o start.o
 	$(LD) $(LDFLAGS) start.o rand.o -o rand.coff
 	../bin/coff2noff rand.coff rand
+
+diff_lock.o: diff_lock.c
+	$(CC) $(CFLAGS) -c diff_lock.c
+diff_lock: diff_lock.o start.o
+	$(LD) $(LDFLAGS) start.o diff_lock.o -o diff_lock.coff
+	../bin/coff2noff diff_lock.coff diff_lock
+
+diff_cond.o: diff_cond.c
+	$(CC) $(CFLAGS) -c diff_cond.c
+diff_cond: diff_cond.o start.o
+	$(LD) $(LDFLAGS) start.o diff_cond.o -o diff_cond.coff
+	../bin/coff2noff diff_cond.coff diff_cond
+
+exectest.o: exectest.c
+	$(CC) $(CFLAGS) -c exectest.c
+exectest: exectest.o start.o
+	$(LD) $(LDFLAGS) start.o exectest.o -o exectest.coff
+	../bin/coff2noff exectest.coff exectest
+
+exechelper.o: exechelper.c
+	$(CC) $(CFLAGS) -c exechelper.c
+exechelper: exechelper.o start.o
+	$(LD) $(LDFLAGS) start.o exechelper.o -o exechelper.coff
+	../bin/coff2noff exechelper.coff exechelper
 
 passportoffice.o: passportoffice.c
 	$(CC) $(CFLAGS) -c passportoffice.c

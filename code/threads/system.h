@@ -75,7 +75,7 @@ struct KernelProcess
     KernelProcess(Thread * processThread);
 };
 
-#define MAX_LOCKS 100000
+#define MAX_LOCKS 1000
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
 
