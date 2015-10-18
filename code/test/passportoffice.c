@@ -1,50 +1,50 @@
 
 #include "syscall.h"
+#define TRUE 1
+#define FALSE 0
+#define NULL 0
+
+/* Clerk States */
 int AVAILABLE = 0;
 int BUSY = 1;
 int ONBREAK = 2;
 
+/* Clerk Types */
 int PICTURECLERK = 0;
 int APPLICATIONCLERK = 1;
 int PASSPORTCLERK = 2;
 int CASHIER = 3;
 
+/* Clerk Locks */
 int applicationClerkLock;
 int pictureClerkLock;
 int passportClerkLock;
 int cashierLock;
 
+/* increment when a clerk/customer is forked */
+int counterLock;
+int numApplicationClerks = 0;
+int numPictureClerks = 0;
+int numPassportClerks = 0;
+int numCashiers = 0;
+int numCustomers = 0;
+
+/* Senator data */
 int senatorLock;
 int senatorCondition;
-int numSenatorsHere;
+int numSenatorsHere = 0;
 
-int totalCustomerMoney;
+int totalCustomerMoney = 0;
+int storeJustOpened = 0;
+int customersFinished = 0;
 
-Customer customers[150];
-Clerk pictureClerks[50];
-Clerk applicationClerks[50];
-Clerk passportClerks[50];
-Clerk cashiers[50];
+#define MAX_CUSTOMERS 200
+#define MAX_CLERKS 50
+int NUM_CUSTOMERS = 50;
+int NUM_CLERKS = 5;
+int NUM_SENATORS = 0;
 
-struct Clerk {
-    int myLine;
-    int lineCount;
-    int bribeLineCount;
-    int state
-    int lineCondition;
-    int bribeLineCondition
-    int clerkCondition
-
-    int breakLock;
-    int breakCondition;
-
-    int clerkLock;
-    int clerkType;
-    Customer * customer;
-    int money;
-};
-
-struct Customer {
+typedef struct Customer {
     int id;
     int applicationFiled;
     int pictureTaken;
@@ -54,57 +54,74 @@ struct Customer {
     int cashierPaid;
     int money;
     int isSenator;
-};
+} Customer;
 
-struct Clerk createClerk(int line, int type) {
-    int myLine = line;
-    int lineCount = 0;
-    int bribeLineCount = 0;
-    int state = 0;
-    int lineCondition = CreateCondition("line condition", 14);
-    int bribeLineCondition = CreateCondition("bribe line condition", 20);
-    int clerkCondition = CreateCondition("clerk condition", 15);
+typedef struct Clerk {
+    int myLine;
+    int lineCount;
+    int bribeLineCount;
+    int state;
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
 
-    int breakLock = CreateLock("break lock", 10);
-    int breakCondition = CreateCondition("break condition", 15);
+    int breakLock;
+    int breakCondition;
 
-    int clerkLock = CreateLock("clerk lock", 10);
-    int clerkType = type;
-    Customer * customer = NULL;
-    int money = 0;
+    int clerkLock;
+    int clerkType;
+    Customer * customer;
+    int money;
+} Clerk;
 
-    struct Clerk clerk = {myLine, lineCount, bribeLineCount, 
-                            state, lineCondition, bribeLineCondition,
-                            lineCondition, bribeLineCondition, clerkCondition,
-                            breakLock, breakCondition, clerkLock, 
-                            clerkType, customer, money};
+Customer * customers[MAX_CUSTOMERS];
+Clerk * pictureClerks[MAX_CLERKS];
+Clerk * applicationClerks[MAX_CLERKS];
+Clerk * passportClerks[MAX_CLERKS];
+Clerk * cashiers[MAX_CLERKS];
+
+/*Clerk createClerk(int line, int type) {
+    Clerk clerk;
+
+    clerk.myLine = line;
+    clerk.lineCount = 0;
+    clerk.bribeLineCount = 0;
+    clerk.state = AVAILABLE;
+    clerk.lineCondition = CreateCondition("line condition", 14);
+    clerk.bribeLineCondition = CreateCondition("bribe line condition", 20);
+    clerk.clerkCondition = CreateCondition("clerk condition", 15);
+
+    clerk.breakLock = CreateLock("break lock", 10);
+    clerk.breakCondition = CreateCondition("break condition", 15);
+
+    clerk.clerkLock = CreateLock("clerk lock", 10);
+    clerk.clerkType = type;
+    clerk.customer = NULL;
+    clerk.money = 0;
 
     return clerk;
 }
 
-struct Customer createCustomer(int id, int senator) {
-    int myId = id;
-    int applicationFiled = 0;
-    int pictureTaken = 0;
-    int pictureFiled = 0;
-    int passportCertified = 0;
-    int passportGiven = 0;
-    int cashierPaid = 0;
-    int isSenator = senator;
-    int money;
-    if(isSenator == 1) {
-        money = 100;
-    } else {
-        money = 100 + (Rand() % 4) * 500;
-    }
-    totalCustomerMoney += money;
+Customer createCustomer(int id, int senator) {
+    Customer customer;
 
-    struct Customer customer = {myId, applicationFiled, pictureTaken,
-                                pictureFiled, passportCertified, passportGiven,
-                                cashierPaid, money, isSenator};
+    customer.id = id;
+    customer.applicationFiled = FALSE;
+    customer.pictureTaken = FALSE;
+    customer.pictureFiled = FALSE;
+    customer.passportCertified = FALSE;
+    customer.passportGiven = FALSE;
+    customer.cashierPaid = FALSE;
+    customer.isSenator = senator;
+    if(senator) {
+        customer.money = 100;
+    } else {
+        customer.money = 100 + (Rand() %4) * 500;
+    }
+    totalCustomerMoney += customer.money;
 
     return customer;
-}
+}*/
 
 
 void pictureTransaction(Clerk * clerk, Customer * customer) {
@@ -130,10 +147,35 @@ void pictureTransaction(Clerk * clerk, Customer * customer) {
 }
 
 void pictureClerk() {
+    Clerk tempClerk;
+    int myLine;
     int firstTime = 1;
     int i;
     int j = Rand() % 80 + 20;
-    Clerk * me = &pictureClerks[myLine];
+    Clerk * me;
+    Acquire(counterLock);
+    myLine = numPictureClerks;
+    numPictureClerks++;
+    /*pictureClerks[myLine] = createClerk(myLine, PICTURECLERK);*/
+
+    tempClerk.myLine = myLine;
+    tempClerk.lineCount = 0;
+    tempClerk.bribeLineCount = 0;
+    tempClerk.state = AVAILABLE;
+    tempClerk.lineCondition = CreateCondition("line condition", 14);
+    tempClerk.bribeLineCondition = CreateCondition("bribe line condition", 20);
+    tempClerk.clerkCondition = CreateCondition("clerk condition", 15);
+
+    tempClerk.breakLock = CreateLock("break lock", 10);
+    tempClerk.breakCondition = CreateCondition("break condition", 15);
+
+    tempClerk.clerkLock = CreateLock("clerk lock", 10);
+    tempClerk.clerkType = PICTURECLERK;
+    tempClerk.customer = NULL;
+    tempClerk.money = 0;
+    pictureClerks[myLine] = &tempClerk;
+    Release(counterLock);
+    me = pictureClerks[myLine];
 
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(pictureClerkLock);
@@ -163,7 +205,7 @@ void pictureClerk() {
                 Release(me->breakLock);
                 Acquire(pictureClerkLock);
 
-                Signal(my->lineCondition, pictureClerkLock);
+                Signal(me->lineCondition, pictureClerkLock);
             } else {
                 storeJustOpened++;
             }
@@ -182,7 +224,7 @@ void pictureClerk() {
             }
             Print("PictureClerk %i has taken a picture of Customer %i\n", 52, myLine * 1000 + me->customer->id, 0);
             Signal(me->clerkCondition, me->clerkLock);
-            Wait(me->clerkCondition, clerkLock);
+            Wait(me->clerkCondition, me->clerkLock);
             firstTime = 0;
         }
 
@@ -214,9 +256,37 @@ void applicationTransaction(Clerk * clerk, Customer * customer) {
 }
 
 void applicationClerk() {
+    Clerk tempClerk;
+    int myLine;
     int i;
     int j = Rand() % 80 + 20;
-    Clerk * me = &applicationClerks[myLine];
+    Clerk * me;
+
+    Acquire(counterLock);
+    myLine = numApplicationClerks;
+    numApplicationClerks++;
+    /*applicationClerks[myLine] = createClerk(myLine, APPLICATIONCLERK);*/
+    
+    tempClerk.myLine = myLine;
+    tempClerk.lineCount = 0;
+    tempClerk.bribeLineCount = 0;
+    tempClerk.state = AVAILABLE;
+    tempClerk.lineCondition = CreateCondition("line condition", 14);
+    tempClerk.bribeLineCondition = CreateCondition("bribe line condition", 20);
+    tempClerk.clerkCondition = CreateCondition("clerk condition", 15);
+
+    tempClerk.breakLock = CreateLock("break lock", 10);
+    tempClerk.breakCondition = CreateCondition("break condition", 15);
+
+    tempClerk.clerkLock = CreateLock("clerk lock", 10);
+    tempClerk.clerkType = APPLICATIONCLERK;
+    tempClerk.customer = NULL;
+    tempClerk.money = 0;
+    applicationClerks[myLine] = &tempClerk;
+    Release(counterLock);
+
+    me = applicationClerks[myLine];
+
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
 
         Acquire(applicationClerkLock);
@@ -246,7 +316,7 @@ void applicationClerk() {
                 Release(me->breakLock);
                 Acquire(applicationClerkLock);
 
-                Signal(my->lineCondition, applicationClerkLock);
+                Signal(me->lineCondition, applicationClerkLock);
             } else {
                 storeJustOpened++;
             }
@@ -261,7 +331,7 @@ void applicationClerk() {
         for(i = 0; i < j; i++) {
             Yield();
         }
-        me->customer->applicationField = 1;
+        me->customer->applicationFiled = TRUE;
         Print("ApplicationClerk %i has recorded a completed application for Customer %i\n", 74, myLine * 1000 + me->customer->id, 0);
 
         Signal(me->clerkCondition, me->clerkLock);
@@ -274,7 +344,7 @@ void passportTransaction(Clerk * clerk, Customer * customer) {
     Acquire(clerk->clerkLock);
     clerk->customer = customer;
     
-    PRINT("Customer %d has given SSN to Passport Clerk %d\n", 48, customer->id * 1000 + clerk->name, 0);
+    Print("Customer %i has given SSN to Passport Clerk %i\n", 48, customer->id * 1000 + clerk->myLine, 0);
     
     Signal(clerk->clerkCondition, clerk->clerkLock);
     Wait(clerk->clerkCondition, clerk->clerkLock);
@@ -283,8 +353,37 @@ void passportTransaction(Clerk * clerk, Customer * customer) {
     Release(clerk->clerkLock);   
 }
 
-void passportClerk(int myLine) {
-    Clerk * me = &passportClerks[myLine];
+void passportClerk() {
+    Clerk tempClerk;
+    int myLine;
+    Clerk * me;
+    int i;
+
+    Acquire(counterLock);
+    myLine = numPassportClerks;
+    numPassportClerks++;
+    /*passportClerks[myLine] = createClerk(myLine, PASSPORTCLERK);*/
+    
+    tempClerk.myLine = myLine;
+    tempClerk.lineCount = 0;
+    tempClerk.bribeLineCount = 0;
+    tempClerk.state = AVAILABLE;
+    tempClerk.lineCondition = CreateCondition("line condition", 14);
+    tempClerk.bribeLineCondition = CreateCondition("bribe line condition", 20);
+    tempClerk.clerkCondition = CreateCondition("clerk condition", 15);
+
+    tempClerk.breakLock = CreateLock("break lock", 10);
+    tempClerk.breakCondition = CreateCondition("break condition", 15);
+
+    tempClerk.clerkLock = CreateLock("clerk lock", 10);
+    tempClerk.clerkType = PASSPORTCLERK;
+    tempClerk.customer = NULL;
+    tempClerk.money = 0;
+
+    passportClerks[myLine] = &tempClerk;
+    Release(counterLock);
+
+    me = passportClerks[myLine];
     
     /* On duty while there are still customers who haven't completed process */
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
@@ -292,17 +391,17 @@ void passportClerk(int myLine) {
         
         /* If there is a customer in line signal him to the counter */
          if(me->bribeLineCount > 0) { /* Check bribe line first... */
-            Print("Passport Clerk %d has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
+            Print("Passport Clerk %i has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
             Signal(me->bribeLineCondition, passportClerkLock);
             me->state = BUSY;
         } else if(me->lineCount > 0) { /* then check regular line */
-            Print("Passport Clerk %d has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
+            Print("Passport Clerk %i has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
             Signal(me->lineCondition, passportClerkLock);
             me->state = BUSY;
         } else {
             
             if(storeJustOpened >= NUM_CLERKS * 4) {
-                Print("Passport Clerk %d is going on break\n", 37, myLine * 1000, 0);
+                Print("Passport Clerk %i is going on break\n", 37, myLine * 1000, 0);
                 Release(passportClerkLock);
                 Acquire(me->breakLock);
                 me->state = ONBREAK;
@@ -312,7 +411,7 @@ void passportClerk(int myLine) {
                     Wait(me->breakCondition, me->breakLock);
                 }
                 
-                Print("Passport Clerk %d is coming off break\n", 39, myLine * 1000, 0);
+                Print("Passport Clerk %i is coming off break\n", 39, myLine * 1000, 0);
                 Release(me->breakLock);
                 Acquire(passportClerkLock);
                 
@@ -332,13 +431,13 @@ void passportClerk(int myLine) {
         Wait(me->clerkCondition, me->clerkLock);
         
 
-        Print("Passport Clerk %d has received SSN from Customer %d\n", 53, myLine * 1000 + me->customer->id, 0);
-        Print("Passport Clerk %d has determined that Customer %d does have both their application and picture completed\n", 106, myLine * 1000 + me->customer->id, 0);
-        for(int i = 0; i < Rand()% 80 + 20; i++) {
-            Yield(currentThread);
+        Print("Passport Clerk %i has received SSN from Customer %i\n", 53, myLine * 1000 + me->customer->id, 0);
+        Print("Passport Clerk %i has determined that Customer %i does have both their application and picture completed\n", 106, myLine * 1000 + me->customer->id, 0);
+        for(i = 0; i < Rand()% 80 + 20; i++) {
+            Yield();
         }
-        me->customer->passportCertified = true;
-        Print("Passport Clerk %d has recorded Customer %d passport documentation\n", 67, myLine * 1000 + me->customer->id, 0);
+        me->customer->passportCertified = TRUE;
+        Print("Passport Clerk %i has recorded Customer %i passport documentation\n", 67, myLine * 1000 + me->customer->id, 0);
         Signal(me->clerkCondition, me->clerkLock);
         Release(me->clerkLock);
     }
@@ -351,31 +450,59 @@ void cashierTransaction(Clerk * clerk, Customer * customer) {
     
     Signal(clerk->clerkCondition, clerk->clerkLock);
     
-    customer->cashierPaid = true;
-    PRINT("Customer %d has given SSN to Cashier %d\n", 41, customer->id * 1000 + clerk->name, 0);
+    customer->cashierPaid = TRUE;
+    Print("Customer %i has given SSN to Cashier %i\n", 41, customer->id * 1000 + clerk->myLine, 0);
     
     Wait(clerk->clerkCondition, clerk->clerkLock);
     
     customersFinished++;
-    PRINT("Customer %d is leaving the passport office\n", 44, customer->id * 1000, 0);
+    Print("Customer %i is leaving the passport office\n", 44, customer->id * 1000, 0);
     
     Release(clerk->clerkLock);   
 }
 
-void cashier(int myLine) {
-    Clerk * me = &cashiers[myLine];
+void cashier() {
+    Clerk tempClerk;
+    Clerk * me;
+    int myLine;
+
+    Acquire(counterLock);
+    myLine = numCashiers;
+    numCashiers++;
+    /*cashiers[myLine] = createClerk(myLine, CASHIER);*/
+
+    tempClerk.myLine = myLine;
+    tempClerk.lineCount = 0;
+    tempClerk.bribeLineCount = 0;
+    tempClerk.state = AVAILABLE;
+    tempClerk.lineCondition = CreateCondition("line condition", 14);
+    tempClerk.bribeLineCondition = CreateCondition("bribe line condition", 20);
+    tempClerk.clerkCondition = CreateCondition("clerk condition", 15);
+
+    tempClerk.breakLock = CreateLock("break lock", 10);
+    tempClerk.breakCondition = CreateCondition("break condition", 15);
+
+    tempClerk.clerkLock = CreateLock("clerk lock", 10);
+    tempClerk.clerkType = CASHIER;
+    tempClerk.customer = NULL;
+    tempClerk.money = 0;
+
+    cashiers[myLine] = &tempClerk;
+    Release(counterLock);
+
+    me = cashiers[myLine];
     
     /* On duty while there are still customers who haven't completed process */
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(cashierLock);
 
         if (me->lineCount > 0) {
-            Print("Cashier %d has signalled a customer to come to their counter\n", 62, myLine * 1000, 0);
+            Print("Cashier %i has signalled a customer to come to their counter\n", 62, myLine * 1000, 0);
             Signal(me->lineCondition, cashierLock);
             me->state = BUSY;
         } else {
             if(storeJustOpened>=NUM_CLERKS*4) {
-                Print("Cashier %d is going on break\n", 30, myLine * 1000, 0);
+                Print("Cashier %i is going on break\n", 30, myLine * 1000, 0);
                 Release(cashierLock);
                 Acquire(me->breakLock);
                 me->state = ONBREAK;
@@ -385,7 +512,7 @@ void cashier(int myLine) {
                     Wait(me->breakCondition, me->breakLock);
                 }
                 
-                Print("Cashier %d is coming off break\n", 32, myLine * 1000, 0);
+                Print("Cashier %i is coming off break\n", 32, myLine * 1000, 0);
                 Release(me->breakLock);
                 Acquire(cashierLock);
                 
@@ -403,31 +530,140 @@ void cashier(int myLine) {
         /* wait for customer to pay */
         Wait(me->clerkCondition, me->clerkLock);
 
-        Print("Cashier %d has received SSN from Customer %d\n", 46, myLine * 1000 + me->customer->id, 0);
-        Print("Cashier %d has verified that Customer %d has been certified by a PassportClerk\n", 80, myLine * 1000 + me->customer->id, 0);
+        Print("Cashier %i has received SSN from Customer %i\n", 46, myLine * 1000 + me->customer->id, 0);
+        Print("Cashier %i has verified that Customer %i has been certified by a PassportClerk\n", 80, myLine * 1000 + me->customer->id, 0);
         /* taking payment */
         me->customer->money -= 100;
         me->money += 100;
-        Print("Cashier %d has received the $100 from Customer %d after certification\n", 71, myLine * 1000 + me->customer->id, 0);
+        Print("Cashier %i has received the $100 from Customer %i after certification\n", 71, myLine * 1000 + me->customer->id, 0);
         
-        me->customer->passportGiven = true;
-        me->clerkCondition->Signal(me->clerkLock);
-        Print("Cashier %d has provided Customer %d their completed passport\n", 62, myLine * 1000 + me->customer->id, 0);
-        Print("Cashier %d has recorded that Customer %d has been given their completed passport\n", 82, myLine * 1000 + me->customer->id, 0);
+        me->customer->passportGiven = TRUE;
+        Signal(me->clerkCondition, me->clerkLock);
+        Print("Cashier %i has provided Customer %i their completed passport\n", 62, myLine * 1000 + me->customer->id, 0);
+        Print("Cashier %i has recorded that Customer %i has been given their completed passport\n", 82, myLine * 1000 + me->customer->id, 0);
         
         Release(me->clerkLock);
     }   
 }
 
-int getInShortestLine(Customer * customer, Clerk clerkToVisit, int clerkLock) {
-    
-    
-    
+int getInShortestLine(Customer * customer, Clerk ** clerkToVisit, int clerkLock, int clerkType) {
+    int myLine = -1;
+    int shortestLineSize = NUM_CUSTOMERS + NUM_SENATORS;
+    int foundLine = FALSE;
+    int bribed = FALSE;
+    int allOnBreak = TRUE;
+    int i;
+
+    Acquire(clerkLock);
+
+    for(i = 0; i < NUM_CLERKS; i++) {
+        if(clerkToVisit[i]->state == BUSY || clerkToVisit[i]->state == AVAILABLE) {
+            allOnBreak = FALSE;
+            break;
+        }
+    }
+
+    if(!allOnBreak) {
+        while (!foundLine) {
+            for(i = 0; i < NUM_CLERKS; i++) {
+                if(clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount < shortestLineSize && clerkToVisit[i]->state != ONBREAK) {
+                    myLine = i;
+                    shortestLineSize = clerkToVisit[i]->lineCount + clerkToVisit[i]->bribeLineCount;
+                    foundLine = TRUE;
+                    bribed = FALSE;
+                }
+                if(customer->money >= 600 && clerkToVisit[i]->bribeLineCount < shortestLineSize && clerkToVisit[i]->state != ONBREAK) {
+                    myLine = i;
+                    shortestLineSize = clerkToVisit[i]->bribeLineCount;
+                    foundLine = TRUE;
+                    bribed = TRUE;
+                } 
+            }
+        }
+    } else { /* all clerks of that type are on break */
+        if(customer->money >= 600) {
+            shortestLineSize = clerkToVisit[0]->bribeLineCount;
+            bribed = TRUE;
+        } else {
+            shortestLineSize = clerkToVisit[0]->bribeLineCount + clerkToVisit[0]->lineCount;
+            bribed = FALSE;
+        }
+        myLine = 0;
+        foundLine = TRUE;
+    }
+
+    if(clerkToVisit[myLine]->state == BUSY || clerkToVisit[myLine]->state == ONBREAK) {
+        if(bribed) {
+            if (clerkType == PICTURECLERK) 
+                Print("Customer %i has gotten in bribe line for PictureClerk %i\n", 58, customer->id * 1000 + myLine, 0);
+            else if (clerkType == APPLICATIONCLERK)
+                Print("Customer %i has gotten in bribe line for ApplicationClerk %i\n", 62, customer->id * 1000 + myLine, 0);
+            else if (clerkType == PASSPORTCLERK)
+                Print("Customer %i has gotten in bribe line for PassportClerk %i\n", 59, customer->id * 1000 + myLine, 0);
+            else /* clerkType == CASHIER */
+                Print("Customer %i has gotten in bribe line for Cashier %i\n", 53, customer->id * 1000 + myLine, 0);
+
+            clerkToVisit[myLine]->lineCount++;
+            Wait(clerkToVisit[myLine]->lineCondition, clerkLock);
+            clerkToVisit[myLine]->lineCondition--;
+        } else {
+            if (clerkType == PICTURECLERK) 
+                Print("Customer %i has gotten in regular line for PictureClerk %i\n", 60, customer->id * 1000 + myLine, 0);
+            else if (clerkType == APPLICATIONCLERK)
+                Print("Customer %i has gotten in regular line for ApplicationClerk %i\n", 64, customer->id * 1000 + myLine, 0);
+            else if (clerkType == PASSPORTCLERK)
+                Print("Customer %i has gotten in regular line for PassportClerk %i\n", 61, customer->id * 1000 + myLine, 0);
+            else /* clerkType == CASHIER */
+                Print("Customer %i has gotten in regular line for Cashier %i\n", 55, customer->id * 1000 + myLine, 0);
+
+            clerkToVisit[myLine]->lineCount++;
+            Wait(clerkToVisit[myLine]->lineCondition, clerkLock);
+            clerkToVisit[myLine]->lineCount--;
+        }
+    }
+
+    if (bribed)
+    {
+        customer->money -= 500;
+        clerkToVisit[myLine]->money += 500;
+    }
+
+    clerkToVisit[myLine]->state = BUSY;
+    Release(clerkLock);
+
+    return myLine;
 }
 
-void customer(int customerNumber) {
-    
-    Customer * me = customers[customerNumber];
+void customer() {
+    Customer tempCustomer;
+    int id;
+    Customer * me;
+    int myLine;
+    int i;
+
+    Acquire(counterLock);
+    id = numCustomers;
+    numCustomers++;
+    /*customers[id] = createCustomer(id, FALSE);*/
+
+    tempCustomer.id = id;
+    tempCustomer.applicationFiled = FALSE;
+    tempCustomer.pictureTaken = FALSE;
+    tempCustomer.pictureFiled = FALSE;
+    tempCustomer.passportCertified = FALSE;
+    tempCustomer.passportGiven = FALSE;
+    tempCustomer.cashierPaid = FALSE;
+    tempCustomer.isSenator = FALSE;
+    if(tempCustomer.isSenator) {
+        tempCustomer.money = 100;
+    } else {
+        tempCustomer.money = 100 + (Rand() %4) * 500;
+    }
+    totalCustomerMoney += tempCustomer.money;
+
+    customers[id] = &tempCustomer;
+    Release(counterLock);
+    me = customers[id];
     
     /*Increment the number of senators currently using the office*/
     if(me->isSenator)
@@ -437,48 +673,48 @@ void customer(int customerNumber) {
         Release(senatorLock);
     }
     /*Make any customer who enters the office wait if there are any senators currently using the office */
-    while((!me->isSenator) && numSenators > 0) {
+    while((!me->isSenator) && numSenatorsHere > 0) {
         
         Wait(senatorCondition, senatorLock);
     }
     
     /*Randomly decide to go to the picture clerk first or application clerk first*/
-    if(rand() % 2 == 0)
+    if(Rand() % 2 == 0)
     {
         /*find the shortest line and then perform a transaction with the clerk of that line*/
-        int myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
+        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock, PICTURECLERK);
         pictureTransaction(pictureClerks[myLine], me);
         
         /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
         while(numSenatorsHere>0 && !(me->isSenator))
         {
-            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Print("Customer %i is going outside the Passport Office because there is a Senator present\n", 85, me->id * 1000, 0);
             Acquire(senatorLock);
             Wait(senatorCondition, senatorLock);
             Release(senatorLock);
         }
         
         /*go to the application clerk second*/
-        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
+        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock, APPLICATIONCLERK);
         applicationTransaction(applicationClerks[myLine], me);
     }
     else
     {
         /*find the shortest line and then perform a transaction with the clerk of that line*/
-        int myLine = getInShortestLine(me, applicationClerks, applicationClerkLock);
+        myLine = getInShortestLine(me, applicationClerks, applicationClerkLock, APPLICATIONCLERK);
         applicationTransaction(applicationClerks[myLine], me);
         
         /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
         while(numSenatorsHere>0 && !(me->isSenator))
         {
-            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Print("Customer %i is going outside the Passport Office because there is a Senator present\n", 85, me->id * 1000, 0);
             Acquire(senatorLock);
             Wait(senatorCondition, senatorLock);
             Release(senatorLock);
         }
         
         /*go to the application clerk second*/
-        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock);
+        myLine = getInShortestLine(me, pictureClerks, pictureClerkLock, PICTURECLERK);
         pictureTransaction(pictureClerks[myLine], me);
     }
     
@@ -488,7 +724,7 @@ void customer(int customerNumber) {
         /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
         while(numSenatorsHere>0 && !(me->isSenator))
         {
-            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Print("Customer %i is going outside the Passport Office because there is a Senator present\n", 85, me->id * 1000, 0);
             Acquire(senatorLock);
             Wait(senatorCondition, senatorLock);
             Release(senatorLock);
@@ -496,11 +732,11 @@ void customer(int customerNumber) {
         
         /*punish the customer if they tried to go to the passport clerk before the app and/or picture was filed*/
         if(!me->pictureFiled || !me->applicationFiled) {
-            for(int i = 0; i < rand() % 900 + 100; i++) {
+            for(i = 0; i < Rand() % 900 + 100; i++) {
                 Yield();
             }
-        } else { /*if the customer is has gotten both app and picture filed then go to passport clerk*/
-            int myLine = getInShortestLine(me, passportClerks, passportClerkLock);
+        } else { /*if the customer  has gotten both app and picture filed then go to passport clerk*/
+            myLine = getInShortestLine(me, passportClerks, passportClerkLock, PASSPORTCLERK);
             passportTransaction(passportClerks[myLine], me);
         }
     }
@@ -511,7 +747,7 @@ void customer(int customerNumber) {
         /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
         while(numSenatorsHere>0 && !(me->isSenator))
         {
-            Print("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+            Print("Customer %i is going outside the Passport Office because there is a Senator present\n", 85, me->id * 1000, 0);
             Acquire(senatorLock);
             Wait(senatorCondition, senatorLock);
             Release(senatorLock);
@@ -519,11 +755,11 @@ void customer(int customerNumber) {
         
         /*punish the customer if he tries to pay before his passport is certified */
         if(!me->passportCertified) {
-            for(int i = 0; i < rand() % 900 + 100; i++) {
+            for(i = 0; i < Rand() % 900 + 100; i++) {
                 Yield();
             }
         } else { /*if his passport is certified then let the customer pay*/
-            int myLine = getInShortestLine(me, cashiers, cashierLock);
+            myLine = getInShortestLine(me, cashiers, cashierLock, CASHIER);
             cashierTransaction(cashiers[myLine], me);
         }
     }
@@ -542,133 +778,149 @@ void customer(int customerNumber) {
 }
 
 void manager() {
+    int signalPictureClerk;
+    int signalAppClerk;
+    int signalPassportClerk;
+    int signalCashier;
+    
+    int pictureClerksAllOnBreak;
+    int applicationClerksAllOnBreak;
+    int passportClerksAllOnBreak;
+    int cashiersAllOnBreak;
+
+    int pictureRevenue;
+    int applicationRevenue;
+    int passportRevenue;
+    int cashierRevenue;
+
+    int i;
     
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
         
-        bool signalPictureClerk=false;
-        bool signalAppClerk=false;
-        bool signalPassportClerk=false;
-        bool signalCashier=false;
+        signalPictureClerk=FALSE;
+        signalAppClerk=FALSE;
+        signalPassportClerk=FALSE;
+        signalCashier=FALSE;
         
-        bool pictureClerksAllOnBreak = true;
-        bool applicationClerksAllOnBreak = true;
-        bool passportClerksAllOnBreak = true;
-        bool cashiersAllOnBreak = true;
+        pictureClerksAllOnBreak = TRUE;
+        applicationClerksAllOnBreak = TRUE;
+        passportClerksAllOnBreak = TRUE;
+        cashiersAllOnBreak = TRUE;
         
         /*see if 1) there are any clerks with 3 or more customers waiting on them and 2) if all clerks of a certain type are on break*/
-        for(int i = 0; i< NUM_CLERKS;i ++)
+        for(i = 0; i< NUM_CLERKS; i++)
         {
             if(pictureClerks[i]->lineCount + pictureClerks[i]->bribeLineCount >= 3)
-                signalPictureClerk=true;
+                signalPictureClerk=TRUE;
             if(applicationClerks[i]->lineCount + applicationClerks[i]->bribeLineCount >= 3)
-                signalAppClerk=true;
+                signalAppClerk=TRUE;
             if(passportClerks[i]->lineCount + passportClerks[i]->bribeLineCount >=3)
-                signalPassportClerk=true;
+                signalPassportClerk=TRUE;
             if(cashiers[i]->lineCount>=3)
-                signalCashier=true;
-            if(pictureClerks[i]->state == (BUSY || AVAILABLE))
-                pictureClerksAllOnBreak = false;
-            if(applicationClerks[i]->state == (BUSY || AVAILABLE))
-                applicationClerksAllOnBreak = false;
-            if(passportClerks[i]->state == (BUSY || AVAILABLE))
-                passportClerksAllOnBreak = false;
-            if(cashiers[i]->state == (BUSY || AVAILABLE))
-                cashiersAllOnBreak = false;
+                signalCashier=TRUE;
+            if(pictureClerks[i]->state == BUSY || pictureClerks[i]->state == AVAILABLE)
+                pictureClerksAllOnBreak = FALSE;
+            if(applicationClerks[i]->state == BUSY || applicationClerks[i]->state == AVAILABLE)
+                applicationClerksAllOnBreak = FALSE;
+            if(passportClerks[i]->state == BUSY || passportClerks[i]->state == AVAILABLE)
+                passportClerksAllOnBreak = FALSE;
+            if(cashiers[i]->state == BUSY || cashiers[i]->state == AVAILABLE)
+                cashiersAllOnBreak = FALSE;
         }
         
         /* wake up clerks of any type that are all on break*/
         if(pictureClerksAllOnBreak)
         {
-            Print("Manager has woken up a PictureClerk\n");
+            Print("Manager has woken up a PictureClerk\n", 37, 0, 0);
             Acquire(pictureClerkLock);
             pictureClerks[0]->state = AVAILABLE;
-            Signal(pictureclerks[0]->breakCondition, pictureClerks[0]->breakLock);
+            Signal(pictureClerks[0]->breakCondition, pictureClerks[0]->breakLock);
             Release(pictureClerkLock);
-            pictureClerksAllOnBreak=false;
+            pictureClerksAllOnBreak=FALSE;
         }
         if(applicationClerksAllOnBreak)
         {
-            Print("Manager has woken up an ApplicationClerk\n");
+            Print("Manager has woken up an ApplicationClerk\n", 42, 0, 0);
             Acquire(applicationClerkLock);
             applicationClerks[0]->state = AVAILABLE;
             Signal(applicationClerks[0]->breakCondition, applicationClerks[0]->breakLock);
             Release(applicationClerkLock);
-            applicationClerksAllOnBreak=false;
+            applicationClerksAllOnBreak=FALSE;
         }
         if(passportClerksAllOnBreak)
         {
-            Print("Manager has woken up a PassportClerk\n");
+            Print("Manager has woken up a PassportClerk\n", 38, 0, 0);
             Acquire(passportClerkLock);
             passportClerks[0]->state = AVAILABLE;
             Signal(passportClerks[0]->breakCondition, passportClerks[0]->breakLock);
             Release(passportClerkLock);
-            passportClerksAllOnBreak=false;
+            passportClerksAllOnBreak=FALSE;
         }
         if(cashiersAllOnBreak)
         {
-            Print("Manager has woken up a Cashier\n");
+            Print("Manager has woken up a Cashier\n", 32, 0, 0);
             Acquire(cashierLock);
             cashiers[0]->state = AVAILABLE;
-            Signal(cashiers[0]->breakCondition->, cashiers[0]->breakLock);
+            Signal(cashiers[0]->breakCondition, cashiers[0]->breakLock);
             Release(cashierLock);
-            cashiersAllOnBreak = false;
+            cashiersAllOnBreak = FALSE;
         }
         
         /*if a certain type of clerk has more than 3 customers waiting on them, wake up another clerk of that type*/
-        for(int i = 0; i < NUM_CLERKS; i++)
+        for(i = 0; i < NUM_CLERKS; i++)
         {
             if(signalPictureClerk && pictureClerks[i]->state == ONBREAK)
             {
-                Print("Manager has woken up a PictureClerk\n");
+                Print("Manager has woken up a PictureClerk\n", 37, 0, 0);
                 Acquire(pictureClerkLock);
                 pictureClerks[i]->state = AVAILABLE;
                 Signal(pictureClerks[i]->breakCondition, pictureClerks[i]->breakLock);
                 Release(pictureClerkLock);
-                signalPictureClerk=false;
+                signalPictureClerk=FALSE;
             }
             if(signalAppClerk && applicationClerks[i]->state == ONBREAK)
             {
-                Print("Manager has woken up an ApplicationClerk\n");
+                Print("Manager has woken up an ApplicationClerk\n", 42, 0, 0);
                 Acquire(applicationClerkLock);
                 applicationClerks[i]->state = AVAILABLE;
                 Signal(applicationClerks[i]->breakCondition, applicationClerks[i]->breakLock);
                 Release(applicationClerkLock);
-                signalAppClerk=false;
+                signalAppClerk=FALSE;
                 
             }
             if(signalPassportClerk && passportClerks[i]->state == ONBREAK)
             {
-                Print("Manager has woken up a PassportClerk\n");
+                Print("Manager has woken up a PassportClerk\n", 38, 0, 0);
                 Acquire(passportClerkLock);
                 passportClerks[i]->state = AVAILABLE;
                 Signal(passportClerks[i]->breakCondition, passportClerks[i]->breakLock);
                 Release(passportClerkLock);
-                signalPassportClerk=false;
+                signalPassportClerk=FALSE;
             }
             if(signalCashier && cashiers[i]->state == ONBREAK)
             {
-                Print("Manager has woken up a Cashier\n");
+                Print("Manager has woken up a Cashier\n", 32, 0, 0);
                 Acquire(cashierLock);
                 cashiers[i]->state = AVAILABLE;
                 Signal(cashiers[i]->breakCondition, cashiers[i]->breakLock);
                 Release(cashierLock);
-                signalCashier = false;
+                signalCashier = FALSE;
             }
         }
         
         /*wait a bit to print the revenue*/
-        for(int i =0;i<400;i++)
+        for(i =0;i<400;i++)
         {
             Yield();
         }
         
-        int pictureRevenue = 0;
-        int applicationRevenue = 0;
-        int passportRevenue = 0;
-        int cashierRevenue = 0;
+        pictureRevenue = 0;
+        applicationRevenue = 0;
+        passportRevenue = 0;
+        cashierRevenue = 0;
         
         /*tally up the revenues and print them*/
-        for (int i = 0; i < NUM_CLERKS; i++)
+        for (i = 0; i < NUM_CLERKS; i++)
         {
             pictureRevenue += pictureClerks[i]->money;
             applicationRevenue += applicationClerks[i]->money;
@@ -676,35 +928,53 @@ void manager() {
             cashierRevenue += cashiers[i]->money;
         }
         
-        Print("Manager has counted a total of $%d for PictureClerks\n", pictureRevenue);
-        Print("Manager has counted a total of $%d for ApplicationClerks\n", applicationRevenue);
-        Print("Manager has counted a total of $%d for PassportClerks\n", passportRevenue);
-        Print("Manager has counted a total of $%d for Cashiers\n", cashierRevenue);
-        Print("Manager has counted a total of $%d for the passport office\n", (pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue));
+        Print("Manager has counted a total of $%i for PictureClerks\n", 54, pictureRevenue * 1000, 0);
+        Print("Manager has counted a total of $%i for ApplicationClerks\n", 58, applicationRevenue * 1000, 0);
+        Print("Manager has counted a total of $%i for PassportClerks\n", 55, passportRevenue * 1000, 0);
+        Print("Manager has counted a total of $%i for Cashiers\n", 49, cashierRevenue * 1000, 0);
+        Print("Manager has counted a total of $%i for the passport office\n", 60,(pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue) * 1000, 0);
     }
     
     /*delete program data*/
-    for(int i = 0; i < NUM_CUSTOMERS + NUM_SENATORS; i++) {
-        delete customers[i];
+
+    DestroyLock(pictureClerkLock);
+    DestroyLock(applicationClerkLock);
+    DestroyLock(passportClerkLock);
+    DestroyLock(cashierLock);
+
+    DestroyLock(senatorLock);
+    DestroyCondition(senatorCondition);
+
+    /* Destroy Locks and Conditions within each Clerk */
+    for(i = 0; i < NUM_CLERKS; i++) {
+        DestroyLock(applicationClerks[i]->breakLock);
+        DestroyLock(applicationClerks[i]->clerkLock);
+        DestroyCondition(applicationClerks[i]->clerkCondition);
+        DestroyCondition(applicationClerks[i]->breakCondition);
+        DestroyCondition(applicationClerks[i]->bribeLineCondition);
+        DestroyCondition(applicationClerks[i]->lineCondition);
+
+        DestroyLock(pictureClerks[i]->breakLock);
+        DestroyLock(pictureClerks[i]->clerkLock);
+        DestroyCondition(pictureClerks[i]->clerkCondition);
+        DestroyCondition(pictureClerks[i]->breakCondition);
+        DestroyCondition(pictureClerks[i]->bribeLineCondition);
+        DestroyCondition(pictureClerks[i]->lineCondition);
+
+        DestroyLock(passportClerks[i]->breakLock);
+        DestroyLock(passportClerks[i]->clerkLock);
+        DestroyCondition(passportClerks[i]->clerkCondition);
+        DestroyCondition(passportClerks[i]->breakCondition);
+        DestroyCondition(passportClerks[i]->bribeLineCondition);
+        DestroyCondition(passportClerks[i]->lineCondition);
+
+        DestroyLock(cashiers[i]->breakLock);
+        DestroyLock(cashiers[i]->clerkLock);
+        DestroyCondition(cashiers[i]->clerkCondition);
+        DestroyCondition(cashiers[i]->breakCondition);
+        DestroyCondition(cashiers[i]->bribeLineCondition);
+        DestroyCondition(cashiers[i]->lineCondition);
     }
-    
-    for(int i = 0; i < NUM_CLERKS; i++) {
-        delete pictureClerks[i];
-        delete applicationClerks[i];
-        delete passportClerks[i];
-        delete cashiers[i];
-    }
-    
-    delete applicationClerkLock;
-    delete pictureClerkLock;
-    delete passportClerkLock;
-    delete cashierLock;
-    
-    delete senatorSemaphore;
-    delete senatorLock;
-    delete senatorCondition;
-    
-    delete clerkManager;
 
 }
 
