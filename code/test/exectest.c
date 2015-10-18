@@ -12,6 +12,7 @@
 
 int main()
 {
+	Exec("bad vaddr", 9);
 	Exec("../test/exechelper", 18);
     Exit(0);
 }
