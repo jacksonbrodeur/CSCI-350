@@ -10,16 +10,7 @@
 
 #include "syscall.h"
 
-void diff_lock() {
-	DestroyLock(0); /* should be 'lock1' */
-	Exit(0);
-}
-
-void diff_cond() {
-	DestroyCondition(0); /* should be 'cond1' */
-	Exit(0);
-}
-
+int l1, l2, c1, c2, lock1, cond1;
 int main()
 {
 
@@ -33,29 +24,30 @@ int main()
 	*/
 
 	/* Locks - Create */
-	int l1 = CreateLock("l1", -1); /* below range */
-	int l2 = CreateLock("l2", 300); /* above range */
+	l1 = CreateLock("l1", -1); /* below range */
+	l2 = CreateLock("l2", 300); /* above range */
 	/* code to test bad vaddr */ /* can we test bad vaddr? */
 
 	/* Conditions - Create */
-    int c1 = CreateCondition("c1", -1); /* below range */
-	int c2 = CreateCondition("c2", 300); /* above range */
+	c1 = CreateCondition("c1", -1); /* below range */
+	c2 = CreateCondition("c2", 300); /* above range */
+
+	/* Conditions - the rest */
+	DestroyCondition(-1); /* below range */
+	DestroyCondition(1001); /* above range */
+	DestroyCondition(0); /* condition should be NULL */
+	cond1 = CreateCondition("cond1", 5);
+	Exec("../test/diff_cond", 17);
 
 	/* Locks - the rest */
 	DestroyLock(-1); /* below range */
-	DestroyLock(100001); /* above range */
-	DestroyLock(9999); /* lock should be NULL */
-	int lock1 = CreateLock("lock1", 5);
-	Exec(diff_lock, 9);	/* diff addr space (exec) */
+	DestroyLock(1001); /* above range */
+	DestroyLock(0); /* lock should be NULL */
+	lock1 = CreateLock("lock1", 5);
+	Exec("../test/diff_lock", 17);	/* diff addr space (exec) */
 
 
-	
-	/* Conditions - the rest */
-	DestroyCondition(-1); /* below range */
-	DestroyCondition(100001); /* above range */
-	DestroyCondition(9999); /* condition should be NULL */
-	int cond1 = CreateCondition("cond1", 5);
-	Exec(diff_cond, 9);	/* diff addr space (exec) */
+
 
 
     Exit(0);

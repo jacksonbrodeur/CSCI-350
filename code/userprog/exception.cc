@@ -288,7 +288,20 @@ void Close_Syscall(int fd) {
 void exec_thread(int vaddr) {
     
     execLock->Acquire();
+
+
+    int ppn = stackBitMap->Find();
     
+    if(ppn==-1) {
+        
+        printf("Bitmap Find returned -1, halting\n");
+        interrupt->Halt();
+    }
+    
+    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
+    
+    
+    processTable[findCurrentProcess()]->threadList[0]->startingStackPage = startingStackPage;
     currentThread->space->InitRegisters();		// set the initial register values
     currentThread->space->RestoreState();		// load page table register
     
@@ -302,6 +315,7 @@ int ExecSyscall(int vaddr, int len) {
     execLock->Acquire();
     
     char * filename = new char[len+1];
+    AddrSpace * mySpace;
 
     if(!filename) {
         
@@ -326,7 +340,7 @@ int ExecSyscall(int vaddr, int len) {
         return -1;
     }
     
-    AddrSpace * mySpace = new AddrSpace(executable);
+    mySpace = new AddrSpace(executable);
     
     Thread * t = new Thread("executable thread");
     
@@ -610,7 +624,6 @@ int CreateLockSyscall(int vaddr, int len) {
 }
 
 void DestroyLockSyscall(int index) {
-
     lockTableLock->Acquire();
     if(validateLock(index)) {
         if(!kernelLocks[index]->lock->isInUse()) {
@@ -694,13 +707,13 @@ int CreateConditionSyscall(int vaddr, int len) {
         }
     }
     
+    printf("Creating Condition: %s\n", kernelCVs[index]->condition->getName());
     DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
     cvTableLock->Release();
     return index;
 }
 
 void DestroyConditionSyscall(int index) {
-
     cvTableLock->Acquire();
     if(validateCV(index)) {
         if(!kernelCVs[index]->condition->isInUse()) {
