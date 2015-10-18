@@ -644,11 +644,11 @@ int AcquireSyscall(int index) {
     lockTableLock->Acquire();
     if(validateLock(index)) {
         
-        if(kernelLocks[index]->lock->isInUse())
+        /*if(kernelLocks[index]->lock->isInUse())
             printf("Lock is busy so I will wait\n");
         else
             printf("Lock is available so I will be the owner\n");
-        
+        */
         kernelLocks[index]->lock->Acquire();
 
         lockTableLock->Release();
@@ -763,6 +763,7 @@ void BroadcastSyscall(int conditionIndex, int lockIndex) {
 
 void PrintSyscall(int vaddr, int len, int params1, int params2) {
 
+  printLock->Acquire();
   if(len < 0 || len > MAXFILENAME) {
         printf("Invalid string length in CreateLockSyscall\n");
         return;
@@ -783,7 +784,7 @@ void PrintSyscall(int vaddr, int len, int params1, int params2) {
   int index = 0;
   string[len] = '\0';
 
-  printLock->Acquire();
+  
   //Prevent another print syscall from being executed until this one is done
   for(int i = 0; i < len; i++) {
     if (string[i] == '%')
@@ -801,6 +802,7 @@ void PrintSyscall(int vaddr, int len, int params1, int params2) {
       printf("%c", string[i]);
     }
   }
+  delete string;
   printLock->Release();
 
 }
