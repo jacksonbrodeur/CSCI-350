@@ -42,7 +42,7 @@ int customersFinished = 0;
 #define MAX_CLERKS 50
 int NUM_CUSTOMERS = 50;
 int NUM_CLERKS = 5;
-int NUM_SENATORS = 0;
+int NUM_SENATORS = 3;
 
 typedef struct Customer {
     int id;
@@ -245,7 +245,7 @@ void applicationTransaction(Clerk * clerk, Customer * customer) {
     
     Acquire(clerk->clerkLock);
     clerk->customer = customer;
-    Print("Customer %i has given SSn to ApplicationClerk %i", 48, customer->id * 1000 + clerk->myLine, 0);
+    Print("Customer %i has given SSN to ApplicationClerk %i\n", 67, customer->id * 1000 + clerk->myLine, 0);
 
     Signal(clerk->clerkCondition, clerk->clerkLock);
 
@@ -654,6 +654,9 @@ void customer() {
     tempCustomer.passportGiven = FALSE;
     tempCustomer.cashierPaid = FALSE;
     tempCustomer.isSenator = FALSE;
+    if(id % ((NUM_CUSTOMERS + NUM_SENATORS)/NUM_SENATORS) == (NUM_CUSTOMERS + NUM_SENATORS / NUM_SENATORS) - 1) {
+        tempCustomer.isSenator = TRUE;
+    }
     if(tempCustomer.isSenator) {
         tempCustomer.money = 100;
     } else {
@@ -982,5 +985,39 @@ void manager() {
 
 int main()
 {
-    Yield();
+    int i;
+    Print("Number of Customers = %i\n", 26, NUM_CUSTOMERS * 1000, 0);
+    Print("Number of ApplicationClerks = %i\n", 34, NUM_CLERKS * 1000, 0);
+    Print("Number of PictureClerks = %i\n", 30, NUM_CLERKS * 1000, 0);
+    Print("Number of PassportClerks = %i\n", 31, NUM_CLERKS * 1000, 0);
+    Print("Number of Cashiers = %i\n", 25, NUM_CLERKS * 1000, 0);
+    Print("Number of Senators = %i\n", 25, NUM_SENATORS * 1000, 0);
+
+
+    senatorLock = CreateLock("senator lock", 12);
+    senatorCondition = CreateCondition("senator condition", 17);
+    applicationClerkLock = CreateLock("application clerk lock", 22);
+    pictureClerkLock = CreateLock("picture clerk lock", 18);
+    passportClerkLock = CreateLock("passport clerk lock", 19);
+    cashierLock = CreateLock("cashier lock", 12);
+
+    for (i = 0; i < NUM_CLERKS; i++) {
+        Fork(pictureClerk);
+    }
+    for (i = 0; i < NUM_CLERKS; i++) {
+        Fork(applicationClerk);
+    }
+    for (i = 0; i < NUM_CLERKS; i++) {
+        Fork(passportClerk);
+    }
+    for (i = 0; i < NUM_CLERKS; i++) {
+        Fork(cashier);
+    }
+    for(i = 0; i < NUM_CUSTOMERS; i++) {
+        Fork(customer);
+    }
+
+    Fork(manager);
+
+
 }
