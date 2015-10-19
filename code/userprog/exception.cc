@@ -313,9 +313,11 @@ void exec_thread(int vaddr) {
     
     execLock->Release();
     
+    /*
     printf("PCReg:%d\n", machine->ReadRegister(PCReg));
     printf("NextPCReg:%d\n", machine->ReadRegister(NextPCReg));
     printf("StackReg:%d\n", machine->ReadRegister(StackReg));
+    */
     
     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
@@ -390,7 +392,7 @@ bool isLastExecutingThread(int process) {
 
     if(processTable[process]!=NULL) {
             
-        for(int i = 0; i < 50; i++)
+        for(int i = 0; i < 100; i++)
             if(processTable[process]->threadList[i]!=NULL && (processTable[process]->threadList[i]->myThread)!=currentThread) {
             
                 isLastThread = false;
@@ -425,7 +427,7 @@ void ExitSyscall(int status) {
         //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
         int threadListIndex = -1;
         //iterate through the current process's thread list to find the exiting thread
-        for(int i = 0; i < 50; i ++) {
+        for(int i = 0; i < 100; i ++) {
             
             if(processTable[currentProcess]->threadList[i]->myThread == currentThread) {
                 //keep track of the exiting thread's index in the process's thread list
@@ -446,7 +448,7 @@ void ExitSyscall(int status) {
         //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
         int threadListIndex = -1;
         //iterate through the current process's thread list to find the exiting thread
-        for(int i = 0; i < 50; i ++) {
+        for(int i = 0; i < 100; i ++) {
             
             if(processTable[currentProcess]->threadList[i]->myThread == currentThread) {
                 //keep track of the exiting thread's index in the process's thread list
@@ -482,7 +484,7 @@ int findAvailableThreadListIndex (int processIndex) {
     int threadListIndex = -1;
     
     //now iterate through the thread list of this process to find an empty location
-    for(int j = 0; j < 50; j ++) {
+    for(int j = 0; j < 100; j ++) {
         
         //we have found an empty spot in the list, now we store our new KernelThread there
         if(processTable[processIndex]->threadList[j]==NULL) {
@@ -525,7 +527,7 @@ void kernel_thread(int vaddr) {
     int currentProcess = findCurrentProcess();
     //printf("The current process is %d and the current thread index in that process is %d\n", currentProcess, currentThreadIndex);
     
-    for(int i = 0; i < 50; i++) {
+    for(int i = 0; i < 100; i++) {
         
         if(processTable[currentProcess]->threadList[i]->myThread == currentThread)
         {
@@ -585,9 +587,7 @@ void ForkSyscall(int vaddr) {
 
 void YieldSyscall() {
 
-    printf("Current thread: %s\n", currentThread->getName());
     currentThread->Yield();
-    printf("Current thread: %s\n", currentThread->getName());
 }
 
 // Returns -1 if there is an error
@@ -940,9 +940,11 @@ void ExceptionHandler(ExceptionType which) {
         machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
         machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
         
+        /*
         cout<<"PrevPCReg:"<<machine->ReadRegister(PrevPCReg)<<endl;
         cout<<"PCReg:"<<machine->ReadRegister(PCReg)<<endl;
         cout<<"NextPCReg:"<<machine->ReadRegister(NextPCReg)<<endl;
+         */
         
         return;
     } else {

@@ -64,7 +64,7 @@ KernelThread::KernelThread(Thread * userThread) {
 
 KernelProcess::KernelProcess(Thread * processThread) {
     
-    this->threadList = new KernelThread*[50];
+    this->threadList = new KernelThread*[100];
     this->totalThreads = 0;
     this->numThreadsExecuting = 0;
     this->myThread = processThread;

@@ -531,7 +531,7 @@ void pictureClerk(int myLine) {
                 me->breakLock->Acquire();
                 me->state = ONBREAK;
                 
-                while(me->state==ONBREAK) {
+                if(me->state==ONBREAK) {
                     me->breakCondition->Wait(me->breakLock);
                 }
                 
@@ -540,9 +540,20 @@ void pictureClerk(int myLine) {
                 me->breakLock->Release();
                 pictureClerkLock->Acquire();
                 
-                me->lineCondition->Signal(pictureClerkLock);
+                if(me->bribeLineCount > 0) {
+                    printf("%s has signalled a Customer to come to their counter\n", me->name);
+                    me->bribeLineCondition->Signal(pictureClerkLock);
+                    me->state = BUSY;
+                }  else if(me->lineCount > 0) {
+                    printf("%s has signalled a Customer to come to their counter\n", me->name);
+                    me->lineCondition->Signal(pictureClerkLock);
+                    me->state = BUSY;
+                }
+                else
+                    me->state = AVAILABLE;
             }
             else {
+                me->state = AVAILABLE;
                 storeJustOpened++;
             }
         }
@@ -614,7 +625,7 @@ void applicationClerk(int myLine) {
                 me->breakLock->Acquire();
                 me->state = ONBREAK;
                 
-                while(me->state == ONBREAK) {
+                if(me->state == ONBREAK) {
                     me->breakCondition->Wait(me->breakLock);
                 }
                 
@@ -622,9 +633,20 @@ void applicationClerk(int myLine) {
                 me->breakLock->Release();
                 applicationClerkLock->Acquire();
                 
-                me->lineCondition->Signal(applicationClerkLock);
+                if(me->bribeLineCount > 0) {
+                    printf("%s has signalled a customer to come to their counter\n", me->name);
+                    me->bribeLineCondition->Signal(applicationClerkLock);
+                    me->state = BUSY;
+                } else if(me->lineCount > 0) {
+                    me->lineCondition->Signal(applicationClerkLock);
+                    me->state = BUSY;
+                    printf("%s has signalled a customer to come to their counter\n", me->name);
+                }
+                else
+                    me->state = AVAILABLE;
             }
             else {
+                me->state = AVAILABLE;
                 storeJustOpened++;
             }
         }
@@ -773,9 +795,12 @@ void customer(int customerNumber) {
     if(me->isSenator)
     {
         senatorLock->Acquire();
-        senatorSemaphore->P();
         numSenators++;
         senatorLock->Release();
+    }
+    
+    while((!me->isSenator) && numSenators > 0) {
+        senatorCondition->Wait(senatorLock);
     }
     
     int randomNum = rand() % 2;
@@ -859,10 +884,12 @@ void customer(int customerNumber) {
     {
         senatorLock->Acquire();
         numSenators--;
-        senatorLock->Release();
-        if(numSenators==0)
+        if(numSenators==0) {
+            
+            storeJustOpened=0;
             senatorCondition->Broadcast(senatorLock);
-        senatorSemaphore->V();
+        }
+        senatorLock->Release();
     }
 }
 
@@ -890,7 +917,7 @@ void passportClerk(int myLine) {
                 me->breakLock->Acquire();
                 me->state = ONBREAK;
                 
-                while(me->state == ONBREAK) {
+                if(me->state == ONBREAK) {
                     me->breakCondition->Wait(me->breakLock);
                 }
                 
@@ -898,9 +925,20 @@ void passportClerk(int myLine) {
                 me->breakLock->Release();
                 passportClerkLock->Acquire();
                 
-                me->lineCondition->Signal(passportClerkLock);
+                if(me->bribeLineCount > 0) {
+                    printf("%s has signalled a customer to come to their counter\n", me->name);
+                    me->bribeLineCondition->Signal(passportClerkLock);
+                    me->state = BUSY;
+                } else if(me->lineCount > 0) {
+                    printf("%s has signalled a customer to come to their counter\n", me->name);
+                    me->lineCondition->Signal(passportClerkLock);
+                    me->state = BUSY;
+                }
+                else
+                    me->state = AVAILABLE;
             }
             else {
+                me->state = AVAILABLE;
                 storeJustOpened++;
             }
         }
@@ -943,7 +981,7 @@ void cashier (int myLine) {
                 me->breakLock->Acquire();
                 me->state = ONBREAK;
                 
-                while(me->state == ONBREAK) {
+                if(me->state == ONBREAK) {
                     me->breakCondition->Wait(me->breakLock);
                 }
                 
@@ -951,9 +989,17 @@ void cashier (int myLine) {
                 me->breakLock->Release();
                 cashierLock->Acquire();
                 
-                me->lineCondition->Signal(cashierLock);
+                if (me->lineCount > 0) {
+                    
+                    printf("%s has signalled a customer to come to their counter\n", me->name);
+                    me->lineCondition->Signal(cashierLock);
+                    me->state = BUSY;
+                }
+                else
+                    me->state = AVAILABLE;
             }
             else {
+                me->state = AVAILABLE;
                 storeJustOpened++;
             }
     	}
@@ -1018,7 +1064,13 @@ void manager() {
         {
             printf("Manager has woken up a PictureClerk\n");
             pictureClerkLock->Acquire();
-            pictureClerks[0]->state = AVAILABLE;
+            
+            /*
+            if((pictureClerks[0]->lineCount + pictureClerks[0]->bribeLineCount)>0)
+                pictureClerks[0]->state = BUSY;
+            else
+                pictureClerks[0]->state = AVAILABLE;
+             */
             pictureClerks[0]->breakCondition->Signal(pictureClerks[0]->breakLock);
             pictureClerkLock->Release();
             pictureClerksAllOnBreak=false;
@@ -1027,7 +1079,12 @@ void manager() {
         {
             printf("Manager has woken up an ApplicationClerk\n");
             applicationClerkLock->Acquire();
-            applicationClerks[0]->state = AVAILABLE;
+            /*
+            if((applicationClerks[0]->lineCount + applicationClerks[0]->bribeLineCount)>0)
+                applicationClerks[0]->state = BUSY;
+            else
+                applicationClerks[0]->state = AVAILABLE;
+             */
             applicationClerks[0]->breakCondition->Signal(applicationClerks[0]->breakLock);
             applicationClerkLock->Release();
             applicationClerksAllOnBreak=false;
@@ -1036,7 +1093,12 @@ void manager() {
         {
             printf("Manager has woken up a PassportClerk\n");
             passportClerkLock->Acquire();
-            passportClerks[0]->state = AVAILABLE;
+            /*
+            if((passportClerks[0]->lineCount + passportClerks[0]->bribeLineCount)>0)
+                passportClerks[0]->state = BUSY;
+            else
+                passportClerks[0]->state = AVAILABLE;
+             */
             passportClerks[0]->breakCondition->Signal(passportClerks[0]->breakLock);
             passportClerkLock->Release();
             passportClerksAllOnBreak=false;
@@ -1045,7 +1107,12 @@ void manager() {
         {
             printf("Manager has woken up a Cashier\n");
             cashierLock->Acquire();
-            cashiers[0]->state = AVAILABLE;
+            /*
+            if((cashiers[0]->lineCount)>0)
+                cashiers[0]->state = BUSY;
+            else
+                cashiers[0]->state = AVAILABLE;
+             */
             cashiers[0]->breakCondition->Signal(cashiers[0]->breakLock);
             cashierLock->Release();
             cashiersAllOnBreak = false;
@@ -1057,7 +1124,12 @@ void manager() {
             {
                 printf("Manager has woken up a PictureClerk\n");
                 pictureClerkLock->Acquire();
-                pictureClerks[i]->state = AVAILABLE;
+                /*
+                if((pictureClerks[i]->lineCount + pictureClerks[i]->bribeLineCount)>0)
+                    pictureClerks[i]->state = BUSY;
+                else
+                    pictureClerks[i]->state = AVAILABLE;
+                 */
                 pictureClerks[i]->breakCondition->Signal(pictureClerks[i]->breakLock);
                 pictureClerkLock->Release();
                 signalPictureClerk=false;
@@ -1066,7 +1138,12 @@ void manager() {
             {
                 printf("Manager has woken up an ApplicationClerk\n");
                 applicationClerkLock->Acquire();
-                applicationClerks[i]->state = AVAILABLE;
+                /*
+                if((applicationClerks[i]->lineCount + applicationClerks[i]->bribeLineCount)>0)
+                    applicationClerks[i]->state = BUSY;
+                else
+                    applicationClerks[i]->state = AVAILABLE;
+                 */
                 applicationClerks[i]->breakCondition->Signal(applicationClerks[i]->breakLock);
                 applicationClerkLock->Release();
                 signalAppClerk=false;
@@ -1076,7 +1153,12 @@ void manager() {
             {
                 printf("Manager has woken up a PassportClerk\n");
                 passportClerkLock->Acquire();
-                passportClerks[i]->state = AVAILABLE;
+                /*
+                if((passportClerks[i]->lineCount + passportClerks[i]->bribeLineCount)>0)
+                    passportClerks[i]->state = BUSY;
+                else
+                    passportClerks[i]->state = AVAILABLE;
+                 */
                 passportClerks[i]->breakCondition->Signal(passportClerks[i]->breakLock);
                 passportClerkLock->Release();
                 signalPassportClerk=false;
@@ -1085,7 +1167,12 @@ void manager() {
             {
                 printf("Manager has woken up a Cashier\n");
                 cashierLock->Acquire();
-                cashiers[i]->state = AVAILABLE;
+                /*
+                if((cashiers[i]->lineCount)>0)
+                    cashiers[i]->state = BUSY;
+                else
+                    cashiers[i]->state = AVAILABLE;
+                 */
                 cashiers[i]->breakCondition->Signal(cashiers[i]->breakLock);
                 cashierLock->Release();
                 signalCashier = false;

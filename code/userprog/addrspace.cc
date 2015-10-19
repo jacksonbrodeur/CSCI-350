@@ -136,11 +136,15 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     
     codeDataPages = divRoundUp(size, PageSize);
     
-    numPages = divRoundUp(size, PageSize) /* + divRoundUp(UserStackSize,PageSize) */ + 400;
+    
+    
+    numPages = divRoundUp(size, PageSize) /* + divRoundUp(UserStackSize,PageSize) */ + 1000;
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;
-
+    
+    printf("Numpages: %d, numphys: %d\n", numPages, NumPhysPages);
+    
     ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have

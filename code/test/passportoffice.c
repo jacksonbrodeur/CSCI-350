@@ -113,8 +113,8 @@ void pictureClerk() {
     Acquire(counterLock);
     myLine = numPictureClerks;
     numPictureClerks++;
-    Release(counterLock);
     me = &pictureClerks[myLine];
+    Release(counterLock);
 
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(pictureClerkLock);
@@ -122,7 +122,7 @@ void pictureClerk() {
         /* If there is a customer in line signal him to the counter */
         if(me->bribeLineCount > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
-            Signal(me->lineCondition, pictureClerkLock);
+            Signal(me->bribeLineCondition, pictureClerkLock);
             me->state = BUSY;
         } else if(me->lineCount > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
@@ -205,10 +205,8 @@ void applicationClerk() {
     Acquire(counterLock);
     myLine = numApplicationClerks;
     numApplicationClerks++;
-    
-    Release(counterLock);
-
     me = &applicationClerks[myLine];
+    Release(counterLock);
 
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
 
@@ -217,7 +215,7 @@ void applicationClerk() {
         /* If there is a customer in line signal him to the counter */
         if(me->bribeLineCount > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
-            Signal(me->lineCondition, applicationClerkLock);
+            Signal(me->bribeLineCondition, applicationClerkLock);
             me->state = BUSY;
         } else if(me->lineCount > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
@@ -286,10 +284,8 @@ void passportClerk() {
     Acquire(counterLock);
     myLine = numPassportClerks;
     numPassportClerks++;
-    
-    Release(counterLock);
-
     me = &passportClerks[myLine];
+    Release(counterLock);
     
     /* On duty while there are still customers who haven't completed process */
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
@@ -362,7 +358,11 @@ void cashierTransaction(Clerk * clerk, Customer * customer) {
     
     Wait(clerk->clerkCondition, clerk->clerkLock);
     
+    Acquire(counterLock);
     customersFinished++;
+    Print("Num customers finished: %i\n", 28,customersFinished, 0);
+    Release(counterLock);
+    
     Print("Customer %i is leaving the passport office\n", 44, customer->id * 1000, 0);
     /*Print("***\n%i/%i\n***\n", 17, customersFinished * 1000 + NUM_CUSTOMERS, 0);*/
     Release(clerk->clerkLock);   
@@ -376,9 +376,8 @@ void cashier() {
     Acquire(counterLock);
     myLine = numCashiers;
     numCashiers++;
-    Release(counterLock);
-
     me = &cashiers[myLine];
+    Release(counterLock);
     
     /* On duty while there are still customers who haven't completed process */
     while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
@@ -436,6 +435,7 @@ void cashier() {
 }
 
 int getInShortestLine(Customer * customer, Clerk * clerkToVisit, int clerkLock, int clerkType) {
+    
     int myLine = -1;
     int shortestLineSize = NUM_CUSTOMERS + NUM_SENATORS;
     int foundLine = FALSE;
@@ -444,7 +444,7 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit, int clerkLock, 
     int i;
 
     Acquire(clerkLock);
-
+    
     for(i = 0; i < NUM_CLERKS; i++) {
         if(clerkToVisit[i].state == BUSY || clerkToVisit[i].state == AVAILABLE) {
             allOnBreak = FALSE;
@@ -453,7 +453,9 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit, int clerkLock, 
     }
 
     if(!allOnBreak) {
+        
         while (!foundLine) {
+            /*
             for(i = 0; i < NUM_CLERKS; i++) {
                 if(clerkToVisit[i].lineCount + clerkToVisit[i].bribeLineCount < shortestLineSize && clerkToVisit[i].state != ONBREAK) {
                     myLine = i;
@@ -467,15 +469,38 @@ int getInShortestLine(Customer * customer, Clerk * clerkToVisit, int clerkLock, 
                     foundLine = TRUE;
                     bribed = TRUE;
                 } 
+            }*/
+            
+            if (customer->money >= 600 && clerkToVisit[0].clerkType != CASHIER) {
+                
+                for(i = 0; i < NUM_CLERKS; i++) {
+                    if((clerkToVisit[i].bribeLineCount < shortestLineSize) && (clerkToVisit[i].state != ONBREAK)) {
+                        myLine = i;
+                        shortestLineSize = clerkToVisit[i].bribeLineCount;
+                        foundLine = TRUE;
+                        bribed = TRUE;
+                    }
+                }
+            } else {
+                for(i = 0; i < NUM_CLERKS; i++) {
+                    if((clerkToVisit[i].lineCount + clerkToVisit[i].bribeLineCount < shortestLineSize) && (clerkToVisit[i].state != ONBREAK)) {
+                        myLine = i;
+                        shortestLineSize = clerkToVisit[i].lineCount + clerkToVisit[i].bribeLineCount;
+                        foundLine = TRUE;
+                    }
+                }
             }
+            
+            
+            
         }
-    } else { /* all clerks of that type are on break */
-        if(customer->money >= 600) {
+    }
+    else { /* all clerks of that type are on break */
+        if(customer->money >= 600 && clerkToVisit[0].clerkType != CASHIER) {
             shortestLineSize = clerkToVisit[0].bribeLineCount;
             bribed = TRUE;
         } else {
             shortestLineSize = clerkToVisit[0].bribeLineCount + clerkToVisit[0].lineCount;
-            bribed = FALSE;
         }
         myLine = 0;
         foundLine = TRUE;
@@ -533,8 +558,8 @@ void customer() {
     Acquire(counterLock);
     id = numCustomers;
     numCustomers++;
-    Release(counterLock);
     me = &customers[id];
+    Release(counterLock);
     /*Print("***\nCustomer %i has been created\n***\n", 40, id * 1000, 0);*/
     
     /*Increment the number of senators currently using the office*/
@@ -805,6 +830,9 @@ void manager() {
         Print("Manager has counted a total of $%i for PassportClerks\n", 55, passportRevenue * 1000, 0);
         Print("Manager has counted a total of $%i for Cashiers\n", 49, cashierRevenue * 1000, 0);
         Print("Manager has counted a total of $%i for the passport office\n", 60,(pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue) * 1000, 0);
+        
+        
+        Print("Num customers finished: %i\n", 28,customersFinished*1000, 0);
     }
     
     /*delete program data*/
