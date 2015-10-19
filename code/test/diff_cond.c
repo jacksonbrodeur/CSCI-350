@@ -14,6 +14,6 @@
 #include "syscall.h"
 
 int main() {
-	DestroyCondition(0); /* should be 'cond1' */
+	DestroyCondition(0); /* can't destroy a condition in different addrspace */
 	Exit(0);
 }

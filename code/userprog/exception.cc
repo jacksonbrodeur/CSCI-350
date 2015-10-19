@@ -51,7 +51,7 @@ int findCurrentProcess() {
 
 int validateLock(int index) {
     if (index < 0 || index > MAX_LOCKS) {
-        printf("The index: %d was invalid.\n", index);
+        printf("The lock index: %d was invalid.\n", index);
         return 0;
     }
     if (kernelLocks[index]->lock == NULL) {
@@ -68,7 +68,7 @@ int validateLock(int index) {
 
 int validateCV(int index) {
     if (index < 0 || index > MAX_LOCKS) {
-        printf("The index: %d was invalid.\n", index);
+        printf("The condition index: %d was invalid.\n", index);
         return 0;
     }
     if (kernelCVs[index]->condition == NULL) {

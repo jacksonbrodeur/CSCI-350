@@ -8,15 +8,51 @@ I. Requirements:
 
 - Describe what's your understanding of the requirements from the assignment statement. With the requirement analysis, you would be clear about what you are supposed to do.
 
-Project 2 required us to implement system calls and multiprogramming for nachos. The system calls we created were create lock, acquire lock, release lock, destroy lock, create condition, signal condition, wait condition, destroy condition, thread fork, thread exec, thread exit, and thread yield. These system calls allow us to create user programs and run them in the operating system at the same time. We were required to test the system calls by creating various user programs that used all of the system calls’ functionalities to ensure they were implemented correctly.
+	Part 1
+		Implement system calls and exception handling. These system calls allow us to create user programs and run them in the operating system at the same time. Specifications are as follows:
+			Must support the following:
+				- Fork (complete implementation in part 2)
+				- Exec (complete implementation in part 2)
+				- Exit
+				- Yield
+			Implement syscalls for:
+				- Lock::Acquire()
+				- Lock::Release()	
+				- Condition::Wait()
+				- Condition::Signal()
+				- Condition::Broadcast()	
+			Also implement constructor and destructor syscalls to create a Lock and a Condition object:
+				- CreateLock
+				- DestroyLock
+				- CreateCondition
+				- DestroyCondition
+		
+	Part 2
+		Implement multiprogramming for uniprogrammed nachos. We did this by:
+			- Devising way to allocate phys mem to allow mult prgrms
+			- Providing way of copying data between kernel and user's virtual address
+			- completing the implementation of Fork syscall
+			- Completing the implementation of Exec syscall 
+			- Designing a test suite to prove Fork and Exec perform correctly (in any combination and won't break OS) by using all of the system call's functionalities
+
+	Part 3
+		Implement passport office as set of multithreaded Nachos user programs (using new Lock and Condition syscalls). This entails:
+			- using Fork to create all threads
+			- having multiple passport offices running as different processes
+			- designing a test suite that proves implementation is correct
+
 
 II. Assumptions:
 
 	- Reasonable assumptions you take for your scheme.
 
-All of our processes, threads, locks, and conditions are stored in different tables that are implemented by arrays. We assumed that any locations in the array set to null indicate that the validate bit for that memory location is false. Any locations that have a valid lock/condition/thread/process struct means that location’s valid bit is true.
+	Part 1
+		All of our processes, threads, locks, and conditions are stored in different tables that are implemented by arrays. We assumed that any locations in the array set to null indicate that the validate bit for that memory location is false. Any locations that have a valid lock/condition/thread/process struct means that location’s valid bit is true.
+	Part 2
+		Other assumptions include the max amount of locks/conditions/threads/processes. We allocated a table of size 1000 for the locks and conditions to make sure that any instance of the passport office would not reach the end of these tables since there are a large amount of locks and conditions in the passport office (locks and CVs for each clerk). We also made a max size of 100 for our process table to ensure it was sufficiently large for any amount of passport office instances we wanted to run. Each of these processes has a thread list of 100 to account for any numbers of clerks and customers that the passport office may have. 
+	Part 3
 
-Other assumptions include the max amount of locks/conditions/threads/processes. We allocated a table of size 1000 for the locks and conditions to make sure that any instance of the passport office would not reach the end of these tables since there are a large amount of locks and conditions in the passport office (locks and CVs for each clerk). We also made a max size of 100 for our process table to ensure it was sufficiently large for any amount of passport office instances we wanted to run. Each of these processes has a thread list of 100 to account for any numbers of clerks and customers that the passport office may have.
+
 
 III. Design:
 
@@ -45,12 +81,18 @@ IV. Implementation:
 		createlock.c
 		cv_wait_signal.c
 		destroylock.c
+		diff_lock.c
+		diff_cond.c
+		exechelper.c
+		exectest.c
 		invalidtest.c
 		passportoffice.c
 		print.c
 		rand.c
 		releaselock.c
 		yieldtest.c
+
+
 
 	+ Data Structures added, and the file they were added to.
 		kernel process table - system.h/.cc
