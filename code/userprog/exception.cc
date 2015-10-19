@@ -612,8 +612,7 @@ int CreateLockSyscall(int vaddr, int len) {
         }
     }
 
-    //DEBUG('d', "Creating Lock: %s\n", kernelLocks[index]->lock->getName());
-    printf("Creating Lock: %s\n", kernelLocks[index]->lock->getName());
+    DEBUG('d', "Creating Lock: %s\n", kernelLocks[index]->lock->getName());
 
     lockTableLock->Release();
     return index;
@@ -625,7 +624,6 @@ void DestroyLockSyscall(int index) {
         if(!kernelLocks[index]->lock->isInUse()) {
             //see if the lock is busy, delete it here immediately if it is not
             kernelLocks[index]->lock = NULL;
-            printf("Deleting lock %d now\n",index);
         } else {
             //otherwise mark the lock for deletion and wait for people to stop using it
             kernelLocks[index]->isToBeDeleted = true;
@@ -703,7 +701,6 @@ int CreateConditionSyscall(int vaddr, int len) {
         }
     }
     
-    printf("Creating Condition: %s\n", kernelCVs[index]->condition->getName());
     DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
     cvTableLock->Release();
     return index;

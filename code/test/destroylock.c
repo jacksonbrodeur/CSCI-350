@@ -19,5 +19,6 @@ main()
 {
     int l = CreateLock("abc",3);
     DestroyLock(l);
+    Print("Destroying lock at index: %i now\n", 34, l * 1000, 0);
     Exit(0);
 }

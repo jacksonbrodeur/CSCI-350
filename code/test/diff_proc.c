@@ -1,7 +1,7 @@
-/* diff_cond.c
- *	Helper file to test cond validation.
+/* diff_proc.c
+ *	Helper file to test lock and cond validation.
  *
- *	This will make sure you can't access a condition that is in a different
+ *	This will make sure you can't access a lock or condition that is in a different
  *	address space.
  *
  * 	NOTE: for some reason, user programs with global data structures 
@@ -15,5 +15,6 @@
 
 int main() {
 	DestroyCondition(0); /* can't destroy a condition in different addrspace */
+	DestroyLock(0); /* can't destroy lock in different addrspace */
 	Exit(0);
 }

@@ -15,7 +15,8 @@
 int
 main()
 {
-    int l = CreateLock("abc",3);
+    int l = CreateLock("abc", 3);
     Acquire(l);
+    Print("Creating Lock at index: %i\n", 28, l * 1000, 0);
     Exit(0);
 }

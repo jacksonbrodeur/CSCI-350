@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock releaselock createcondition cv_wait_signal invalidtest rand diff_lock diff_cond exectest exechelper passportoffice
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock releaselock createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -122,17 +122,11 @@ rand: rand.o start.o
 	$(LD) $(LDFLAGS) start.o rand.o -o rand.coff
 	../bin/coff2noff rand.coff rand
 
-diff_lock.o: diff_lock.c
-	$(CC) $(CFLAGS) -c diff_lock.c
-diff_lock: diff_lock.o start.o
-	$(LD) $(LDFLAGS) start.o diff_lock.o -o diff_lock.coff
-	../bin/coff2noff diff_lock.coff diff_lock
-
-diff_cond.o: diff_cond.c
-	$(CC) $(CFLAGS) -c diff_cond.c
-diff_cond: diff_cond.o start.o
-	$(LD) $(LDFLAGS) start.o diff_cond.o -o diff_cond.coff
-	../bin/coff2noff diff_cond.coff diff_cond
+diff_proc.o: diff_proc.c
+	$(CC) $(CFLAGS) -c diff_proc.c
+diff_proc: diff_proc.o start.o
+	$(LD) $(LDFLAGS) start.o diff_proc.o -o diff_proc.coff
+	../bin/coff2noff diff_proc.coff diff_proc
 
 exectest.o: exectest.c
 	$(CC) $(CFLAGS) -c exectest.c
