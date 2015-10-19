@@ -304,12 +304,19 @@ void exec_thread(int vaddr) {
     currentThread->space->InitRegisters();		// set the initial register values
     
     int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
-    printf("Giving the main process %d thread a starting stack page of %d\n", findCurrentProcess(), startingStackPage);
+    printf("Giving the process %d thread a starting stack page of %d\n", findCurrentProcess(), startingStackPage);
     processTable[findCurrentProcess()]->threadList[0]->startingStackPage = startingStackPage;
     
+    machine->WriteRegister(StackReg, startingStackPage);
+
     currentThread->space->RestoreState();		// load page table register
     
     execLock->Release();
+    
+    printf("PCReg:%d\n", machine->ReadRegister(PCReg));
+    printf("NextPCReg:%d\n", machine->ReadRegister(NextPCReg));
+    printf("StackReg:%d\n", machine->ReadRegister(StackReg));
+    
     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
 }
@@ -371,8 +378,9 @@ int ExecSyscall(int vaddr, int len) {
     
     printf("Created a new process and a new kernel thread with addrspace: %d\n", mySpace);
     printf("vaddr is %d\n",vaddr);
-    execLock->Release();
+    
     t->Fork(exec_thread, vaddr);
+    execLock->Release();
     return index;
 }
 
@@ -493,7 +501,6 @@ void kernel_thread(int vaddr) {
     
     //printf("Vaddr: %d\n", vaddr);
     forkLock->Acquire();
-    //IntStatus old = interrupt->SetLevel(IntOff);
     
     //printf("We are inside the kernel_thread method\n");
     
@@ -930,9 +937,9 @@ void ExceptionHandler(ExceptionType which) {
         machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
         machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
         
-        //cout<<"PrevPCReg: "<<PrevPCReg<<endl;
-        //cout<<"PCReg: "<<PCReg<<endl;
-        //cout<<"NextPCReg: "<<NextPCReg<<endl;
+        cout<<"PrevPCReg:"<<machine->ReadRegister(PrevPCReg)<<endl;
+        cout<<"PCReg:"<<machine->ReadRegister(PCReg)<<endl;
+        cout<<"NextPCReg:"<<machine->ReadRegister(NextPCReg)<<endl;
         
         return;
     } else {
