@@ -45,7 +45,6 @@ int main()
 	DestroyCondition(0); /* condition should be NULL */
 	cond1 = CreateCondition("cond1", 5);
     
-    
     Exec("../test/diff_lock", 17);	/* diff addr space (exec) */
 	Exec("../test/diff_cond", 17);
 

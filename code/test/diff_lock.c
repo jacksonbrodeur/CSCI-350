@@ -14,6 +14,6 @@
 #include "syscall.h"
 
 int main() {
-	DestroyLock(0); /* should be 'lock1' */
+	DestroyLock(0); /* can't destroy lock in different addrspace */
 	Exit(0);
 }
