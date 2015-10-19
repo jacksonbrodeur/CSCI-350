@@ -30,23 +30,22 @@ int main()
 
 	/* Conditions - Create */
 	c1 = CreateCondition("c1", -1); /* below range */
-	c2 = CreateCondition("c2", 300); /* above range */
-
-    /* Locks - the rest */
-    DestroyLock(-1); /* below range */
-    DestroyLock(1001); /* above range */
-    DestroyLock(0); /* lock should be NULL */
-    lock1 = CreateLock("lock1", 5);
-    
+	c2 = CreateCondition("c2", 300); /* above range */ 
     
 	/* Conditions - the rest */
 	DestroyCondition(-1); /* below range */
 	DestroyCondition(1001); /* above range */
 	DestroyCondition(0); /* condition should be NULL */
+
+	/* Locks - the rest */
+	DestroyLock(-1); /* below range */
+	DestroyLock(1001); /* above range */
+	DestroyLock(0); /* lock should be NULL */
+
 	cond1 = CreateCondition("cond1", 5);
-    
-    Exec("../test/diff_lock", 17);	/* diff addr space (exec) */
-	Exec("../test/diff_cond", 17);
+	lock1 = CreateLock("lock1", 5);
+
+	Exec("../test/diff_proc", 17); /* diff addr space (exec) */
 
     Exit(0);
 }

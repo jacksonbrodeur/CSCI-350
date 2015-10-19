@@ -15,8 +15,7 @@
 int main()
 {
     int c = CreateCondition("def", 3);
- 
-    DestroyCondition(c);
-
+	DestroyCondition(c);
+    Print("Creating condition at index: %i\n", 33, c * 1000, 0);
     Exit(0);
 }

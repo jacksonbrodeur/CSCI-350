@@ -20,6 +20,7 @@ main()
     int l = CreateLock("abc",3);
     Acquire(l);
     Release(l);
+    Print("Releasing lock at index: %i\n", 29, l * 1000, 0);
     DestroyLock(l);
     Exit(0);
 }

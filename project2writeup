@@ -6,8 +6,6 @@ Group:  Jackson Brodeur     jbrodeur@usc.edu
  
 I. Requirements:
 
-- Describe what's your understanding of the requirements from the assignment statement. With the requirement analysis, you would be clear about what you are supposed to do.
-
 	Part 1
 		Implement system calls and exception handling. These system calls allow us to create user programs and run them in the operating system at the same time. Specifications are as follows:
 			Must support the following:
@@ -44,21 +42,45 @@ I. Requirements:
 
 II. Assumptions:
 
-	- Reasonable assumptions you take for your scheme.
-
-	Part 1
-		All of our processes, threads, locks, and conditions are stored in different tables that are implemented by arrays. We assumed that any locations in the array set to null indicate that the validate bit for that memory location is false. Any locations that have a valid lock/condition/thread/process struct means that location’s valid bit is true.
-	Part 2
-		Other assumptions include the max amount of locks/conditions/threads/processes. We allocated a table of size 1000 for the locks and conditions to make sure that any instance of the passport office would not reach the end of these tables since there are a large amount of locks and conditions in the passport office (locks and CVs for each clerk). We also made a max size of 100 for our process table to ensure it was sufficiently large for any amount of passport office instances we wanted to run. Each of these processes has a thread list of 100 to account for any numbers of clerks and customers that the passport office may have. 
-	Part 3
-
+	All of our processes, threads, locks, and conditions are stored in different tables that are implemented by arrays. We assumed that any locations in the array set to null indicate that the validate bit for that memory location is false. Any locations that have a valid lock/condition/thread/process struct means that location’s valid bit is true.
+	Other assumptions include the max amount of locks/conditions/threads/processes. We allocated a table of size 1000 for the locks and conditions to make sure that any instance of the passport office would not reach the end of these tables since there are a large amount of locks and conditions in the passport office (locks and CVs for each clerk). We also made a max size of 100 for our process table to ensure it was sufficiently large for any amount of passport office instances we wanted to run. Each of these processes has a thread list of 100 to account for any numbers of clerks and customers that the passport office may have. 
 
 
 III. Design:
 
 - This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
 
-To implement multiprogramming in this project we needed to keep track of all the threads and processes running on the operating system. We also needed to keep track of locks and CVs associated with each address space of the processes. This required a tables to keep track of each of these. Since there is a large amount of information associated with each lock, CV, thread, and process, we had to implement these variables as structs. Each struct would have a member variable of its actual type (such as a thread if the struct represented a thread or a CV if the struct was representing a CV). We also included other information in the struct such as the location in memory and process ID in the case of processes.
+	To implement multiprogramming in this project we needed to keep track of all the threads and processes running on the operating system. We also needed to keep track of locks and CVs associated with each address space of the processes. This required tables to keep track of each of these. Since there is a large amount of information associated with each lock, CV, thread, and process, we had to implement these variables as structs. Each struct would have a member variable of its actual type (such as a thread if the struct represented a thread or a CV if the struct was representing a CV). We also included other information in the struct such as the location in memory and process ID in the case of processes.
+
+	- The KernelLock struct has the following data:
+    	Lock *lock;
+    	AddrSpace *addrSpace;
+    	bool isToBeDeleted;
+
+	- The KernelCV struct has the following data:
+    	Condition * condition;
+	    AddrSpace *addrSpace;
+    	bool isToBeDeleted;
+
+	- The KernelThread struct has the following data:
+    	int startingStackPage;
+    	Thread * myThread;
+
+	- The KernelProcess struct has the following data:
+	    KernelThread ** threadList;
+	    Thread * myThread;
+	    int totalThreads;
+	    int numThreadsExecuting;
+    	AddrSpace * mySpace;
+
+    We also had to use broader locks for each system call and table (for the Locks and CVs) to protect the shared resources. These included the following:
+    	- lockTableLock
+		- cvTableLock
+		- printLock
+		- forkLock
+		- exitLock
+		- execLock
+
 
 IV. Implementation:
 	+ Files Modified
@@ -81,8 +103,7 @@ IV. Implementation:
 		createlock.c
 		cv_wait_signal.c
 		destroylock.c
-		diff_lock.c
-		diff_cond.c
+		diff_proc.c
 		exechelper.c
 		exectest.c
 		invalidtest.c
@@ -95,37 +116,96 @@ IV. Implementation:
 
 
 	+ Data Structures added, and the file they were added to.
-		kernel process table - system.h/.cc
-		kernel lock table - system.h/.cc
-		kernel cv table - system.h/.cc
-		process struct - system.h/.cc
-		lock struct - system.h/.cc
-		cv struct - system.h/.cc
+		KernelProcess** processTable (kernel process table) - system.h/.cc
+		KernelLock** kernelLocks (kernel lock table) - system.h/.cc
+		KernelCV** kernelCVs (kernel cv table) - system.h/.cc
+		struct KernelProcess (process struct) - system.h/.cc
+		struct KernelLock (lock struct) - system.h/.cc
+		struct KernelCV (CV struct) - system.h/.cc
+
+		
 		
 	+ Data Structures modified, and the file they were added to.
-		-For example,
-			class Lock		-- in file threads.cc/threads.h
-			{
-				//. Modified fields.
-			}
-
-		addrspace constructor
-		startprocess
-		
+		// don't think we modified any data structures
 
 	+ Functions added and in which file.
+		syscall.h
+			int CreateLock(char * name, int len);
+			void DestroyLock(int lock);
+			int Acquire(int lock);
+			void Release(int lock);
+			int CreateCondtion(char * name, int len);
+			void DestroyCondtion(int condtion);
+			void Wait(int condition, int lock);
+			void Signal(int condition, int lock);
+			void Broadcast(int condition, int lock);
+			void Print(char * string, int len, int intParams, int charParams);
+			int Rand();
 
-		validatelock
-		validatecv 
-		findcurrentprocess
-		findavailablethreadindex
+		exception.cc
+			int findCurrentProcess() 
+			int validateLock(int index) 
+			int validateCV(int index) 
+			void exec_thread(int vaddr)
+			int ExecSyscall(int vaddr, int len)
+			bool isLastExecutingProcess()
+			void ExitSyscall(int status)
+			int findAvailableThreadListIndex (int processIndex)
+			void kernel_thread(int vaddr)
+			void ForkSyscall(int vaddr) 
+			void YieldSyscall() 
+			int CreateLockSyscall(int vaddr, int len)
+			void DestroyLockSyscall(int index) 
+			int AcquireSyscall(int index)
+			void ReleaseSyscall(int index)
+			int CreateConditionSyscall(int vaddr, int len)
+			void DestroyConditionSyscall(int index)
+			void WaitSyscall(int conditionIndex, int lockIndex)
+			void SignalSyscall(int conditionIndex, int lockIndex)
+			void BroadcastSyscall(int conditionIndex, int lockIndex)
+			void PrintSyscall(int vaddr, int len, int params1, int params2)
+			int RandSyscall()
 		
 	+ Functions modified and in which file.
+		addrspace.cc
+			AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles)
+
+		progtest.cc
+			StartProcess(char *filename)
+
 
 V. Testing:  (For each test case, you must show)
 	+ How to test
-- How to run the test cases, the commands, the arguments and so on.
+		To run the tests enter the following command
+			nachos -x ../test/AAA
+		where AAA is one of the following:
+			acquirelock 
+			createcondition
+			createlock
+			cv_wait_signal
+			destroylock
+			exectest
+			invalidtest
+			passportoffice //TODO come back to this
+			print
+			rand
+			releaselock
+			yieldtest
+
 	+ Test Output
+		acquirelock - "Acquired lock _" is printed only once
+		createcondition - "Creating Condition at index: ___" 
+		createlock - "Creating Lock at index: ___" 
+		cv_wait_signal - 
+		destroylock
+		exectest
+		invalidtest
+		passportoffice //TODO come back to this
+		print
+		rand
+		releaselock
+		yieldtest
+
 - Describe the testing output. You don't have to dump all the output info. Just make sure your description can exactly reflect your output. The grader of your submission will be wanting to compare the output they get with what you say the output is.
 
 VI. Discussion:

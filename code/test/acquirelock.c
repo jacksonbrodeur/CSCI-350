@@ -17,14 +17,13 @@ int l;
 void acquirelock_t1() {
     
     Acquire(l);
-    
+    Print("Acquired lock %i\n", 18, l * 1000, 0);
     Exit(0);
 }
 
 void acquirelock_t2() {
-    
     Acquire(l);
-    
+    Print("Acquired lock %i\n", 18, l * 1000, 0);
     Exit(0);
 }
 

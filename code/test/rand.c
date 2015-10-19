@@ -3,6 +3,6 @@
 main()
 {
     int i = Rand() % 100;
-    Print("%i\n", 4, i * 1000, 0);
+    Print("Printing random number in range (0,99): %i\n", 44, i * 1000, 0);
     Exit(0);
 }
