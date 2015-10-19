@@ -287,8 +287,11 @@ void Close_Syscall(int fd) {
 
 void exec_thread(int vaddr) {
     
+    
     execLock->Acquire();
 
+    printf("inside of exec thread with vaddr of %d\n", vaddr);
+    printf("addrspace: %d\n", currentThread->space);
 
     int ppn = stackBitMap->Find();
     
@@ -298,11 +301,12 @@ void exec_thread(int vaddr) {
         interrupt->Halt();
     }
     
-    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
-    
-    
-    processTable[findCurrentProcess()]->threadList[0]->startingStackPage = startingStackPage;
     currentThread->space->InitRegisters();		// set the initial register values
+    
+    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
+    printf("Giving the main process %d thread a starting stack page of %d\n", findCurrentProcess(), startingStackPage);
+    processTable[findCurrentProcess()]->threadList[0]->startingStackPage = startingStackPage;
+    
     currentThread->space->RestoreState();		// load page table register
     
     execLock->Release();
@@ -365,25 +369,25 @@ int ExecSyscall(int vaddr, int len) {
     KernelThread * newThread = new KernelThread(t);
     newProcess->threadList[0]=newThread;
     
+    printf("Created a new process and a new kernel thread with addrspace: %d\n", mySpace);
+    printf("vaddr is %d\n",vaddr);
     execLock->Release();
     t->Fork(exec_thread, vaddr);
     return index;
 }
 
-bool isLastExecutingThread() {
+bool isLastExecutingThread(int process) {
     
     bool isLastThread = true;
-    
-    for(int i = 0; i < 100 ; i++) {
-        
-        if(processTable[i]!=NULL) {
+
+    if(processTable[process]!=NULL) {
             
-            for(int j = 0; j < 50; j++)
-                if(processTable[i]->threadList[j]!=NULL && (processTable[i]->threadList[j]->myThread)!=currentThread) {
-                
-                    isLastThread = false;
-                }
-        }
+        for(int i = 0; i < 50; i++)
+            if(processTable[process]->threadList[i]!=NULL && (processTable[process]->threadList[i]->myThread)!=currentThread) {
+            
+                isLastThread = false;
+                break;
+            }
     }
     return isLastThread;
 }
@@ -404,12 +408,12 @@ bool isLastExecutingProcess() {
 }
 
 void ExitSyscall(int status) {
-
+    
     exitLock->Acquire();
     
     int currentProcess = findCurrentProcess();
     //check if this thread is the last process
-    if(!isLastExecutingThread()) {
+    if(!isLastExecutingThread(currentProcess)) {
         //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
         int threadListIndex = -1;
         //iterate through the current process's thread list to find the exiting thread
@@ -426,10 +430,10 @@ void ExitSyscall(int status) {
         //one thread has finished executing so keep track of this in the current process
         processTable[currentProcess]->numThreadsExecuting--;
     }
-    else if(isLastExecutingThread() && isLastExecutingProcess()) {
+    else if(isLastExecutingThread(currentProcess) && isLastExecutingProcess()) {
         interrupt->Halt();
     }
-    else if(isLastExecutingThread() && !isLastExecutingProcess()) {
+    else if(isLastExecutingThread(currentProcess) && !isLastExecutingProcess()) {
         
         //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
         int threadListIndex = -1;
@@ -457,15 +461,7 @@ void ExitSyscall(int status) {
             }
         }
         
-        for(int i = 0; i < 100; i ++) {
-            
-            if(processTable[i]!=NULL) {
-                if(processTable[i]->mySpace == currentThread->space) {
-        
-                    processTable[i] = NULL;
-                }
-            }
-        }
+        processTable[currentProcess] = NULL;
         
     }
     
@@ -936,6 +932,11 @@ void ExceptionHandler(ExceptionType which) {
         machine->WriteRegister(PrevPCReg,machine->ReadRegister(PCReg));
         machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
         machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
+        
+        //cout<<"PrevPCReg: "<<PrevPCReg<<endl;
+        //cout<<"PCReg: "<<PCReg<<endl;
+        //cout<<"NextPCReg: "<<NextPCReg<<endl;
+        
         return;
     } else {
       cout<<"Unexpected user mode exception - which:"<<which<<"  type:"<< type<<endl;
