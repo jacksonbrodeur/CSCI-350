@@ -136,7 +136,7 @@ void pictureClerk() {
                 Acquire(me->breakLock);
                 me->state = ONBREAK;
 
-                while(me->state == ONBREAK) {
+                if(me->state == ONBREAK) {
                     Wait(me->breakCondition, me->breakLock);
                 }
 
@@ -144,8 +144,20 @@ void pictureClerk() {
                 Release(me->breakLock);
                 Acquire(pictureClerkLock);
 
-                Signal(me->lineCondition, pictureClerkLock);
+                if(me->bribeLineCount > 0) {
+                    Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
+                    Signal(me->bribeLineCondition, pictureClerkLock);
+                    me->state = BUSY;
+                } else if(me->lineCount > 0) {
+                    Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
+                    Signal(me->lineCondition, pictureClerkLock);
+                    me->state = BUSY;
+                }
+                else
+                    me->state = AVAILABLE;
+                
             } else {
+                me->state = AVAILABLE;
                 storeJustOpened++;
             }
         }
@@ -229,7 +241,7 @@ void applicationClerk() {
                 Acquire(me->breakLock);
                 me->state = ONBREAK;
 
-                while(me->state == ONBREAK) {
+                if(me->state == ONBREAK) {
                     Wait(me->breakCondition, me->breakLock);
                 }
 
@@ -237,8 +249,20 @@ void applicationClerk() {
                 Release(me->breakLock);
                 Acquire(applicationClerkLock);
 
-                Signal(me->lineCondition, applicationClerkLock);
+                if(me->bribeLineCount > 0) {
+                    Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
+                    Signal(me->bribeLineCondition, applicationClerkLock);
+                    me->state = BUSY;
+                } else if(me->lineCount > 0) {
+                    Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
+                    Signal(me->lineCondition, applicationClerkLock);
+                    me->state = BUSY;
+                }
+                else
+                    me->state = AVAILABLE;
+                
             } else {
+                me->state = AVAILABLE;
                 storeJustOpened++;
             }
         }
@@ -309,7 +333,7 @@ void passportClerk() {
                 me->state = ONBREAK;
                 
                 /* Mesa style monitor, wait to be woken up by manager */
-                while(me->state == ONBREAK) {
+                if(me->state == ONBREAK) {
                     Wait(me->breakCondition, me->breakLock);
                 }
                 
@@ -318,9 +342,20 @@ void passportClerk() {
                 Acquire(passportClerkLock);
                 
                 /* Tell the next customer in line that clerk is ready */
-                Signal(me->lineCondition, passportClerkLock);
+                if(me->bribeLineCount > 0) { /* Check bribe line first... */
+                    Print("Passport Clerk %i has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
+                    Signal(me->bribeLineCondition, passportClerkLock);
+                    me->state = BUSY;
+                } else if(me->lineCount > 0) { /* then check regular line */
+                    Print("Passport Clerk %i has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
+                    Signal(me->lineCondition, passportClerkLock);
+                    me->state = BUSY;
+                }
+                else
+                    me->state = AVAILABLE;
             }
             else {
+                me->state=AVAILABLE;
                 storeJustOpened++;
             }
         }
@@ -360,7 +395,6 @@ void cashierTransaction(Clerk * clerk, Customer * customer) {
     
     Acquire(counterLock);
     customersFinished++;
-    Print("Num customers finished: %i\n", 28,customersFinished, 0);
     Release(counterLock);
     
     Print("Customer %i is leaving the passport office\n", 44, customer->id * 1000, 0);
@@ -395,7 +429,7 @@ void cashier() {
                 me->state = ONBREAK;
                 
                 /* Mesa style monitor, wait to be woken up by manager */
-                while(me->state == ONBREAK) {
+                if(me->state == ONBREAK) {
                     Wait(me->breakCondition, me->breakLock);
                 }
                 
@@ -403,9 +437,16 @@ void cashier() {
                 Release(me->breakLock);
                 Acquire(cashierLock);
                 
-                Signal(me->lineCondition, cashierLock);
+                if (me->lineCount > 0) {
+                    Print("Cashier %i has signalled a customer to come to their counter\n", 62, myLine * 1000, 0);
+                    Signal(me->lineCondition, cashierLock);
+                    me->state = BUSY;
+                }
+                else
+                    me->state = AVAILABLE;
             }
             else {
+                me->state = AVAILABLE;
                 storeJustOpened++;
             }
         }
@@ -572,7 +613,9 @@ void customer() {
     /*Make any customer who enters the office wait if there are any senators currently using the office */
     while((!me->isSenator) && numSenatorsHere > 0) {
         
+        Acquire(senatorLock);
         Wait(senatorCondition, senatorLock);
+        Release(senatorLock);
     }
     
     /*Randomly decide to go to the picture clerk first or application clerk first*/
@@ -666,10 +709,11 @@ void customer() {
     {
         Acquire(senatorLock);
         numSenatorsHere--;
-        Release(senatorLock);
         if(numSenatorsHere==0) {
+            storeJustOpened=0;
             Broadcast(senatorCondition, senatorLock);
         }
+        Release(senatorLock);
     }
     Exit(0);
 }
@@ -730,7 +774,7 @@ void manager() {
         {
             Print("Manager has woken up a PictureClerk\n", 37, 0, 0);
             Acquire(pictureClerkLock);
-            pictureClerks[0].state = AVAILABLE;
+            /*pictureClerks[0].state = AVAILABLE;*/
             Signal(pictureClerks[0].breakCondition, pictureClerks[0].breakLock);
             Release(pictureClerkLock);
             pictureClerksAllOnBreak=FALSE;
@@ -739,7 +783,7 @@ void manager() {
         {
             Print("Manager has woken up an ApplicationClerk\n", 42, 0, 0);
             Acquire(applicationClerkLock);
-            applicationClerks[0].state = AVAILABLE;
+            /*applicationClerks[0].state = AVAILABLE;*/
             Signal(applicationClerks[0].breakCondition, applicationClerks[0].breakLock);
             Release(applicationClerkLock);
             applicationClerksAllOnBreak=FALSE;
@@ -748,7 +792,7 @@ void manager() {
         {
             Print("Manager has woken up a PassportClerk\n", 38, 0, 0);
             Acquire(passportClerkLock);
-            passportClerks[0].state = AVAILABLE;
+            /*passportClerks[0].state = AVAILABLE;*/
             Signal(passportClerks[0].breakCondition, passportClerks[0].breakLock);
             Release(passportClerkLock);
             passportClerksAllOnBreak=FALSE;
@@ -757,7 +801,7 @@ void manager() {
         {
             Print("Manager has woken up a Cashier\n", 32, 0, 0);
             Acquire(cashierLock);
-            cashiers[0].state = AVAILABLE;
+            /*cashiers[0].state = AVAILABLE;*/
             Signal(cashiers[0].breakCondition, cashiers[0].breakLock);
             Release(cashierLock);
             cashiersAllOnBreak = FALSE;
@@ -770,7 +814,7 @@ void manager() {
             {
                 Print("Manager has woken up a PictureClerk\n", 37, 0, 0);
                 Acquire(pictureClerkLock);
-                pictureClerks[i].state = AVAILABLE;
+                /*pictureClerks[i].state = AVAILABLE;*/
                 Signal(pictureClerks[i].breakCondition, pictureClerks[i].breakLock);
                 Release(pictureClerkLock);
                 signalPictureClerk=FALSE;
@@ -779,7 +823,7 @@ void manager() {
             {
                 Print("Manager has woken up an ApplicationClerk\n", 42, 0, 0);
                 Acquire(applicationClerkLock);
-                applicationClerks[i].state = AVAILABLE;
+                /*applicationClerks[i].state = AVAILABLE;*/
                 Signal(applicationClerks[i].breakCondition, applicationClerks[i].breakLock);
                 Release(applicationClerkLock);
                 signalAppClerk=FALSE;
@@ -789,7 +833,7 @@ void manager() {
             {
                 Print("Manager has woken up a PassportClerk\n", 38, 0, 0);
                 Acquire(passportClerkLock);
-                passportClerks[i].state = AVAILABLE;
+                /*passportClerks[i].state = AVAILABLE;*/
                 Signal(passportClerks[i].breakCondition, passportClerks[i].breakLock);
                 Release(passportClerkLock);
                 signalPassportClerk=FALSE;
@@ -798,7 +842,7 @@ void manager() {
             {
                 Print("Manager has woken up a Cashier\n", 32, 0, 0);
                 Acquire(cashierLock);
-                cashiers[i].state = AVAILABLE;
+                /*cashiers[i].state = AVAILABLE;*/
                 Signal(cashiers[i].breakCondition, cashiers[i].breakLock);
                 Release(cashierLock);
                 signalCashier = FALSE;
@@ -832,7 +876,6 @@ void manager() {
         Print("Manager has counted a total of $%i for the passport office\n", 60,(pictureRevenue+applicationRevenue+passportRevenue+cashierRevenue) * 1000, 0);
         
         
-        Print("Num customers finished: %i\n", 28,customersFinished*1000, 0);
     }
     
     /*delete program data*/

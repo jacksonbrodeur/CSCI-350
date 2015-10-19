@@ -800,7 +800,10 @@ void customer(int customerNumber) {
     }
     
     while((!me->isSenator) && numSenators > 0) {
+        printf("%s is going outside the Passport Office because there is a Senator present\n", me->name);
+        senatorLock->Acquire();
         senatorCondition->Wait(senatorLock);
+        senatorLock->Release();
     }
     
     int randomNum = rand() % 2;
@@ -886,6 +889,7 @@ void customer(int customerNumber) {
         numSenators--;
         if(numSenators==0) {
             
+            printf("Broadcasting to all customers outside the office\n");
             storeJustOpened=0;
             senatorCondition->Broadcast(senatorLock);
         }
