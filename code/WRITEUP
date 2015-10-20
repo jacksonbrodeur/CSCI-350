@@ -1,292 +1,224 @@
-Title: Writeup for Project 1, Fall 2015
-Date: 09/20/15
+Title: Writeup for Project 2, Fall 2015
+Date: 10/17/15
 Group:  Jackson Brodeur     jbrodeur@usc.edu
         Dylan Davis         dylandav@usc.edu
-        Matthew O'Brien     obrienm@usc.edu
+        Matthew O'Brien     obrienm@usc.edu	
+ 
+I. Requirements:
 
-I. Requirements
+	Part 1
+		Implement system calls and exception handling. These system calls allow us to create user programs and run them in the operating system at the same time. Specifications are as follows:
+			Must support the following:
+				- Fork (complete implementation in part 2)
+				- Exec (complete implementation in part 2)
+				- Exit
+				- Yield
+			Implement syscalls for:
+				- Lock::Acquire()
+				- Lock::Release()	
+				- Condition::Wait()
+				- Condition::Signal()
+				- Condition::Broadcast()	
+			Also implement constructor and destructor syscalls to create a Lock and a Condition object:
+				- CreateLock
+				- DestroyLock
+				- CreateCondition
+				- DestroyCondition
+		
+	Part 2
+		Implement multiprogramming for uniprogrammed nachos. We did this by:
+			- Devising way to allocate phys mem to allow mult prgrms
+			- Providing way of copying data between kernel and user's virtual address
+			- completing the implementation of Fork syscall
+			- Completing the implementation of Exec syscall 
+			- Designing a test suite to prove Fork and Exec perform correctly (in any combination and won't break OS) by using all of the system call's functionalities
 
-    Part 1
-        Implement locks and condition variables. To do this we implement the
-        provided methods in the Lock class and Condition class. The methods to be implemented are as follows:
-            Lock
-                - Lock(char* debugName)
-                - ~Lock()
-                - Acquire()
-                - Release()
-                    [Note: only the thread that acquired the lock should be 
-                    able to release it]
-                - IsHeldByCurrentThread()
+	Part 3
+		Implement passport office as set of multithreaded Nachos user programs (using new Lock and Condition syscalls). This entails:
+			- using Fork to create all threads
+			- having multiple passport offices running as different processes
+			- designing a test suite that proves implementation is correct
 
-            Condition
-                - Condition(char* debugName)
-                - ~Condition()
-                - Wait(Lock* conditionLock)
-                - Signal(Lock* conditionLock)
-                    [Note: Signal should be implemented with Mesa semantics 
-                    where the signaled thread is added to the ready queue]
-                - Broadcast(Lock* conditionLock)
-
-        In addition to implementing these methods, the necessary member 
-        variables will need to be added to these classes.
-
-    Part 2
-        Simulate the operation of a passport office. The following entities 
-        must be implemented and fulfill the given requirements:
-
-            - Customer
-                A Customer must get their application accepted by an ApplicationClerk, get their picture taken by a PictureClerk (there is a chance they don't like their picture), get their filed application and picture recognized by a PassportClerk, and finally pay a Cashier once their documentation is approved by a PassportClerk
-
-                A Customer can go to either an ApplicationClerk first or a PictureClerk first, which is chosen at random. 
-
-                A Customer always chooses the shortest line to get into.
-
-                A Customer will have one of the following amounts of money, to be randomly determined: $100, $600, $1100, $1600.
-
-                A Customer needs $100 to pay the cashier for his passport and can use the rest of his money to bribe the clerks/cashier to move to the front of his line. It costs $500 to bribe a clerk/cashier however a customer will not move in front of other customers who have also bribed the clerk/cashier.
-
-            - ApplicationClerk
-                An ApplicationClerk receives a completed application from a Customer and 'records' that it has been completed. There is a random delay from when the Customer's application has been accepted and when it is 'filed'. An ApplicationClerk will go on break if there is no one in his line.
-
-            - PictureClerk
-                A PictureClerk takes the picture of a Customer. There is a random chance that the Customer will not like their picture and it needs to be retaken. Once the picture is accepted by the Customer, the PictureClerk 'files' it. There is a random delay from when the picture is accepted to when it is 'filed'. A PictureClerk will go on break if there is no one in his line.
-
-            - PassportClerk
-                A PassportClerk will 'certify' a Customer only if that Customer's application and picture have been 'filed'. There is a random delay from when a Customer is 'certified' and when it is 'recorded' by the PassportClerk. If the Customer arrives prior to these two items being 'filed' then the customer is penalized a random amount of time before being sent to the back of the line. A PassportClerk goes on break if there is no one in his line.
-
-            - Cashier
-                A Cashier collects the $100 passport fee from a Customer, but only if they arrive after the PassportClerk has 'recorded' that the other documents have been filed. A Cashier goes on break if there is no one in his line.
-
-            - Manager
-                A manager has the job of waking up a clerk/cashier from when more than 3 Customers are in that clerk's/cashier's line. A manager is also responsible for tallying the amount of money collected by each clerk/cashier type and the total money collected. 
-
-            - Senator
-                A Senator is a special kind of Customer. When a Senator shows up, all Customers who are currently being serviced, complete their current action with the clerk/cashier and all other Customers must wait outside. Once the current Customers have been serviced A Senator goes to all Clerk types and gets his passport. Once a Senator is done, all waiting Customers return to normal.
-
-    Testing
-        Develop repeatable tests for part 2. In particular, be able to prove the following:
-            - Customers always choose the shortest line, but two customers don't choose the same line at the same time
-            - Managers only read from one Clerk's received money at a time
-            - Customers do not leave until they are given their passport by a Cashier
-            - Clerks only go on break when no one is waiting in their line
-            - Managers wake up Clerks from break when 3 or more customers are waiting in line
-            - Total sales doesn't suffer from race conditions
-            - The behavior of Customers is proper when a Senator arrives
 
 II. Assumptions:
 
-    Part 1
-        - If a lock tries to be re-acquired by a thread, the request is ignored
-        - If a a thread tries to release a lock it does not own, the request is ignored
-        - If a lock signaled is different than the lock a thread went to sleep with, it does nothing.
-
-    Part 2
-        - There are at most 5 of any type of Clerk or Cashier
-        - There is a 10% chance of a Customer not liking their picture
-        - Customers will always bribe if they have enough money
+	All of our processes, threads, locks, and conditions are stored in different tables that are implemented by arrays. We assumed that any locations in the array set to null indicate that the validate bit for that memory location is false. Any locations that have a valid lock/condition/thread/process struct means that location’s valid bit is true.
+	Other assumptions include the max amount of locks/conditions/threads/processes. We allocated a table of size 1000 for the locks and conditions to make sure that any instance of the passport office would not reach the end of these tables since there are a large amount of locks and conditions in the passport office (locks and CVs for each clerk). We also made a max size of 100 for our process table to ensure it was sufficiently large for any amount of passport office instances we wanted to run. Each of these processes has a thread list of 100 to account for any numbers of clerks and customers that the passport office may have. Since there can be a max of 50 customers, 5 clerks, and 10 senators, we can assume that there should never be over 65 threads for a single passport office process (55+10+5). Thus a thread list of size 100 for each process should always be sufficiently large.
 
 
 III. Design:
 
-    Part 1
+- This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
 
-    Part 2
-        - The entities required for the project are all represented by a method that will be forked into a new thread when it needs to start running.
-        - There are three separate structs to hold the data for the entities. There is a Customer, Clerk, and Manager struct. For this purpose, a Senator will be considered a Customer and a Cashier will be considered a Clerk.
+	To implement multiprogramming in this project we needed to keep track of all the threads and processes running on the operating system. We also needed to keep track of locks and CVs associated with each address space of the processes. Keeping track of this data required a process table, lock table, and cv table. Since there is a large amount of information associated with each lock, CV, thread, and process, we had to implement these variables as structs. Each struct would have a member variable of its actual type (such as a thread if the struct represented a thread or a CV if the struct was representing a CV). We also included other information in the structs such as the location in memory, ID, stack information, among other relative information. We keep track of where threads and processes are stored in memory with a single bitmap declared in system.h/.cc. All of the member variables for each struct type are identified below.
+	
+	- The KernelLock struct has the following data:
+    	Lock *lock;
+    	AddrSpace *addrSpace;
+    	bool isToBeDeleted;
 
-        - The Customer struct has the following data
-            char * name;
-            bool applicationFiled;
-            bool pictureTaken;
-            bool pictureFiled;
-            bool passportCertified;
-            bool passportGiven;
-            bool cashierPaid;
-            int money;
-            static int totalCustomerMoney;
-            bool isSenator;
+	- The KernelCV struct has the following data:
+    	Condition * condition;
+	    AddrSpace *addrSpace;
+    	bool isToBeDeleted;
 
-        - The Clerk struct has the following data
-            char * name;
-            int lineCount;
-            int bribeLineCount;
-            int state;
-            Condition * lineCondition;
-            Condition * bribeLineCondition;
-            Condition * clerkCondition;
-            Lock * clerkLock;
-            int clerkType;
-            Customer * customer;
-            int money;
+	- The KernelThread struct has the following data:
+    	int startingStackPage;
+    	Thread * myThread;
 
-        - The Manager struct has the following data
-            char * name;
+	- The KernelProcess struct has the following data:
+	    KernelThread ** threadList;
+	    Thread * myThread;
+	    int totalThreads;
+	    int numThreadsExecuting;
+    	AddrSpace * mySpace;
 
-        - Clerk, Cashier, and Manager threads run until all Customers, including Senators, have received their passport. They will be invoked by forking the methods with the following signatures:
-            void pictureClerk(int myLine)
-            void applicationClerk(int myLine)
-            void passportClerk(int myLine)
-            void cashier(int myLine)
-            void manager()
+    We also had to use locks for each system call and table to protect the shared resources. These included the following:
+    	- lockTableLock
+	- cvTableLock
+	- printLock
+	- forkLock
+	- exitLock
+	- execLock
 
-        - Customer threads run until that Customer has received their passport and are created by forking the following method (Note: Senators will be handled by the same method as regular customers):
-            void customer(int customerNumber)
-
-        - Each Customer side of the interactions with Clerks will be abstracted into separate methods, which are called within the customer method, with the following signatures:
-            void pictureTransaction(Clerk * clerk, Customer * customer)
-            void applicationTransaction(Clerk * clerk, Customer * customer)
-            void passportTransaction(Clerk * clerk, Customer * customer)
-            void cashierTransaction(Clerk * clerk, Customer * customer)\
-
-        - There is a convenience method 
-            int getInShortestLine(Customer * customer, std::vector<Clerk*> clerkToVisit, Lock * clerkLock)
-        This method places the Customer in the shortest line for the clerk type it is trying to visit and also handles bribes. This method will terminate after the Customer is signaled by the Clerk to come to the counter
-
-        - There is a helper method for handling I/O 
-            int isValidNumber (char* number, int limit) 
-         This method converts the given number from a string to an int and then returns it if it is between 1 and limit, inclusive, otherwise it returns -1
-
-        - When the simulation is run, the user will be prompted for several input value including the number of customers (between 1 and 50), the number of clerks/cashiers (between 1 and 5), and the number of senators (between 1 and 10). The number of clerks is not set on a per-type basis. That is a user cannot make it so that there are 3 PictureClerks and 4 ApplicationClerks. An input of 3 would mean that there are 3 PictureClerks, 3 ApplicationClerks, 3 PassportClerks, and 3 Cashiers. There is always only 1 Manager.
-
-
-
+	Our algorithms for the passport office user program are the same as project 1 and are outlined in more detail in the miscellaneous section.
+	For each of our system calls we validate all the arguments then proceed to call the correct kernel code (such as returning a lock index if the system call is CreateLock or calling currentThread->Yield() if the system call is Yield).
 
 IV. Implementation:
-    + Files Modified
+	+ Files Modified
+		exception.cc
+		threadtest.cc
+		system.h
+		system.cc
+		syscall.h
+		start.s
+		addrspace.h
+		addrspace.cc
+		machine.h
+		progtest.cc
+		threadtest.cc
+		test Makefile
 
-        Part 1
-            - synch.h
-            - synch.cc
-            - threadtest.cc
+	+ Files added
+		acquirelock.c
+		createcondition.c
+		createlock.c
+		cv_wait_signal.c
+		destroylock.c
+		diff_proc.c
+		exechelper.c
+		exectest.c
+		invalidtest.c
+		passportoffice.c
+		print.c
+		rand.c
+		releaselock.c
+		yieldtest.c
 
-        Part 2
-            - threadtest.cc
+	+ Data Structures added, and the file they were added to.
+		KernelProcess** processTable (kernel process table) - system.h/.cc
+		KernelLock** kernelLocks (kernel lock table) - system.h/.cc
+		KernelCV** kernelCVs (kernel cv table) - system.h/.cc
+		struct KernelProcess (process struct) - system.h/.cc
+		struct KernelLock (lock struct) - system.h/.cc
+		struct KernelCV (CV struct) - system.h/.cc
+		
+	+ Data Structures modified, and the file they were added to.
+		We did not modify any existing data structures. Data structures such as Bitmap and AddressSpace were used but not modified.
 
-    + Files added
-        N/A
+	+ Functions added and in which file.
+		syscall.h
+			int CreateLock(char * name, int len);
+			void DestroyLock(int lock);
+			int Acquire(int lock);
+			void Release(int lock);
+			int CreateCondtion(char * name, int len);
+			void DestroyCondtion(int condtion);
+			void Wait(int condition, int lock);
+			void Signal(int condition, int lock);
+			void Broadcast(int condition, int lock);
+			void Print(char * string, int len, int intParams, int charParams);
+			int Rand();
 
-    + Data Structures added, and the file they were added to.
-        
-        Part 1
-            N/A
+		exception.cc
+			int findCurrentProcess() 
+			int validateLock(int index) 
+			int validateCV(int index) 
+			void exec_thread(int vaddr)
+			int ExecSyscall(int vaddr, int len)
+			bool isLastExecutingProcess()
+			void ExitSyscall(int status)
+			int findAvailableThreadListIndex (int processIndex)
+			void kernel_thread(int vaddr)
+			void ForkSyscall(int vaddr) 
+			void YieldSyscall() 
+			int CreateLockSyscall(int vaddr, int len)
+			void DestroyLockSyscall(int index) 
+			int AcquireSyscall(int index)
+			void ReleaseSyscall(int index)
+			int CreateConditionSyscall(int vaddr, int len)
+			void DestroyConditionSyscall(int index)
+			void WaitSyscall(int conditionIndex, int lockIndex)
+			void SignalSyscall(int conditionIndex, int lockIndex)
+			void BroadcastSyscall(int conditionIndex, int lockIndex)
+			void PrintSyscall(int vaddr, int len, int params1, int params2)
+			int RandSyscall()
+		
+	+ Functions modified and in which file.
+		addrspace.cc
+			AddrSpace::AddrSpace(OpenFile *executable) : 									fileTable(MaxOpenFiles)
 
-        Part 2
-            threadtest.cc
-                struct Customer
-                struct Clerk
-                struct Manager
-
-    + Data Structures modified, and the file they were added to.
-        
-        Part 1
-            synch.h
-                class Lock {
-                   
-                    ...
-
-                    List *waitQueue;
-                    Thread *owner;
-                    bool isBusy;
-                }
-
-                class Condition {
-
-                    ...
-
-                    Lock *waitingLock;
-                    List *cvWaitQueue;
-                }
-
-        Part 2
-            N/A
-
-    + Functions added and in which file.
-
-        Part 1
-            N/A
-
-        Part 2
-            threadtest.cc
-                void customer(int customerNumber): implements customer as described in Section I Part 2
-                void passportClerk(int myLine): implements passport clerk as described in Section I Part 2
-                void cashier(int myLine): implements cashier as described in Section I Part 2
-                void manager(): implements manager as described in Section I Part 2
-                void applicationClerk(int myLine): implements application clerk as described in Section I Part 2
-                void pictureClerk(int myLine): implements picture clerk as described in Section I Part 2
-
-                void pictureTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and picture clerk from customer's perspective (thread)
-                void applicationTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and application clerk from customer's perspective (thread)
-                void passportTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and passport clerk from customer's perspective (thread): simulates the transaction between customer and picture clerk from customer's perspective (thread)
-                void cashierTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and cashier from customer's perspective (thread)
-
-                int getInShortestLine(Customer * customer, std::vector<Clerk*> clerk to Visit, Lock * clerkLock): puts the customer in the shortest line given the clerk type to visit
-                int isValidNumber(char * number, int limit): checks whether valid number of customers/clerks/senators was entered during full simulation of passport office
-                void printInitValues(): prints all the values needed at the beginning of each simulation
-                void runPassportOffice(): starts the program and forks the appropriate type and amount of threads 
-                void launchPassportOffice(): launches the full passport office simulation
-                void testMin(): tests the minimum value cases
-                void testAvg(): tests the average value cases
-                void testMax(): tests the maximum value cases
-                
+		progtest.cc
+			StartProcess(char *filename)
 
 
-    + Functions modified and in which file.
+V. Testing:  (For each test case, you must show)
+	+ How to test
+		To run the tests enter the following command
+			nachos -x ../test/AAA
+		where AAA is one of the following:
+			acquirelock 
+			createcondition
+			createlock
+			cv_wait_signal
+			destroylock
+			exectest
+			invalidtest
+			passportoffice //TODO come back to this
+			print
+			rand
+			releaselock
+			yieldtest
 
-        Part 1
-            synch.cc
-                Lock::Lock(char* debugName)
-                Lock::~Lock()
-                void Lock::Acquire()
-                void Lock::Release()
-                bool Lock::isHeldByCurrentThread()
+	+ Test Output
 
-                Condition::Condition(char* debugName)
-                Condition::~Condition()
-                void Condition::Wait(Lock* conditionLock)
-                void Condition::Signal(Lock* condition Lock)
-                void Condition::Broadcast(Lock* conditionLock)
+- Describe the testing output. You don't have to dump all the output info. Just make sure your description can exactly reflect your output. The grader of your submission will be wanting to compare the output they get with what you say the output is.
 
-        Part 2
-            threadtest.cc
-                void TestSuite()
-
-V. Testing:
-    + How to test
-        To run the tests enter the following commands for the specified input type:
-            nachos -P2Tm    // Min values
-            nachos -P2TA    // Avg values
-            nachos -P2TM    // Max values
-    + Test Output
-    	As per the template and for efficiency we chose not to dump the entire output but rather provide grep commands that will direct you to the appropriate section that proves the given test.
-
-        Test 1 - Customer always take the shortest line, but no 2 customers ever choose the same shortest line at the same time.
-            Run the command : nachos -P2TA | grep line : to see that the customers get in the shortest line
-
-        Test 2 - Managers only read from one Clerk's total money received at a time.
-            Run the command : nachos -P2TA | grep counted : to see that the Manager reads the clerks' total money one at a time
-
-        Test 3 - Customers do not leave until they are given their passport by the cashier. The Cashier does not start on another customer until they know that the last Customer has left their area.
-            Run the command : nachos -P2TA | egrep "completed passport|leaving" : and it is clear that the cashier gives the customer their passport before the customer leaves
-
-        Test 4 - Clerks go on break when they have no one waiting in their line
-            run the command : nachos -P2TA | grep "going on break" : to see Clerks going on break
-
-        Test 5 - Managers get Clerks off their break when lines get too long
-            run the command : nachos -P2TA | grep woken : to see the manager waking up Clerks
-
-        Test 6 - Total sales never suffers from a race condition
-            run the command : nachos -P2TA : and check that the sum of the money from the individual clerks is equal to the total for the passport office
-
-        Test 7 - The behavior of Customers is proper when Senators arrive. This is before, during, and after.
-            run the command : nachos -P2TA | grep outside : to see that the customers go outside when a Senator arrives
+		acquirelock - "Acquired lock _" is printed only once
+		createcondition - "Creating Condition at index: ___" 
+		createlock - "Creating Lock at index: ___" 
+		cv_wait_signal - print statements explain what is going on. One thread acquires the lock first and then the other thread is signalled when the lock is released. 
+		destroylock - "Destroying lock at index: _ now"
+		exectest - first exec will pass a bad VA and there will be error statement for it and the second exec will simply Write that it has been properly executed
+		invalidtest - Print statements explain what is going on. Nachos properly handles invalid parameters
+		multipassport - Exec's multiple passport offices and the output is the same as expected from project 1 but double since there are two running
+		passportoffice - Expected functionality of the passport office from project 1. Customers and clerks will print their actions and the manager will print the money on regular intervals along with other state of the office.
+		print - tests our print syscall with a total of 3 passed in numbers (2 numbers and sum)
+		rand - will print random number in range (0,99)
+		releaselock - will release a lock and then print indicating that it released it
+		yieldtest - Writes that it is about to yield and then yields
 
 VI. Discussion:
-    + Experiment expectation.  (What is supposed to happen.)
-        It was expected that the passport office would run until all the customers have been satisfied and that the random total amount of money given to all the customers combined would equal the total revenue generated by the passport office.
-    + Experiment result.  (What actually happened.)
-        For a majority of cases, our code correctly handles all the customers and the passport office generates the expected revenue (from bribe lines and passport payments). However, sometimes when multiple senators are added the code produces unexpected results.
-    + Explanation
-        The fact that all the customer and senator threads completed in the appropriate manner (tracing transactions through during run) and the passport office revenue was equal to the total customer revenue proves that our simulation worked as expected. Each customer paid all their money to the bribe line clerks and the cashiers and followed the rules of obtaining a passport including the extra expectations during the presence of a senator.
+
+	+ Experiment expectation.  (What is supposed to happen.)
+		User programs will be able to use system calls to create locks and child threads to carry out their functionality. System calls will create variables and keep track of their location in memory as well as performing whatever function is expected of them such as acquiring a lock or signaling a CV, among other things.
+	+ Experiment result.  (What actually happened.)
+		Running the passportoffice with -rs will cause problems but we've tested it with various values and it works with -rx where x is 1-10. The same applies to running 'multipassport' that executes multiple passport offices. 
+	+ Explanation
+		The fact that our two passport office processes ran simultaneously proves that we solved the project problem. This is because we executed two processes and they ran simultaneously while sharing the OS which is what is expected of multiprogramming.
 
 VIII. Miscellaneous:
-The senators do not work entirely as expected. For example, the customers currently in the office all get to execute whatever task they are in line for rather than taking each customer out of line. Once each customers executes the current task, they then leave the passport office and come back in once the senator is done. Also, for some amounts of senators (2, 3, or 4 from our experience), the code will infinite loop. We believe this has to do with the senators putting each other to sleep and never being signalled for wake up.
+
++Passport office info
+	We made a Rand() and Print() system call to provide full functionality of our passport office. The print system call allows printing of various state in the passport office as it completes and the rand system call allows us to simulate scenarios like the user not liking their picture or proceeding to the passport clerk before getting their picture and application filed. 
+	Our new passport office user program has all of the same functionality and print statements as our project 1. All of the logic is the same (just refactored from kernel code to system calls) and all of the print statements are the same. We hard coded various values of customers, senators, and clerks for the passport office to run in order to prove that the office works for all combinations of these entities. Also, any value of -rs will work for the passport office.

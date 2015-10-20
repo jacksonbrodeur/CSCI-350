@@ -1,0 +1,292 @@
+Title: Writeup for Project 1, Fall 2015
+Date: 09/20/15
+Group:  Jackson Brodeur     jbrodeur@usc.edu
+        Dylan Davis         dylandav@usc.edu
+        Matthew O'Brien     obrienm@usc.edu
+
+I. Requirements
+
+    Part 1
+        Implement locks and condition variables. To do this we implement the
+        provided methods in the Lock class and Condition class. The methods to be implemented are as follows:
+            Lock
+                - Lock(char* debugName)
+                - ~Lock()
+                - Acquire()
+                - Release()
+                    [Note: only the thread that acquired the lock should be 
+                    able to release it]
+                - IsHeldByCurrentThread()
+
+            Condition
+                - Condition(char* debugName)
+                - ~Condition()
+                - Wait(Lock* conditionLock)
+                - Signal(Lock* conditionLock)
+                    [Note: Signal should be implemented with Mesa semantics 
+                    where the signaled thread is added to the ready queue]
+                - Broadcast(Lock* conditionLock)
+
+        In addition to implementing these methods, the necessary member 
+        variables will need to be added to these classes.
+
+    Part 2
+        Simulate the operation of a passport office. The following entities 
+        must be implemented and fulfill the given requirements:
+
+            - Customer
+                A Customer must get their application accepted by an ApplicationClerk, get their picture taken by a PictureClerk (there is a chance they don't like their picture), get their filed application and picture recognized by a PassportClerk, and finally pay a Cashier once their documentation is approved by a PassportClerk
+
+                A Customer can go to either an ApplicationClerk first or a PictureClerk first, which is chosen at random. 
+
+                A Customer always chooses the shortest line to get into.
+
+                A Customer will have one of the following amounts of money, to be randomly determined: $100, $600, $1100, $1600.
+
+                A Customer needs $100 to pay the cashier for his passport and can use the rest of his money to bribe the clerks/cashier to move to the front of his line. It costs $500 to bribe a clerk/cashier however a customer will not move in front of other customers who have also bribed the clerk/cashier.
+
+            - ApplicationClerk
+                An ApplicationClerk receives a completed application from a Customer and 'records' that it has been completed. There is a random delay from when the Customer's application has been accepted and when it is 'filed'. An ApplicationClerk will go on break if there is no one in his line.
+
+            - PictureClerk
+                A PictureClerk takes the picture of a Customer. There is a random chance that the Customer will not like their picture and it needs to be retaken. Once the picture is accepted by the Customer, the PictureClerk 'files' it. There is a random delay from when the picture is accepted to when it is 'filed'. A PictureClerk will go on break if there is no one in his line.
+
+            - PassportClerk
+                A PassportClerk will 'certify' a Customer only if that Customer's application and picture have been 'filed'. There is a random delay from when a Customer is 'certified' and when it is 'recorded' by the PassportClerk. If the Customer arrives prior to these two items being 'filed' then the customer is penalized a random amount of time before being sent to the back of the line. A PassportClerk goes on break if there is no one in his line.
+
+            - Cashier
+                A Cashier collects the $100 passport fee from a Customer, but only if they arrive after the PassportClerk has 'recorded' that the other documents have been filed. A Cashier goes on break if there is no one in his line.
+
+            - Manager
+                A manager has the job of waking up a clerk/cashier from when more than 3 Customers are in that clerk's/cashier's line. A manager is also responsible for tallying the amount of money collected by each clerk/cashier type and the total money collected. 
+
+            - Senator
+                A Senator is a special kind of Customer. When a Senator shows up, all Customers who are currently being serviced, complete their current action with the clerk/cashier and all other Customers must wait outside. Once the current Customers have been serviced A Senator goes to all Clerk types and gets his passport. Once a Senator is done, all waiting Customers return to normal.
+
+    Testing
+        Develop repeatable tests for part 2. In particular, be able to prove the following:
+            - Customers always choose the shortest line, but two customers don't choose the same line at the same time
+            - Managers only read from one Clerk's received money at a time
+            - Customers do not leave until they are given their passport by a Cashier
+            - Clerks only go on break when no one is waiting in their line
+            - Managers wake up Clerks from break when 3 or more customers are waiting in line
+            - Total sales doesn't suffer from race conditions
+            - The behavior of Customers is proper when a Senator arrives
+
+II. Assumptions:
+
+    Part 1
+        - If a lock tries to be re-acquired by a thread, the request is ignored
+        - If a a thread tries to release a lock it does not own, the request is ignored
+        - If a lock signaled is different than the lock a thread went to sleep with, it does nothing.
+
+    Part 2
+        - There are at most 5 of any type of Clerk or Cashier
+        - There is a 10% chance of a Customer not liking their picture
+        - Customers will always bribe if they have enough money
+
+
+III. Design:
+
+    Part 1
+
+    Part 2
+        - The entities required for the project are all represented by a method that will be forked into a new thread when it needs to start running.
+        - There are three separate structs to hold the data for the entities. There is a Customer, Clerk, and Manager struct. For this purpose, a Senator will be considered a Customer and a Cashier will be considered a Clerk.
+
+        - The Customer struct has the following data
+            char * name;
+            bool applicationFiled;
+            bool pictureTaken;
+            bool pictureFiled;
+            bool passportCertified;
+            bool passportGiven;
+            bool cashierPaid;
+            int money;
+            static int totalCustomerMoney;
+            bool isSenator;
+
+        - The Clerk struct has the following data
+            char * name;
+            int lineCount;
+            int bribeLineCount;
+            int state;
+            Condition * lineCondition;
+            Condition * bribeLineCondition;
+            Condition * clerkCondition;
+            Lock * clerkLock;
+            int clerkType;
+            Customer * customer;
+            int money;
+
+        - The Manager struct has the following data
+            char * name;
+
+        - Clerk, Cashier, and Manager threads run until all Customers, including Senators, have received their passport. They will be invoked by forking the methods with the following signatures:
+            void pictureClerk(int myLine)
+            void applicationClerk(int myLine)
+            void passportClerk(int myLine)
+            void cashier(int myLine)
+            void manager()
+
+        - Customer threads run until that Customer has received their passport and are created by forking the following method (Note: Senators will be handled by the same method as regular customers):
+            void customer(int customerNumber)
+
+        - Each Customer side of the interactions with Clerks will be abstracted into separate methods, which are called within the customer method, with the following signatures:
+            void pictureTransaction(Clerk * clerk, Customer * customer)
+            void applicationTransaction(Clerk * clerk, Customer * customer)
+            void passportTransaction(Clerk * clerk, Customer * customer)
+            void cashierTransaction(Clerk * clerk, Customer * customer)\
+
+        - There is a convenience method 
+            int getInShortestLine(Customer * customer, std::vector<Clerk*> clerkToVisit, Lock * clerkLock)
+        This method places the Customer in the shortest line for the clerk type it is trying to visit and also handles bribes. This method will terminate after the Customer is signaled by the Clerk to come to the counter
+
+        - There is a helper method for handling I/O 
+            int isValidNumber (char* number, int limit) 
+         This method converts the given number from a string to an int and then returns it if it is between 1 and limit, inclusive, otherwise it returns -1
+
+        - When the simulation is run, the user will be prompted for several input value including the number of customers (between 1 and 50), the number of clerks/cashiers (between 1 and 5), and the number of senators (between 1 and 10). The number of clerks is not set on a per-type basis. That is a user cannot make it so that there are 3 PictureClerks and 4 ApplicationClerks. An input of 3 would mean that there are 3 PictureClerks, 3 ApplicationClerks, 3 PassportClerks, and 3 Cashiers. There is always only 1 Manager.
+
+
+
+
+IV. Implementation:
+    + Files Modified
+
+        Part 1
+            - synch.h
+            - synch.cc
+            - threadtest.cc
+
+        Part 2
+            - threadtest.cc
+
+    + Files added
+        N/A
+
+    + Data Structures added, and the file they were added to.
+        
+        Part 1
+            N/A
+
+        Part 2
+            threadtest.cc
+                struct Customer
+                struct Clerk
+                struct Manager
+
+    + Data Structures modified, and the file they were added to.
+        
+        Part 1
+            synch.h
+                class Lock {
+                   
+                    ...
+
+                    List *waitQueue;
+                    Thread *owner;
+                    bool isBusy;
+                }
+
+                class Condition {
+
+                    ...
+
+                    Lock *waitingLock;
+                    List *cvWaitQueue;
+                }
+
+        Part 2
+            N/A
+
+    + Functions added and in which file.
+
+        Part 1
+            N/A
+
+        Part 2
+            threadtest.cc
+                void customer(int customerNumber): implements customer as described in Section I Part 2
+                void passportClerk(int myLine): implements passport clerk as described in Section I Part 2
+                void cashier(int myLine): implements cashier as described in Section I Part 2
+                void manager(): implements manager as described in Section I Part 2
+                void applicationClerk(int myLine): implements application clerk as described in Section I Part 2
+                void pictureClerk(int myLine): implements picture clerk as described in Section I Part 2
+
+                void pictureTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and picture clerk from customer's perspective (thread)
+                void applicationTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and application clerk from customer's perspective (thread)
+                void passportTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and passport clerk from customer's perspective (thread): simulates the transaction between customer and picture clerk from customer's perspective (thread)
+                void cashierTransaction(Clerk * clerk, Customer * customer): simulates the transaction between customer and cashier from customer's perspective (thread)
+
+                int getInShortestLine(Customer * customer, std::vector<Clerk*> clerk to Visit, Lock * clerkLock): puts the customer in the shortest line given the clerk type to visit
+                int isValidNumber(char * number, int limit): checks whether valid number of customers/clerks/senators was entered during full simulation of passport office
+                void printInitValues(): prints all the values needed at the beginning of each simulation
+                void runPassportOffice(): starts the program and forks the appropriate type and amount of threads 
+                void launchPassportOffice(): launches the full passport office simulation
+                void testMin(): tests the minimum value cases
+                void testAvg(): tests the average value cases
+                void testMax(): tests the maximum value cases
+                
+
+
+    + Functions modified and in which file.
+
+        Part 1
+            synch.cc
+                Lock::Lock(char* debugName)
+                Lock::~Lock()
+                void Lock::Acquire()
+                void Lock::Release()
+                bool Lock::isHeldByCurrentThread()
+
+                Condition::Condition(char* debugName)
+                Condition::~Condition()
+                void Condition::Wait(Lock* conditionLock)
+                void Condition::Signal(Lock* condition Lock)
+                void Condition::Broadcast(Lock* conditionLock)
+
+        Part 2
+            threadtest.cc
+                void TestSuite()
+
+V. Testing:
+    + How to test
+        To run the tests enter the following commands for the specified input type:
+            nachos -P2Tm    // Min values
+            nachos -P2TA    // Avg values
+            nachos -P2TM    // Max values
+    + Test Output
+    	As per the template and for efficiency we chose not to dump the entire output but rather provide grep commands that will direct you to the appropriate section that proves the given test.
+
+        Test 1 - Customer always take the shortest line, but no 2 customers ever choose the same shortest line at the same time.
+            Run the command : nachos -P2TA | grep line : to see that the customers get in the shortest line
+
+        Test 2 - Managers only read from one Clerk's total money received at a time.
+            Run the command : nachos -P2TA | grep counted : to see that the Manager reads the clerks' total money one at a time
+
+        Test 3 - Customers do not leave until they are given their passport by the cashier. The Cashier does not start on another customer until they know that the last Customer has left their area.
+            Run the command : nachos -P2TA | egrep "completed passport|leaving" : and it is clear that the cashier gives the customer their passport before the customer leaves
+
+        Test 4 - Clerks go on break when they have no one waiting in their line
+            run the command : nachos -P2TA | grep "going on break" : to see Clerks going on break
+
+        Test 5 - Managers get Clerks off their break when lines get too long
+            run the command : nachos -P2TA | grep woken : to see the manager waking up Clerks
+
+        Test 6 - Total sales never suffers from a race condition
+            run the command : nachos -P2TA : and check that the sum of the money from the individual clerks is equal to the total for the passport office
+
+        Test 7 - The behavior of Customers is proper when Senators arrive. This is before, during, and after.
+            run the command : nachos -P2TA | grep outside : to see that the customers go outside when a Senator arrives
+
+VI. Discussion:
+    + Experiment expectation.  (What is supposed to happen.)
+        It was expected that the passport office would run until all the customers have been satisfied and that the random total amount of money given to all the customers combined would equal the total revenue generated by the passport office.
+    + Experiment result.  (What actually happened.)
+        For a majority of cases, our code correctly handles all the customers and the passport office generates the expected revenue (from bribe lines and passport payments). However, sometimes when multiple senators are added the code produces unexpected results.
+    + Explanation
+        The fact that all the customer and senator threads completed in the appropriate manner (tracing transactions through during run) and the passport office revenue was equal to the total customer revenue proves that our simulation worked as expected. Each customer paid all their money to the bribe line clerks and the cashiers and followed the rules of obtaining a passport including the extra expectations during the presence of a senator.
+
+VIII. Miscellaneous:
+The senators do not work entirely as expected. For example, the customers currently in the office all get to execute whatever task they are in line for rather than taking each customer out of line. Once each customers executes the current task, they then leave the passport office and come back in once the senator is done. Also, for some amounts of senators (2, 3, or 4 from our experience), the code will infinite loop. We believe this has to do with the senators putting each other to sleep and never being signalled for wake up.

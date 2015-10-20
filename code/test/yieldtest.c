@@ -5,5 +5,6 @@ int b, c;
 
 int main()
 {
+	Write("About to yield\n", 15, ConsoleOutput);
     Yield();
 }

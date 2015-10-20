@@ -1,5 +1,5 @@
-/* exechelper.c
- *	Simple program to test invalid values.
+/* multipassport.c
+ *	Program to test the execution of multiple passport offices.
  *
  * 	NOTE: for some reason, user programs with global data structures 
  *	sometimes haven't worked in the Nachos environment.  So be careful
@@ -12,6 +12,7 @@
 
 int main()
 {
-	Write("Exec works!\n", 12, ConsoleOutput);
+	Exec("../test/passportoffice", 22);
+	Exec("../test/passportoffice", 22);
     Exit(0);
 }

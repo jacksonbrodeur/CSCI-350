@@ -288,10 +288,10 @@ void Close_Syscall(int fd) {
 void exec_thread(int vaddr) {
     
     
-    execLock->Acquire();
+    /* execLock->Acquire(); */
 
-    printf("inside of exec thread with vaddr of %d\n", vaddr);
-    printf("addrspace: %d\n", currentThread->space);
+    DEBUG('b', "inside of exec thread with vaddr of %d\n", vaddr);
+    DEBUG('b', "addrspace: %d\n", currentThread->space);
 
     int ppn = stackBitMap->Find();
     
@@ -304,14 +304,14 @@ void exec_thread(int vaddr) {
     currentThread->space->InitRegisters();		// set the initial register values
     
     int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
-    printf("Giving the process %d thread a starting stack page of %d\n", findCurrentProcess(), startingStackPage);
+    DEBUG('b', "Giving the process %d thread a starting stack page of %d\n", findCurrentProcess(), startingStackPage);
     processTable[findCurrentProcess()]->threadList[0]->startingStackPage = startingStackPage;
     
     machine->WriteRegister(StackReg, startingStackPage);
 
     currentThread->space->RestoreState();		// load page table register
     
-    execLock->Release();
+    /* execLock->Release(); */
     
     /*
     printf("PCReg:%d\n", machine->ReadRegister(PCReg));
@@ -378,8 +378,8 @@ int ExecSyscall(int vaddr, int len) {
     KernelThread * newThread = new KernelThread(t);
     newProcess->threadList[0]=newThread;
     
-    printf("Created a new process and a new kernel thread with addrspace: %d\n", mySpace);
-    printf("vaddr is %d\n",vaddr);
+    DEBUG('b', "Created a new process and a new kernel thread with addrspace: %d\n", mySpace);
+    DEBUG('b', "vaddr is %d\n",vaddr);
     
     t->Fork(exec_thread, vaddr);
     execLock->Release();
@@ -418,7 +418,7 @@ bool isLastExecutingProcess() {
 }
 
 void ExitSyscall(int status) {
-    
+    currentThread->Finish();
     exitLock->Acquire();
     
     int currentProcess = findCurrentProcess();
@@ -476,7 +476,6 @@ void ExitSyscall(int status) {
     }
     
     exitLock->Release();
-    currentThread->Finish();
 }
 
 int findAvailableThreadListIndex (int processIndex) {

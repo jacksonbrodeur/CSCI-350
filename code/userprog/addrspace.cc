@@ -143,7 +143,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 						// to leave room for the stack
     size = numPages * PageSize;
     
-    printf("Numpages: %d, numphys: %d\n", numPages, NumPhysPages);
+    DEBUG('b', "Numpages: %d, numphys: %d\n", numPages, NumPhysPages);
     
     ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
