@@ -1,0 +1,228 @@
+Title: Writeup for Project 2, Fall 2015
+Date: 10/17/15
+Group:  Jackson Brodeur     jbrodeur@usc.edu
+        Dylan Davis         dylandav@usc.edu
+        Matthew O'Brien     obrienm@usc.edu	
+ 
+I. Requirements:
+
+	Part 1
+		Implement system calls and exception handling. These system calls allow us to create user programs and run them in the operating system at the same time. Specifications are as follows:
+			Must support the following:
+				- Fork (complete implementation in part 2)
+				- Exec (complete implementation in part 2)
+				- Exit
+				- Yield
+			Implement syscalls for:
+				- Lock::Acquire()
+				- Lock::Release()	
+				- Condition::Wait()
+				- Condition::Signal()
+				- Condition::Broadcast()	
+			Also implement constructor and destructor syscalls to create a Lock and a Condition object:
+				- CreateLock
+				- DestroyLock
+				- CreateCondition
+				- DestroyCondition
+		
+	Part 2
+		Implement multiprogramming for uniprogrammed nachos. We did this by:
+			- Devising way to allocate physical memory to allow multiple programs
+			- Providing way of copying data between kernel and user's virtual address
+			- completing the implementation of Fork syscall
+			- Completing the implementation of Exec syscall 
+			- Designing a test suite to prove Fork and Exec perform correctly (in any combination and won't break OS) by using all of the system call's functionalities
+
+	Part 3
+		Implement passport office as a multithreaded Nachos user program (using new Lock and Condition syscalls). This entails:
+			- using Fork to create all threads
+			- being able to have multiple passport offices running as different processes
+			- designing a test suite that proves implementation is correct
+
+
+II. Assumptions:
+
+	All of our processes, threads, locks, and conditions are stored in different tables that are implemented by arrays. We assumed that any locations in the array set to null indicate that the validate bit for that memory location is false. Any locations that have a valid lock/condition/thread/process struct means that location’s valid bit is true.
+	Other assumptions include the max amount of locks/conditions/threads/processes. We allocated a table of size 1000 for the locks and conditions to make sure that any instance of the passport office would not reach the end of these tables since there are a large amount of locks and conditions in the passport office (locks and CVs for each clerk). We also made a max size of 100 for our process table to ensure it was sufficiently large for any amount of passport office instances we wanted to run. Each of these processes has a thread list of 100 to account for any numbers of clerks and customers that the passport office may have. Since there can be a max of 50 customers, 5 clerks, and 10 senators, we can assume that there should never be over 65 threads for a single passport office process (55+10+5). Thus a thread list of size 100 for each process should always be sufficiently large.
+
+
+III. Design:
+
+- This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
+
+	To implement multiprogramming in this project we needed to keep track of all the threads and processes running on the operating system. We also needed to keep track of locks and CVs associated with each address space of the processes. Keeping track of this data required a process table, lock table, and cv table. Since there is a large amount of information associated with each lock, CV, thread, and process, we had to implement these variables as structs. Each struct would have a member variable of its actual type (such as a thread if the struct represented a thread or a CV if the struct was representing a CV). We also included other information in the structs such as the location in memory, ID, stack information, among other relative information. We keep track of where threads and processes are stored in memory with a single bitmap declared in system.h/.cc. All of the member variables for each struct type are identified below.
+	
+	- The KernelLock struct has the following data:
+    	Lock *lock;
+    	AddrSpace *addrSpace;
+    	bool isToBeDeleted;
+
+	- The KernelCV struct has the following data:
+    	Condition * condition;
+	    AddrSpace *addrSpace;
+    	bool isToBeDeleted;
+
+	- The KernelThread struct has the following data:
+    	int startingStackPage;
+    	Thread * myThread;
+
+	- The KernelProcess struct has the following data:
+	    KernelThread ** threadList;
+	    Thread * myThread;
+	    int totalThreads;
+	    int numThreadsExecuting;
+    	AddrSpace * mySpace;
+
+    We also had to use locks for each system call and table to protect the shared resources. These included the following:
+    	- lockTableLock
+		- cvTableLock
+		- printLock
+		- forkLock
+		- exitLock
+		- execLock
+
+	Our algorithms for the passport office user program are the same as project 1 and are outlined in more detail in the miscellaneous section.
+	For each of our system calls we validate all the arguments then proceed to call the correct kernel code (such as returning a lock index if the system call is CreateLock or calling currentThread->Yield() if the system call is Yield).
+
+IV. Implementation:
+	+ Files Modified
+		exception.cc
+		threadtest.cc
+		system.h
+		system.cc
+		syscall.h
+		start.s
+		addrspace.h
+		addrspace.cc
+		machine.h
+		progtest.cc
+		threadtest.cc
+		test Makefile
+
+	+ Files added
+		acquirelock.c
+		createcondition.c
+		createlock.c
+		cv_wait_signal.c
+		destroylock.c
+		diff_proc.c
+		exechelper.c
+		exectest.c
+		invalidtest.c
+		passportoffice.c
+		print.c
+		rand.c
+		releaselock.c
+		yieldtest.c
+
+	+ Data Structures added, and the file they were added to.
+		KernelProcess** processTable (kernel process table) - system.h/.cc
+		KernelLock** kernelLocks (kernel lock table) - system.h/.cc
+		KernelCV** kernelCVs (kernel cv table) - system.h/.cc
+		struct KernelProcess (process struct) - system.h/.cc
+		struct KernelLock (lock struct) - system.h/.cc
+		struct KernelCV (CV struct) - system.h/.cc
+		
+	+ Data Structures modified, and the file they were added to.
+		We did not modify any existing data structures. Data structures such as Bitmap and AddressSpace were used but not modified.
+
+	+ Functions added and in which file.
+		syscall.h
+			int CreateLock(char * name, int len);
+			void DestroyLock(int lock);
+			int Acquire(int lock);
+			void Release(int lock);
+			int CreateCondtion(char * name, int len);
+			void DestroyCondtion(int condtion);
+			void Wait(int condition, int lock);
+			void Signal(int condition, int lock);
+			void Broadcast(int condition, int lock);
+			void Print(char * string, int len, int intParams, int charParams);
+			int Rand();
+
+		exception.cc
+			int findCurrentProcess() 
+			int validateLock(int index) 
+			int validateCV(int index) 
+			void exec_thread(int vaddr)
+			int ExecSyscall(int vaddr, int len)
+			bool isLastExecutingProcess()
+			void ExitSyscall(int status)
+			int findAvailableThreadListIndex (int processIndex)
+			void kernel_thread(int vaddr)
+			void ForkSyscall(int vaddr) 
+			void YieldSyscall() 
+			int CreateLockSyscall(int vaddr, int len)
+			void DestroyLockSyscall(int index) 
+			int AcquireSyscall(int index)
+			void ReleaseSyscall(int index)
+			int CreateConditionSyscall(int vaddr, int len)
+			void DestroyConditionSyscall(int index)
+			void WaitSyscall(int conditionIndex, int lockIndex)
+			void SignalSyscall(int conditionIndex, int lockIndex)
+			void BroadcastSyscall(int conditionIndex, int lockIndex)
+			void PrintSyscall(int vaddr, int len, int params1, int params2)
+			int RandSyscall()
+		
+	+ Functions modified and in which file.
+		addrspace.cc
+			AddrSpace::AddrSpace(OpenFile *executable) : 									fileTable(MaxOpenFiles)
+
+		progtest.cc
+			StartProcess(char *filename)
+
+
+V. Testing:  (For each test case, you must show)
+	+ How to test
+		To run the tests enter the following command
+			nachos -x ../test/AAA
+		where AAA is one of the following:
+			acquirelock 
+			createcondition
+			createlock
+			cv_wait_signal
+			destroylock
+			exectest
+			invalidtest
+			passportoffice //TODO come back to this
+			print
+			rand
+			releaselock
+			yieldtest
+
+	+ Test Output
+
+- Describe the testing output. You don't have to dump all the output info. Just make sure your description can exactly reflect your output. The grader of your submission will be wanting to compare the output they get with what you say the output is.
+
+		acquirelock - "Acquired lock _" is printed only once
+		createcondition - "Creating Condition at index: ___" 
+		createlock - "Creating Lock at index: ___" 
+		cv_wait_signal - 
+		destroylock
+		exectest
+		invalidtest
+		passportoffice - Expected functionality of the passport office from project 1. Customers and clerks will print their actions and the manager will print the money on regular intervals along with other state of the office.
+		print
+		rand
+		releaselock
+		yieldtest
+
+VI. Discussion:
+
+	+ Experiment expectation.  (What is supposed to happen.)
+		User programs will be able to use system calls to create locks and child threads to carry out their functionality. System calls will create variables and keep track of their location in memory as well as performing whatever function is expected of them such as acquiring a lock or signaling a CV, among other things.
+	+ Experiment result.  (What actually happened.)
+		We were able to exec 2 passport offices that run as 2 different processes with various child threads. These processes carried out the expected functionality of the passport office and were able to run simultaneously on the operating system. 
+	+ Explanation
+		- Explain your experiment result - how it proves what 
+		  you were supposed to prove.
+
+		The fact that our two passport office processes ran simultaneously proves that we solved the project problem. This is because we executed two process and they ran simultaneously while sharing the OS which is what is expected of multiprogramming.
+
+VIII. Miscellaneous:
+
+- Whatever else you want the grader know about your development.  You can create your own subsections headings here.
+
++Passport office info
+	We made a Rand() and Print() system call to provide full functionality of our passport office. The print system call allows printing of various state in the passport office as it completes and the rand system call allows us to simulate scenarios like the user not liking their picture or proceeding to the passport clerk before getting their picture and application filed. 
+	Our new passport office user program has all of the same functionality and print statements as our project 1. All of the logic is the same (just refactored from kernel code to system calls) and all of the print statements are the same. We hard coded various values of customers, senators, and clerks for the passport office to run in order to prove that the office works for all combinations of these entities. Also, any value of -rs will work for the passport office.

@@ -42,7 +42,7 @@ int customersFinished = 0;
 #define MAX_CLERKS 50
 int NUM_CUSTOMERS = 40;
 int NUM_CLERKS = 5;
-int NUM_SENATORS = 0;
+int NUM_SENATORS = 3;
 
 typedef struct Customer {
     int id;
@@ -1011,6 +1011,9 @@ void initializeData() {
         customers[i].passportGiven = FALSE;
         customers[i].cashierPaid = FALSE;
         customers[i].isSenator = FALSE;
+        if(NUM_SENATORS != 0 && i % ((NUM_CUSTOMERS+NUM_SENATORS)/NUM_SENATORS) == (NUM_CUSTOMERS/NUM_SENATORS)) {
+            customers[i].isSenator = TRUE;
+        }
         if(customers[i].isSenator) {
             customers[i].money = 100;
         } else {
@@ -1045,7 +1048,7 @@ int main()
     for (i = 0; i < NUM_CLERKS; i++) {
         Fork(cashier);
     }
-    for(i = 0; i < NUM_CUSTOMERS; i++) {
+    for(i = 0; i < NUM_CUSTOMERS + NUM_SENATORS; i++) {
         Fork(customer);
     }
 
