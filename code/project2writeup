@@ -27,16 +27,16 @@ I. Requirements:
 		
 	Part 2
 		Implement multiprogramming for uniprogrammed nachos. We did this by:
-			- Devising way to allocate phys mem to allow mult prgrms
+			- Devising way to allocate physical memory to allow multiple programs
 			- Providing way of copying data between kernel and user's virtual address
 			- completing the implementation of Fork syscall
 			- Completing the implementation of Exec syscall 
 			- Designing a test suite to prove Fork and Exec perform correctly (in any combination and won't break OS) by using all of the system call's functionalities
 
 	Part 3
-		Implement passport office as set of multithreaded Nachos user programs (using new Lock and Condition syscalls). This entails:
+		Implement passport office as a multithreaded Nachos user program (using new Lock and Condition syscalls). This entails:
 			- using Fork to create all threads
-			- having multiple passport offices running as different processes
+			- being able to have multiple passport offices running as different processes
 			- designing a test suite that proves implementation is correct
 
 
@@ -75,11 +75,11 @@ III. Design:
 
     We also had to use locks for each system call and table to protect the shared resources. These included the following:
     	- lockTableLock
-	- cvTableLock
-	- printLock
-	- forkLock
-	- exitLock
-	- execLock
+		- cvTableLock
+		- printLock
+		- forkLock
+		- exitLock
+		- execLock
 
 	Our algorithms for the passport office user program are the same as project 1 and are outlined in more detail in the miscellaneous section.
 	For each of our system calls we validate all the arguments then proceed to call the correct kernel code (such as returning a lock index if the system call is CreateLock or calling currentThread->Yield() if the system call is Yield).
