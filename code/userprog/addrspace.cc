@@ -164,6 +164,8 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             interrupt->Halt();
         }
         
+        //printf("Physical page # = %i\n",ppn);
+        
         pageTable[i].physicalPage = ppn;
         
         

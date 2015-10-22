@@ -26,6 +26,8 @@
 void
 StartProcess(char *filename)
 {
+    processTableLock->Acquire();
+    
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
 
@@ -38,7 +40,7 @@ StartProcess(char *filename)
 
     currentThread->space = space;
     
-    BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS/8);
+    BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS);
 
     delete executable;			// close file
     
@@ -49,14 +51,10 @@ StartProcess(char *filename)
     KernelThread * newThread = new KernelThread(currentThread);
     newProcess->threadList[0] = newThread;
 
-    
-    int index = -1;
-    //UPDATE THIS WITH THE PROCESSES LOCATION IN THE PROCESS TABLE I THINK
     for(int i =0;i < 100;i ++) {
         
         if(processTable[i]==NULL) {
             processTable[i] = newProcess;
-            index = i;
             break;
         }
     }
@@ -66,8 +64,12 @@ StartProcess(char *filename)
     int startingStackPage = PageSize * (currentThread->space->codeDataPages + (newProcess->stackBitMap->Find() + 1) * 8) - 16;
     newThread->startingStackPage = startingStackPage;
     
+    machine->WriteRegister(StackReg, startingStackPage);
+    
     space->RestoreState();		// load page table register
 
+    processTableLock->Release();
+    
     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits

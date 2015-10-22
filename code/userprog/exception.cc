@@ -315,11 +315,6 @@ void exec_thread(int vaddr) {
 
     currentThread->space->RestoreState();		// load page table register
     
-    /*
-    printf("PCReg:%d\n", machine->ReadRegister(PCReg));
-    printf("NextPCReg:%d\n", machine->ReadRegister(NextPCReg));
-    printf("StackReg:%d\n", machine->ReadRegister(StackReg));
-    */
     processTableLock->Release();
     
     machine->Run();			// jump to the user progam
@@ -363,7 +358,7 @@ int ExecSyscall(int vaddr, int len) {
     
     t->space = mySpace;
     
-    BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS/8);
+    BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS);
     
     delete executable;			// close file
     
@@ -427,6 +422,8 @@ bool isLastExecutingProcess() {
 
 void ExitSyscall(int status) {
     
+    //currentThread->Finish();
+    
     processTableLock->Acquire();
     
     int currentProcess = findCurrentProcess();
@@ -444,8 +441,12 @@ void ExitSyscall(int status) {
             }
         }
         //reclaim the exiting threads memory
-        for (int i = 0; i < 8; i++) {            
-            processTable[currentProcess]->stackBitMap->Clear((processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize - i);
+        for (int i = 0; i < 8; i++) {
+            printf("%i\n",(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage));
+            
+            physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
+            
+            processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].virtualPage);
         }
         //one thread has finished executing so keep track of this in the current process
         processTable[currentProcess]->numThreadsExecuting--;
@@ -468,8 +469,10 @@ void ExitSyscall(int status) {
         }
 
         //reclaim the exiting threads memory
-        for (int i = 0; i < 8; i++) {            
-            processTable[currentProcess]->stackBitMap->Clear((processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize - i);
+        for (int i = 0; i < 8; i++) {
+            printf("%i\n",(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage));
+            
+            physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
         }
 
         for(int i =0;i<MAX_LOCKS;i++) {
@@ -525,7 +528,7 @@ void kernel_thread(int vaddr) {
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr + 4);
     
-    int ppn = processTable[currentProcess]->stackBitMap->Find();;
+    int ppn = processTable[currentProcess]->stackBitMap->Find();
     
     if(ppn==-1) {
         
