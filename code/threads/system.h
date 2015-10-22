@@ -69,6 +69,7 @@ struct KernelProcess
     int totalThreads;
     int numThreadsExecuting;
     AddrSpace * mySpace;
+    BitMap * stackBitMap;
     
     KernelProcess();
     
@@ -76,18 +77,18 @@ struct KernelProcess
 };
 
 #define MAX_LOCKS 1000
+#define TOTALPAGESPERPROCESS 1000
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
 
 extern Lock * lockTableLock;
 extern Lock * cvTableLock;
 extern Lock * printLock;
-extern Lock * forkLock;
-extern Lock * exitLock;
-extern Lock * execLock;
+extern Lock * processTableLock;
 
 extern KernelProcess** processTable;
-extern BitMap * stackBitMap;
+//extern BitMap * stackBitMap;
+extern BitMap * physicalPageBitMap;
 
 
 

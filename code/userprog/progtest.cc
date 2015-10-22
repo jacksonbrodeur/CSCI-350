@@ -37,11 +37,14 @@ StartProcess(char *filename)
     space = new AddrSpace(executable);
 
     currentThread->space = space;
+    
+    BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS/8);
 
     delete executable;			// close file
     
     KernelProcess * newProcess = new KernelProcess(currentThread);
     newProcess->mySpace = space;
+    newProcess->stackBitMap = stackBitMap;
     
     KernelThread * newThread = new KernelThread(currentThread);
     newProcess->threadList[0] = newThread;
@@ -60,7 +63,7 @@ StartProcess(char *filename)
 
     space->InitRegisters();		// set the initial register values
     
-    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (stackBitMap->Find() + 1) * 8) - 16;
+    int startingStackPage = PageSize * (currentThread->space->codeDataPages + (newProcess->stackBitMap->Find() + 1) * 8) - 16;
     newThread->startingStackPage = startingStackPage;
     
     space->RestoreState();		// load page table register

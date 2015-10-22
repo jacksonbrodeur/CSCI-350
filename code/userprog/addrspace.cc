@@ -137,8 +137,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     codeDataPages = divRoundUp(size, PageSize);
     
     
-    
-    numPages = divRoundUp(size, PageSize) /* + divRoundUp(UserStackSize,PageSize) */ + 1000;
+    numPages = divRoundUp(size, PageSize) + TOTALPAGESPERPROCESS; /* + divRoundUp(UserStackSize,PageSize) */
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;
@@ -156,7 +155,18 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
         pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-        pageTable[i].physicalPage = i;
+        
+        int ppn = physicalPageBitMap->Find();
+        
+        if(ppn == -1) {
+            
+            printf("Machine is out of memory\n");
+            interrupt->Halt();
+        }
+        
+        pageTable[i].physicalPage = ppn;
+        
+        
         pageTable[i].valid = TRUE;
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;

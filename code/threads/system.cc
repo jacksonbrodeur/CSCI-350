@@ -20,7 +20,8 @@ Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
 KernelProcess ** processTable;
-BitMap * stackBitMap;
+//BitMap * stackBitMap;
+BitMap * physicalPageBitMap;
 
 KernelLock::KernelLock() {
     this->lock = NULL;
@@ -39,9 +40,7 @@ KernelLock ** kernelLocks;
 Lock * lockTableLock;
 Lock * cvTableLock;
 Lock * printLock;
-Lock * forkLock;
-Lock * exitLock;
-Lock * execLock;
+Lock * processTableLock;
 
 
 KernelCV::KernelCV() {
@@ -137,7 +136,8 @@ Initialize(int argc, char **argv)
     
     //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
     processTable = new KernelProcess*[100];
-    stackBitMap = new BitMap(NumPhysPages*PageSize);
+    
+    physicalPageBitMap = new BitMap(NumPhysPages);
 
     // initialize all locks within array of KernelLock objects 
     kernelLocks = new KernelLock*[MAX_LOCKS];
@@ -154,9 +154,7 @@ Initialize(int argc, char **argv)
     lockTableLock = new Lock("lockTableLock");
     cvTableLock = new Lock("cvTableLock");
     printLock = new Lock("printLock");
-    forkLock = new Lock("forkLock");
-    exitLock = new Lock("exitLock");
-    execLock = new Lock("execLock");
+    processTableLock = new Lock("processTableLock");
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program

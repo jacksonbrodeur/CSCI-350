@@ -877,6 +877,7 @@ void manager() {
         
         
     }
+    Print("This passport office has finished\n", 34, 0, 0);
     
     /*delete program data*/
 

@@ -39,7 +39,7 @@ int findCurrentProcess() {
     //we need to iterate through the process table to find the process that this new thread is being forked from
     for(int i = 0; i < 100; i ++) {
         
-        //if this evaluates to true, we have found the current process
+        //means the process at i exists and has the same space as the current process (only way this can happen is if it IS the current process)
         if(processTable[i]!=NULL && processTable[i]->mySpace == currentThread->space) {
             
             processIndex = i;
@@ -50,6 +50,7 @@ int findCurrentProcess() {
 }
 
 int validateLock(int index) {
+    
     if (index < 0 || index > MAX_LOCKS) {
         printf("The lock index: %d was invalid.\n", index);
         return 0;
@@ -286,14 +287,17 @@ void Close_Syscall(int fd) {
 }
 
 void exec_thread(int vaddr) {
-    
-    
-    /* execLock->Acquire(); */
 
+    
+    processTableLock->Acquire();
     DEBUG('b', "inside of exec thread with vaddr of %d\n", vaddr);
     DEBUG('b', "addrspace: %d\n", currentThread->space);
 
-    int ppn = stackBitMap->Find();
+    
+    currentThread->space->InitRegisters();		// set the initial register values
+    
+    //give the main thread of this process a starting stack page
+    int ppn = processTable[findCurrentProcess()]->stackBitMap->Find();
     
     if(ppn==-1) {
         
@@ -301,23 +305,22 @@ void exec_thread(int vaddr) {
         interrupt->Halt();
     }
     
-    currentThread->space->InitRegisters();		// set the initial register values
-    
     int startingStackPage = PageSize * (currentThread->space->codeDataPages + (ppn + 1) * 8) - 16;
+    
     DEBUG('b', "Giving the process %d thread a starting stack page of %d\n", findCurrentProcess(), startingStackPage);
+    
     processTable[findCurrentProcess()]->threadList[0]->startingStackPage = startingStackPage;
     
     machine->WriteRegister(StackReg, startingStackPage);
 
     currentThread->space->RestoreState();		// load page table register
     
-    /* execLock->Release(); */
-    
     /*
     printf("PCReg:%d\n", machine->ReadRegister(PCReg));
     printf("NextPCReg:%d\n", machine->ReadRegister(NextPCReg));
     printf("StackReg:%d\n", machine->ReadRegister(StackReg));
     */
+    processTableLock->Release();
     
     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
@@ -325,7 +328,7 @@ void exec_thread(int vaddr) {
 
 int ExecSyscall(int vaddr, int len) {
     
-    execLock->Acquire();
+    processTableLock->Acquire();
     
     char * filename = new char[len+1];
     AddrSpace * mySpace;
@@ -353,16 +356,20 @@ int ExecSyscall(int vaddr, int len) {
         return -1;
     }
     
+    //make a new address space, a new process, and a new thread to be the main thread of this process
     mySpace = new AddrSpace(executable);
     
     Thread * t = new Thread("executable thread");
     
     t->space = mySpace;
     
+    BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS/8);
+    
     delete executable;			// close file
     
     KernelProcess * newProcess = new KernelProcess(t);
     newProcess->mySpace = mySpace;
+    newProcess->stackBitMap = stackBitMap;
     
     int index = -1;
 
@@ -382,7 +389,8 @@ int ExecSyscall(int vaddr, int len) {
     DEBUG('b', "vaddr is %d\n",vaddr);
     
     t->Fork(exec_thread, vaddr);
-    execLock->Release();
+    processTableLock->Release();
+    
     return index;
 }
 
@@ -418,8 +426,8 @@ bool isLastExecutingProcess() {
 }
 
 void ExitSyscall(int status) {
-    currentThread->Finish();
-    exitLock->Acquire();
+    
+    processTableLock->Acquire();
     
     int currentProcess = findCurrentProcess();
     //check if this thread is the last process
@@ -436,7 +444,15 @@ void ExitSyscall(int status) {
             }
         }
         //reclaim the exiting threads memory
-        stackBitMap->Clear(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage);
+        for (int i = 0; i < 8; i++) {
+            
+            
+            
+            
+            printf("%i\n", currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
+            
+            processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
+        }
         //one thread has finished executing so keep track of this in the current process
         processTable[currentProcess]->numThreadsExecuting--;
     }
@@ -458,8 +474,13 @@ void ExitSyscall(int status) {
         }
 
         //reclaim the exiting threads memory
-        stackBitMap->Clear(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage);
-        
+        for (int i = 0; i < 8; i++) {
+            
+            printf("%i\n", currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
+            
+            processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
+        }
+
         for(int i =0;i<MAX_LOCKS;i++) {
             if(kernelLocks[i]->addrSpace == currentThread->space) {
                 
@@ -475,7 +496,8 @@ void ExitSyscall(int status) {
         
     }
     
-    exitLock->Release();
+    processTableLock->Release();
+    currentThread->Finish();
 }
 
 int findAvailableThreadListIndex (int processIndex) {
@@ -501,16 +523,18 @@ int findAvailableThreadListIndex (int processIndex) {
 void kernel_thread(int vaddr) {
     
     //printf("Vaddr: %d\n", vaddr);
-    forkLock->Acquire();
+    processTableLock->Acquire();
     
     //printf("We are inside the kernel_thread method\n");
+    
+    int currentProcess = findCurrentProcess();
     
     currentThread->space->InitRegisters();
     
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr + 4);
     
-    int ppn = stackBitMap->Find();
+    int ppn = processTable[currentProcess]->stackBitMap->Find();;
     
     if(ppn==-1) {
         
@@ -523,7 +547,6 @@ void kernel_thread(int vaddr) {
     //printf("The starting stack page is %d\n",startingStackPage);
     
     //find the current process and set the new threads starting stack page variable
-    int currentProcess = findCurrentProcess();
     //printf("The current process is %d and the current thread index in that process is %d\n", currentProcess, currentThreadIndex);
     
     for(int i = 0; i < 100; i++) {
@@ -545,15 +568,13 @@ void kernel_thread(int vaddr) {
     
     currentThread->space->RestoreState();
     
-    //(void) interrupt->SetLevel(old);
-    forkLock->Release();
+    processTableLock->Release();
     machine->Run();
 }
 
 void ForkSyscall(int vaddr) {
 
-    forkLock->Acquire();
-    //IntStatus old = interrupt->SetLevel(IntOff);
+    processTableLock->Acquire();
     
     //printf("Entering fork syscall\n");
     
@@ -579,9 +600,8 @@ void ForkSyscall(int vaddr) {
     
     //printf("We are forking the new thread with vaddr: %d\n", vaddr);
     
-    forkLock->Release();
+    processTableLock->Release();
     t->Fork(kernel_thread, vaddr);
-    //(void) interrupt->SetLevel(old);
 }
 
 void YieldSyscall() {

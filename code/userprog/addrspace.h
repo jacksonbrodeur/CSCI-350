@@ -37,10 +37,11 @@ class AddrSpace {
     Table fileTable;			// Table of openfiles
     
     unsigned int codeDataPages;
+    
+    TranslationEntry *pageTable;	// Assume linear page table translation
+    // for now!
 
  private:
-    TranslationEntry *pageTable;	// Assume linear page table translation
-					// for now!
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
 };
