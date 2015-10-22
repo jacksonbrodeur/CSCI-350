@@ -442,8 +442,6 @@ void ExitSyscall(int status) {
         }
         //reclaim the exiting threads memory
         for (int i = 0; i < 8; i++) {
-            printf("%i\n",(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage));
-            
             physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
             
             processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].virtualPage);
@@ -470,8 +468,6 @@ void ExitSyscall(int status) {
 
         //reclaim the exiting threads memory
         for (int i = 0; i < 8; i++) {
-            printf("%i\n",(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage));
-            
             physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
         }
 

@@ -115,6 +115,8 @@ IV. Implementation:
 		KernelProcess** processTable (kernel process table) - system.h/.cc
 		KernelLock** kernelLocks (kernel lock table) - system.h/.cc
 		KernelCV** kernelCVs (kernel cv table) - system.h/.cc
+		BitMap * physicalPageBitMap - system.h/.cc
+		BitMap * stackBitMap - exception.cc (Note that one of these bitmaps exists for every 							process)
 		struct KernelProcess (process struct) - system.h/.cc
 		struct KernelLock (lock struct) - system.h/.cc
 		struct KernelCV (CV struct) - system.h/.cc
@@ -205,7 +207,7 @@ VI. Discussion:
 	+ Experiment expectation.  (What is supposed to happen.)
 		User programs will be able to use system calls to create locks and child threads to carry out their functionality. System calls will create variables and keep track of their location in memory as well as performing whatever function is expected of them such as acquiring a lock or signaling a CV, among other things.
 	+ Experiment result.  (What actually happened.)
-		 Multiple passport offices may be executed and the these two user programs will share the passport office as expected. The output will be interleaved on the command line.
+		 Multiple passport offices may be executed and the these two user programs will share the passport office as expected. The output will be interleaved on the command line. This execution is accomplished with the use of our sys calls that allow the passport office user programs to make use of various kernel data structures.
 	+ Explanation
 		The fact that our two passport office processes ran simultaneously proves that we solved the project problem. This is because we executed two processes and they ran simultaneously while sharing the OS which is what is expected of multiprogramming.
 
@@ -214,6 +216,3 @@ VIII. Miscellaneous:
 +Passport office info
 	We made a Rand() and Print() system call to provide full functionality of our passport office. The print system call allows printing of various state in the passport office as it completes and the rand system call allows us to simulate scenarios like the user not liking their picture or proceeding to the passport clerk before getting their picture and application filed. 
 	Our new passport office user program has all of the same functionality and print statements as our project 1. All of the logic is the same (just refactored from kernel code to system calls) and all of the print statements are the same. We hard coded various values of customers, senators, and clerks for the passport office to run in order to prove that the office works for all combinations of these entities.
-
-+IMPORTANT
-	Issues arise when we run our exit code on the passport office so for the sake of being able to run the passport office, we have included a currentThread->Finish() at the top of exit. The exit code that is broken are the two bitmap->clear lines. 
