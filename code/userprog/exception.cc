@@ -444,14 +444,8 @@ void ExitSyscall(int status) {
             }
         }
         //reclaim the exiting threads memory
-        for (int i = 0; i < 8; i++) {
-            
-            
-            
-            
-            printf("%i\n", currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
-            
-            processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
+        for (int i = 0; i < 8; i++) {            
+            processTable[currentProcess]->stackBitMap->Clear((processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize - i);
         }
         //one thread has finished executing so keep track of this in the current process
         processTable[currentProcess]->numThreadsExecuting--;
@@ -474,11 +468,8 @@ void ExitSyscall(int status) {
         }
 
         //reclaim the exiting threads memory
-        for (int i = 0; i < 8; i++) {
-            
-            printf("%i\n", currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
-            
-            processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize + i].physicalPage);
+        for (int i = 0; i < 8; i++) {            
+            processTable[currentProcess]->stackBitMap->Clear((processTable[currentProcess]->threadList[threadListIndex]->startingStackPage)/PageSize - i);
         }
 
         for(int i =0;i<MAX_LOCKS;i++) {

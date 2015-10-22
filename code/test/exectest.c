@@ -12,8 +12,10 @@
 
 int main()
 {
-	/*Exec("bad vaddr", 9);*/
+	Exec("bad vaddr", 9);
     Exec("../test/print", 13);
 	Exec("../test/exechelper", 18);
+	Exec("../test/exechelper", 18);
+	Exec("../test/print", 13);
     Exit(0);
 }
