@@ -119,6 +119,9 @@ SwapHeader (NoffHeader *noffH)
 //----------------------------------------------------------------------
 
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
+    
+    myExecutable = executable;
+    
     NoffHeader noffH;
     unsigned int i, size;
 
@@ -137,7 +140,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     codeDataPages = divRoundUp(size, PageSize);
     
     
-    numPages = divRoundUp(size, PageSize) + TOTALPAGESPERPROCESS; /* + divRoundUp(UserStackSize,PageSize) */
+    numPages = divRoundUp(size, PageSize);// + TOTALPAGESPERPROCESS; /* + divRoundUp(UserStackSize,PageSize) */
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;
@@ -154,8 +157,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
-        pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-        
+        /*
         int ppn = physicalPageBitMap->Find();
         
         if(ppn == -1) {
@@ -163,21 +165,20 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             printf("Machine is out of memory\n");
             interrupt->Halt();
         }
+        */
         
-        //printf("Physical page # = %i\n",ppn);
-        
+        pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
         pageTable[i].physicalPage = ppn;
-        
-        
-        pageTable[i].valid = TRUE;
+        pageTable[i].valid = FALSE;
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;
         pageTable[i].readOnly = FALSE;  // if the code segment was entirely on
 					// a separate page, we could set its 
 					// pages to be read-only
         
-        executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, 40+pageTable[i].virtualPage*PageSize);
+        //executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, 40+pageTable[i].virtualPage*PageSize);
     }
+    
     
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
@@ -255,7 +256,14 @@ AddrSpace::InitRegisters()
 //----------------------------------------------------------------------
 
 void AddrSpace::SaveState() 
-{}
+{
+    IntStatus old = interrupt->SetLevel(IntOff)
+    for(int i = 0; i < TLBSize; i ++) {
+        
+        machine->tlb[i].valid = FALSE;
+    }
+    (void) interrupt->SetLevel(old);
+}
 
 //----------------------------------------------------------------------
 // AddrSpace::RestoreState
@@ -267,6 +275,6 @@ void AddrSpace::SaveState()
 
 void AddrSpace::RestoreState() 
 {
-    machine->pageTable = pageTable;
+    //machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }

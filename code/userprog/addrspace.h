@@ -40,7 +40,8 @@ class AddrSpace {
     
     TranslationEntry *pageTable;	// Assume linear page table translation
     // for now!
-
+    
+    OpenFile * myExecutable;
  private:
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space

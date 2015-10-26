@@ -87,10 +87,9 @@ extern Lock * printLock;
 extern Lock * processTableLock;
 
 extern KernelProcess** processTable;
-//extern BitMap * stackBitMap;
 extern BitMap * physicalPageBitMap;
 
-
+extern IPT * ipt;
 
 #ifdef USER_PROGRAM
 #include "machine.h"

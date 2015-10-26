@@ -33,6 +33,8 @@ using namespace std;
 
 int currentThreadIndex = -1;
 
+int currentTLB = 0;
+
 int findCurrentProcess() {
     
     int processIndex = -1;
@@ -360,7 +362,7 @@ int ExecSyscall(int vaddr, int len) {
     
     BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS);
     
-    delete executable;			// close file
+    //delete executable;			// close file
     
     KernelProcess * newProcess = new KernelProcess(t);
     newProcess->mySpace = mySpace;
@@ -820,6 +822,27 @@ int RandSyscall() {
     return rand();
 }
 
+void handleIPTMiss () {
+
+    int ppn = physicalPageBitMap->Find();
+    if(ppn == -1) {
+        
+        printf("Machine is out of memory\n");
+        interrupt->Halt();
+    }
+    
+    ipt[i].virtualPage = i;	// for now, virtual page # = phys page #
+    ipt[i].physicalPage = ppn;
+    ipt[i].valid = TRUE;
+    ipt[i].use = FALSE;
+    ipt[i].dirty = FALSE;
+    ipt[i].readOnly = FALSE;  // if the code segment was entirely on
+    // a separate page, we could set its
+    // pages to be read-only
+    
+    executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, 40+pageTable[i].virtualPage*PageSize);
+}
+
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
@@ -946,14 +969,36 @@ void ExceptionHandler(ExceptionType which) {
         machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
         machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
         
-        /*
-        cout<<"PrevPCReg:"<<machine->ReadRegister(PrevPCReg)<<endl;
-        cout<<"PCReg:"<<machine->ReadRegister(PCReg)<<endl;
-        cout<<"NextPCReg:"<<machine->ReadRegister(NextPCReg)<<endl;
-         */
-        
         return;
-    } else {
+    }
+    else if(which == PageFaultException) {
+        
+        int VA = machine->ReadRegister(39);
+        int VPN = VA/PageSize;
+        
+        int ppn = -1;
+        for(int i = 0; i < NumPhysPages; i ++) {
+            
+            if(ipt[i].valid && ipt[i].virtualPage == VPN && ipt[i].mySpace == currentThread->space) {
+                
+                ppn = i;
+                break;
+            }
+                
+        }
+        
+        if(ppn == -1) {
+            handleIPTMiss();
+            //handle ipt miss here
+        }
+        
+        //now populate TLB
+        
+        machine->tlb[currentTLB] = currentThread->space->ipt[VPN];
+        
+        currentTLB = (currentTLB+1)%TLBSize;
+    }
+    else {
       cout<<"Unexpected user mode exception - which:"<<which<<"  type:"<< type<<endl;
       interrupt->Halt();
     }

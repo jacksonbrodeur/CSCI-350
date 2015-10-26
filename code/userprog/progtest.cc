@@ -42,7 +42,7 @@ StartProcess(char *filename)
     
     BitMap * stackBitMap = new BitMap(TOTALPAGESPERPROCESS);
 
-    delete executable;			// close file
+    //delete executable;			// close file
     
     KernelProcess * newProcess = new KernelProcess(currentThread);
     newProcess->mySpace = space;

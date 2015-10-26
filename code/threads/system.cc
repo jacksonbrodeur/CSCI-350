@@ -20,8 +20,8 @@ Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
 KernelProcess ** processTable;
-//BitMap * stackBitMap;
 BitMap * physicalPageBitMap;
+ITP * itp;
 
 KernelLock::KernelLock() {
     this->lock = NULL;
@@ -138,8 +138,21 @@ Initialize(int argc, char **argv)
     processTable = new KernelProcess*[100];
     
     physicalPageBitMap = new BitMap(NumPhysPages);
+    
+    ipt = new IPT(NumPhysPages);
+    for(int i = 0; i < NumPhysPages; i ++) {
+        
+        ipt[i].virtualPage = i;	// for now, virtual page # = phys page #
+        ipt[i].physicalPage = ppn;
+        ipt[i].valid = TRUE;
+        ipt[i].use = FALSE;
+        ipt[i].dirty = FALSE;
+        ipt[i].readOnly = FALSE;  // if the code segment was entirely on
+        // a separate page, we could set its
+        // pages to be read-only
+    }
 
-    // initialize all locks within array of KernelLock objects 
+    // initialize all locks within array of KernelLock objects
     kernelLocks = new KernelLock*[MAX_LOCKS];
     for(int i = 0; i < MAX_LOCKS; i++) {
         kernelLocks[i] = new KernelLock();
