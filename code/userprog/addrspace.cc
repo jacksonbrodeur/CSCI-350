@@ -135,7 +135,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
+    size = noffH.code.size + noffH.initData.size; //+ noffH.uninitData.size ;
     
     codeDataPages = divRoundUp(size, PageSize);
     
@@ -155,7 +155,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
 // first, set up the translation 
-    pageTable = new TranslationEntry[numPages];
+    pageTable = new PageTableEntry[numPages];
     for (i = 0; i < numPages; i++) {
         /*
         int ppn = physicalPageBitMap->Find();
@@ -166,9 +166,9 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             interrupt->Halt();
         }
         */
-        
+    
         pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-        pageTable[i].physicalPage = ppn;
+        pageTable[i].physicalPage = -1;
         pageTable[i].valid = FALSE;
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;
@@ -177,6 +177,18 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 					// pages to be read-only
         
         //executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, 40+pageTable[i].virtualPage*PageSize);
+        
+        if(i < codeDataPages) {
+            
+            //virtual page is in executable
+            pageTable[i].byteOffset = 40+pageTable[i].virtualPage*PageSize;
+            pageTable[i].diskLocation = EXECUTABLE;
+        }
+        else {
+            
+            //virtual page is not in the executable
+            pageTable[i].diskLocation = NEITHER;
+        }
     }
     
     

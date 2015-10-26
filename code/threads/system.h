@@ -78,6 +78,9 @@ struct KernelProcess
 
 #define MAX_LOCKS 1000
 #define TOTALPAGESPERPROCESS 1000
+
+#define EXECUTABLE 0
+#define NEITHER 1
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
 

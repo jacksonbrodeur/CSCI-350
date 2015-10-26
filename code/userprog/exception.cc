@@ -822,7 +822,7 @@ int RandSyscall() {
     return rand();
 }
 
-void handleIPTMiss () {
+void handleIPTMiss (int neededVPN) {
 
     int ppn = physicalPageBitMap->Find();
     if(ppn == -1) {
@@ -831,16 +831,19 @@ void handleIPTMiss () {
         interrupt->Halt();
     }
     
-    ipt[i].virtualPage = i;	// for now, virtual page # = phys page #
-    ipt[i].physicalPage = ppn;
-    ipt[i].valid = TRUE;
-    ipt[i].use = FALSE;
-    ipt[i].dirty = FALSE;
-    ipt[i].readOnly = FALSE;  // if the code segment was entirely on
-    // a separate page, we could set its
-    // pages to be read-only
+    if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE) {
+        
+        //only do this if necessary
+        currentThread->space->executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
+    }
     
-    executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, 40+pageTable[i].virtualPage*PageSize);
+    //update IPT
+    ipt[neededVPN].physicalPage = ppn;
+    ipt[neededVPN].valid = TRUE;
+    
+    //update PageTable
+    currentThread->space->pageTable[neededVPN].physicalPage = ppn;
+    currentThread->space->pageTable[neededVPN].valid = TRUE;
 }
 
 
@@ -988,8 +991,7 @@ void ExceptionHandler(ExceptionType which) {
         }
         
         if(ppn == -1) {
-            handleIPTMiss();
-            //handle ipt miss here
+            handleIPTMiss(VPN);
         }
         
         //now populate TLB

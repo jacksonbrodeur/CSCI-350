@@ -38,7 +38,7 @@ class AddrSpace {
     
     unsigned int codeDataPages;
     
-    TranslationEntry *pageTable;	// Assume linear page table translation
+    PageTableEntry *pageTable;	// Assume linear page table translation
     // for now!
     
     OpenFile * myExecutable;
