@@ -22,6 +22,8 @@ Timer *timer;				// the hardware timer device,
 KernelProcess ** processTable;
 BitMap * physicalPageBitMap;
 ITP * itp;
+BitMap * swapFileBitMap; // TODO: instantiate this var
+// TODO: declare swap file declaration - open right when nachos starts up (before user program runs) and close right before nachos is done - OpenFile, WriteAt
 
 KernelLock::KernelLock() {
     this->lock = NULL;

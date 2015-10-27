@@ -1,4 +1,4 @@
-// translate.h 
+// pagetableentry.h 
 //	Data structures for managing the translation from 
 //	virtual page # -> physical page #, used for managing
 //	physical memory on behalf of user programs.

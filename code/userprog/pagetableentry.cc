@@ -1,4 +1,4 @@
-// translate.cc 
+// pagetableentry.cc 
 //	Routines to translate virtual addresses to physical addresses.
 //	Software sets up a table of legal translations.  We look up
 //	in the table on every memory reference to find the true physical

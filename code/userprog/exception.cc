@@ -822,13 +822,11 @@ int RandSyscall() {
     return rand();
 }
 
-void handleIPTMiss (int neededVPN) {
+int handleIPTMiss (int neededVPN) {
 
     int ppn = physicalPageBitMap->Find();
     if(ppn == -1) {
-        
-        printf("Machine is out of memory\n");
-        interrupt->Halt();
+        ppn = handleMemoryFull();
     }
     
     if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE) {
@@ -844,6 +842,17 @@ void handleIPTMiss (int neededVPN) {
     //update PageTable
     currentThread->space->pageTable[neededVPN].physicalPage = ppn;
     currentThread->space->pageTable[neededVPN].valid = TRUE;
+
+    return ppn;
+}
+
+// *** If page you select to evict may belong to your process, then page to evict may be in the TLB. 
+// If in TLB, propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
+int handleMemoryFull() {
+    // choose page from IPT (random) to evict
+    // if dirty, WriteAt() to swap file
+    // update swapFileBitMap accordingly (show where in swap file page is)
+    // update the proper page table
 }
 
 
@@ -992,13 +1001,14 @@ void ExceptionHandler(ExceptionType which) {
         
         if(ppn == -1) {
             handleIPTMiss(VPN);
-        }
+        }   
         
         //now populate TLB
         
-        machine->tlb[currentTLB] = currentThread->space->ipt[VPN];
+        machine->tlb[currentTLB] = currentThread->space->ipt[ppn];
+        // I think we need to deep copy here @piazza id 280 
         
-        currentTLB = (currentTLB+1)%TLBSize;
+        currentTLB = (currentTLB + 1) % TLBSize;
     }
     else {
       cout<<"Unexpected user mode exception - which:"<<which<<"  type:"<< type<<endl;
