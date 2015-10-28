@@ -858,23 +858,21 @@ int handleIPTMiss (int neededVPN) {
     return ppn;
 }
 
-// *** If page you select to evict may belong to your process, then page to evict may be in the TLB. 
-// If in TLB, propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
+// TODO: If page you select to evict belongs to your process then it may be in the TLB. 
+//      If in TLB, propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
 int handleMemoryFull() {
-    // choose page from IPT (random) to evict
-    // if dirty, WriteAt() to swap file
-    // update swapFileBitMap accordingly (show where in swap file page is)
-    // update the proper page table
-    
-    
-    int page = rand()%NumPhysPages;
+    // choose page from IPT (random for now) to evict
+    // TODO: if rand or FIFO
+    int page = rand() % NumPhysPages;
     //evict ^^^ that page from the ipt
-    
+
+    // if dirty, WriteAt() to swap file
     if(ipt[page].dirty) {
-        
-        machine->WriteAt("swapfile.txt",)
+        int location = swapFileBitMap.Find() * PageSize;
+        swapFile->WriteAt(&(machine->mainMemory[ipt[page].physicalPage * PageSize]), PageSize, location);
+        // tell the page table the bye offset of the evicted page 
+        currentThread->space->pageTable[ipt[page].virtualPage].byteOffset = location;
     }
-    
 }
 
 
