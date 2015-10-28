@@ -92,6 +92,8 @@ extern Lock * processTableLock;
 extern KernelProcess** processTable;
 extern BitMap * physicalPageBitMap;
 
+extern OpenFile * swapFile;
+
 extern IPT * ipt;
 
 #ifdef USER_PROGRAM

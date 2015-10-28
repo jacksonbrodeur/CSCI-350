@@ -22,8 +22,7 @@ Timer *timer;				// the hardware timer device,
 KernelProcess ** processTable;
 BitMap * physicalPageBitMap;
 ITP * itp;
-BitMap * swapFileBitMap; // TODO: instantiate this var
-// TODO: declare swap file declaration - open right when nachos starts up (before user program runs) and close right before nachos is done - OpenFile, WriteAt
+BitMap * swapFileBitMap;
 
 KernelLock::KernelLock() {
     this->lock = NULL;
@@ -43,6 +42,8 @@ Lock * lockTableLock;
 Lock * cvTableLock;
 Lock * printLock;
 Lock * processTableLock;
+
+OpenFile * swapFile;
 
 
 KernelCV::KernelCV() {
@@ -140,6 +141,7 @@ Initialize(int argc, char **argv)
     processTable = new KernelProcess*[100];
     
     physicalPageBitMap = new BitMap(NumPhysPages);
+    swapFileBitMap = new BitMap(500); //sufficiently large size
     
     ipt = new IPT(NumPhysPages);
     for(int i = 0; i < NumPhysPages; i ++) {
@@ -170,6 +172,22 @@ Initialize(int argc, char **argv)
     cvTableLock = new Lock("cvTableLock");
     printLock = new Lock("printLock");
     processTableLock = new Lock("processTableLock");
+    
+    //swapfile.txt
+    char * filename = new char[12];
+    
+    if ( copyin("swapfile.txt", 11, filename) == -1 ) {
+        printf("%s","Bad pointer passed to copyin\n");
+    }
+    filename[len]='\0';
+    
+    swapFile = fileSystem->Open(filename);
+    
+    delete[] filename;
+    
+    if (executable == NULL) {
+        printf("Unable to open the swapfile %s\n", filename);
+    }
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program

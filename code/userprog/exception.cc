@@ -350,7 +350,6 @@ int ExecSyscall(int vaddr, int len) {
     
     if (executable == NULL) {
         printf("Unable to open file %s\n", filename);
-        return -1;
     }
     
     //make a new address space, a new process, and a new thread to be the main thread of this process
@@ -446,6 +445,8 @@ void ExitSyscall(int status) {
         for (int i = 0; i < 8; i++) {
             physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
             
+            ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage].valid = FALSE;
+            
             processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].virtualPage);
         }
         //one thread has finished executing so keep track of this in the current process
@@ -471,6 +472,8 @@ void ExitSyscall(int status) {
         //reclaim the exiting threads memory
         for (int i = 0; i < 8; i++) {
             physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
+            
+            ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage].valid = FALSE;
         }
 
         for(int i =0;i<MAX_LOCKS;i++) {
@@ -835,13 +838,22 @@ int handleIPTMiss (int neededVPN) {
         currentThread->space->executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
     }
     
-    //update IPT
-    ipt[neededVPN].physicalPage = ppn;
-    ipt[neededVPN].valid = TRUE;
+    //update all ipt fields
+    ipt[ppn].virtualPage = neededVPN;
+    ipt[ppn].physicalPage = ppn;
+    ipt[ppn].mySpace = currentThread->space;
+    ipt[ppn].valid = TRUE;
+    ipt[ppn].readOnly = FALSE;
+    ipt[ppn].use = FALSE;
+    ipt[ppn].dirty = FALSE;
     
     //update PageTable
     currentThread->space->pageTable[neededVPN].physicalPage = ppn;
     currentThread->space->pageTable[neededVPN].valid = TRUE;
+    currentThread->space->pageTable[neededVPN].virtualPage = neededVPN;
+    currentThread->space->pageTable[neededVPN].use = FALSE;
+    currentThread->space->pageTable[neededVPN].dirty = FALSE;
+    currentThread->space->pageTable[neededVPN].readOnly = FALSE;
 
     return ppn;
 }
@@ -853,6 +865,16 @@ int handleMemoryFull() {
     // if dirty, WriteAt() to swap file
     // update swapFileBitMap accordingly (show where in swap file page is)
     // update the proper page table
+    
+    
+    int page = rand()%NumPhysPages;
+    //evict ^^^ that page from the ipt
+    
+    if(ipt[page].dirty) {
+        
+        machine->WriteAt("swapfile.txt",)
+    }
+    
 }
 
 
@@ -1004,11 +1026,17 @@ void ExceptionHandler(ExceptionType which) {
         }   
         
         //now populate TLB
-        
-        machine->tlb[currentTLB] = currentThread->space->ipt[ppn];
-        // I think we need to deep copy here @piazza id 280 
+    
+        IntStatus old = interrupt->SetLevel(IntOff);
+        machine->tlb[currentTLB].physicalPage = ipt[ppn].physicalPage;
+        machine->tlb[currentTLB].virtualPage  = ipt[ppn].virtualPage;
+        machine->tlb[currentTLB].readOnly  = ipt[ppn].readOnly;
+        machine->tlb[currentTLB].dirty  = ipt[ppn].dirty;
+        machine->tlb[currentTLB].valid = TRUE;
+        machine->tlb[currentTLB].use  = ipt[ppn].use;
         
         currentTLB = (currentTLB + 1) % TLBSize;
+        interrupt->SetLevel(old);
     }
     else {
       cout<<"Unexpected user mode exception - which:"<<which<<"  type:"<< type<<endl;
