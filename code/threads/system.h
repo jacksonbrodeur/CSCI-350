@@ -81,6 +81,10 @@ struct KernelProcess
 
 #define EXECUTABLE 0
 #define NEITHER 1
+#define FIFO 0
+#define RAND 1
+extern int pageReplacementPolicy;
+extern List* pageQueue;
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
 

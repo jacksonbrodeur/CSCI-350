@@ -23,6 +23,8 @@ KernelProcess ** processTable;
 BitMap * physicalPageBitMap;
 ITP * itp;
 BitMap * swapFileBitMap;
+int pageReplacementPolicy;
+List* pageQueue;
 
 KernelLock::KernelLock() {
     this->lock = NULL;
@@ -136,9 +138,12 @@ Initialize(int argc, char **argv)
     int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
-    
+
     //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
     processTable = new KernelProcess*[100];
+
+    pageReplacementPolicy = FIFO;
+    pageQueue = new List;
     
     physicalPageBitMap = new BitMap(NumPhysPages);
     swapFileBitMap = new BitMap(500); //sufficiently large size

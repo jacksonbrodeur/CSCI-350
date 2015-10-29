@@ -114,13 +114,12 @@ main(int argc, char **argv)
          if (!strcmp(*argv, "-P")) {        	// run a user program
 	    	ASSERT(argc > 1);
 	    	argCount = 2;
-            if(*(argv + 1) == "FIFO"){
-            	// TODO: set variable to FIFO
+            if(*(argv + 1) == "FIFO"){	
+            	pageReplacementPolicy = FIFO;
             } else if (*(argv + 1) == "RAND"){
-            	// TODO: set variable to RAND
+            	pageReplacementPolicy = RAND;
             }
         }
-
 
 
 #ifdef USER_PROGRAM

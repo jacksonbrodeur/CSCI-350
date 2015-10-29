@@ -846,6 +846,8 @@ int handleIPTMiss (int neededVPN) {
     ipt[ppn].readOnly = FALSE;
     ipt[ppn].use = FALSE;
     ipt[ppn].dirty = FALSE;
+
+    pageQueue->Append(ppn);
     
     //update PageTable
     currentThread->space->pageTable[neededVPN].physicalPage = ppn;
@@ -858,13 +860,13 @@ int handleIPTMiss (int neededVPN) {
     return ppn;
 }
 
-// TODO: If page you select to evict belongs to your process then it may be in the TLB. 
-//      If in TLB, propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
 int handleMemoryFull() {
-    // choose page from IPT (random for now) to evict
-    // TODO: if rand or FIFO
-    int page = rand() % NumPhysPages;
-    //evict ^^^ that page from the ipt
+    // choose page from IPT to evict
+    if (pageReplacementPolicy == FIFO) {
+        int page = pageQueue->Remove();
+    } else {
+        int page = rand() % NumPhysPages;
+    }
 
     // if dirty, WriteAt() to swap file
     if(ipt[page].dirty) {
@@ -872,6 +874,19 @@ int handleMemoryFull() {
         swapFile->WriteAt(&(machine->mainMemory[ipt[page].physicalPage * PageSize]), PageSize, location);
         // tell the page table the bye offset of the evicted page 
         currentThread->space->pageTable[ipt[page].virtualPage].byteOffset = location;
+    }
+
+    // check if page belongs to our process
+    if (ipt[page].mySpace == currentThread->space) {
+        // if it does then check TLB
+        for (int i = 0; i < 4; i++) {
+            // propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
+            if (tlb[i].physicalPage == page) {
+                ipt[page].dirty = tlb[i].dirty;
+                tlb[i].valid = false;
+                pageTable[ipt[page].virtualPage].valid = false;
+            }
+        }
     }
 }
 
@@ -1022,7 +1037,7 @@ void ExceptionHandler(ExceptionType which) {
         if(ppn == -1) {
             handleIPTMiss(VPN);
         }   
-        
+
         //now populate TLB
     
         IntStatus old = interrupt->SetLevel(IntOff);
