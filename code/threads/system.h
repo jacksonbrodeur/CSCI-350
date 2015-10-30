@@ -16,6 +16,8 @@
 #include "stats.h"
 #include "timer.h"
 #include "synch.h"
+#include "bitmap.h"
+
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv); 	// Initialization,
@@ -95,10 +97,12 @@ extern Lock * processTableLock;
 
 extern KernelProcess** processTable;
 extern BitMap * physicalPageBitMap;
+extern BitMap *swapFileBitMap;
 
 extern OpenFile * swapFile;
 
-extern IPT * ipt;
+class IPT;
+extern IPT *ipt;
 
 #ifdef USER_PROGRAM
 #include "machine.h"
