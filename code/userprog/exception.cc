@@ -658,12 +658,7 @@ int AcquireSyscall(int index) {
 
     lockTableLock->Acquire();
     if(validateLock(index)) {
-        
-        /*if(kernelLocks[index]->lock->isInUse())
-            printf("Lock is busy so I will wait\n");
-        else
-            printf("Lock is available so I will be the owner\n");
-        */
+      
         kernelLocks[index]->lock->Acquire();
 
         lockTableLock->Release();
@@ -1038,7 +1033,7 @@ void ExceptionHandler(ExceptionType which) {
             handleIPTMiss(VPN);
         }   
 
-        //now populate TLB
+        //now update TLB
     
         IntStatus old = interrupt->SetLevel(IntOff);
         machine->tlb[currentTLB].physicalPage = ipt[ppn].physicalPage;
