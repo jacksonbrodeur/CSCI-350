@@ -21,7 +21,7 @@ Timer *timer;				// the hardware timer device,
 
 KernelProcess ** processTable;
 BitMap * physicalPageBitMap;
-ITP * itp;
+IPT * ipt;
 BitMap * swapFileBitMap;
 int pageReplacementPolicy;
 List* pageQueue;
