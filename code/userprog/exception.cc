@@ -746,7 +746,6 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
     if(validateCV(conditionIndex) && validateLock(lockIndex)) {
         DEBUG('d', "Waiting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
             kernelLocks[lockIndex]->lock->getName());
-        cvTableLock->Release();
         kernelCVs[conditionIndex]->condition->Wait(kernelLocks[lockIndex]->lock);
     }
     cvTableLock->Release();
@@ -883,7 +882,7 @@ int handleMemoryFull() {
     // if dirty, WriteAt() to swap file
     if(ipt[page].dirty && ipt[page].valid) {
         int location = swapFileBitMap->Find();
-        
+        // handle -1 from swapfile bitmap find (not likely but we have to do it anyways)
         if(location == -1) {
             
             printf("Swapfile bitmap could not find a page");
@@ -1087,6 +1086,7 @@ void ExceptionHandler(ExceptionType which) {
         return;
     }
     else if(which == PageFaultException) {
+        IntStatus old = interrupt->SetLevel(IntOff);
         
         int VA = machine->ReadRegister(39);
         int VPN = VA/PageSize;
@@ -1107,8 +1107,6 @@ void ExceptionHandler(ExceptionType which) {
         }   
 
         //now update TLB
-    
-        IntStatus old = interrupt->SetLevel(IntOff);
         machine->tlb[currentTLB].physicalPage = ipt[ppn].physicalPage;
         machine->tlb[currentTLB].virtualPage  = ipt[ppn].virtualPage;
         machine->tlb[currentTLB].readOnly  = ipt[ppn].readOnly;

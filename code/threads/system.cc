@@ -184,6 +184,7 @@ Initialize(int argc, char **argv)
     memoryLock = new Lock("MemoryLock");
     iptLock = new Lock("iptLock");
     
+    // TODO: append machine id to swap file because it's one per OS
     swapFile = fileSystem->Open("swapfile.txt");
     
     if (swapFile == NULL) {
