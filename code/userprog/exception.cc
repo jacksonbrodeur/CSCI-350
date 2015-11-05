@@ -427,6 +427,9 @@ void ExitSyscall(int status) {
     
     processTableLock->Acquire();
     
+    printf("Exiting with status %d\n",status);
+    
+    
     int currentProcess = findCurrentProcess();
     //check if this thread is the last process
     if(!isLastExecutingThread(currentProcess)) {
@@ -453,6 +456,7 @@ void ExitSyscall(int status) {
         processTable[currentProcess]->numThreadsExecuting--;
     }
     else if(isLastExecutingThread(currentProcess) && isLastExecutingProcess()) {
+        printf("System done\n");
         interrupt->Halt();
     }
     else if(isLastExecutingThread(currentProcess) && !isLastExecutingProcess()) {
@@ -820,17 +824,96 @@ int RandSyscall() {
     return rand();
 }
 
+void printIPT() {
+    
+    /*ipt[ppn].virtualPage = neededVPN;
+     ipt[ppn].physicalPage = ppn;
+     ipt[ppn].mySpace = currentThread->space;
+     ipt[ppn].valid = TRUE;
+     ipt[ppn].readOnly = FALSE;
+     ipt[ppn].use = FALSE;
+     ipt[ppn].dirty = FALSE;*/
+    
+    for(int i = 0; i < NumPhysPages;i++) {
+        
+        printf("IPT virtual page: %d IPT physical page: %d IPT space: %d IPT valid: %d IPT readOnly: %d IPT use: %d IPT dirty: %d\n", ipt[i].virtualPage, ipt[i].physicalPage, ipt[i].mySpace ,ipt[i].valid,ipt[i].readOnly,ipt[i].use,ipt[i].dirty);
+    }
+}
+
+void printTLB() {
+    
+    /*machine->tlb[currentTLB].physicalPage = ipt[ppn].physicalPage;
+     machine->tlb[currentTLB].virtualPage  = ipt[ppn].virtualPage;
+     machine->tlb[currentTLB].readOnly  = ipt[ppn].readOnly;
+     machine->tlb[currentTLB].dirty  = ipt[ppn].dirty;
+     machine->tlb[currentTLB].valid = TRUE;
+     machine->tlb[currentTLB].use  = ipt[ppn].use;*/
+    
+    for(int i = 0;i<4;i++) {
+        
+        printf("TLB physical page: %d TLB virtual page: %d TLB readonly: %d TLB dirty: %d TLB valid: %d TLB use: %d\n",machine->tlb[i].physicalPage, machine->tlb[i].virtualPage,machine->tlb[i].readOnly,machine->tlb[i].dirty,machine->tlb[i].valid,machine->tlb[i].use);
+    }
+}
+
+int handleMemoryFull() {
+    // choose page from IPT to evict
+    
+    int page = -1;
+    
+    if (pageReplacementPolicy == FIFO) {
+        
+        int * pagePointer = (int*)pageQueue->Remove();
+        page = *pagePointer;
+        delete pagePointer;
+        
+    }
+    else {
+        
+        page = rand() % NumPhysPages;
+    }
+    
+    for (int i = 0; i < 4; i++) {
+        // propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
+        if (machine->tlb[i].physicalPage == page && machine->tlb[i].valid) {
+                ipt[page].dirty = machine->tlb[i].dirty;
+                machine->tlb[i].valid = FALSE;
+        }
+    }
+
+    // if dirty, WriteAt() to swap file
+    if(ipt[page].dirty && ipt[page].valid) {
+        int location = swapFileBitMap->Find();
+        
+        if(location == -1) {
+            
+            printf("Swapfile bitmap could not find a page");
+            return -1;
+        }
+        
+        location = location * PageSize;
+        
+        swapFile->WriteAt(&(machine->mainMemory[page*PageSize]), PageSize, location);
+        // tell the page table the bye offset of the evicted page
+        ipt[page].mySpace->pageTable[ipt[page].virtualPage].byteOffset = location;
+        ipt[page].mySpace->pageTable[ipt[page].virtualPage].diskLocation = SWAPFILE;
+    }
+    
+    ipt[page].mySpace->pageTable[ipt[page].virtualPage].valid = FALSE;
+    
+    /*
+    printIPT();
+    printTLB();
+     */
+    
+    return page;
+}
+
 int handleIPTMiss (int neededVPN) {
 
     int ppn = physicalPageBitMap->Find();
+    
     if(ppn == -1) {
         ppn = handleMemoryFull();
-    }
-    
-    if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE) {
-        
-        //only do this if necessary
-        currentThread->space->executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
     }
     
     //update all ipt fields
@@ -841,8 +924,28 @@ int handleIPTMiss (int neededVPN) {
     ipt[ppn].readOnly = FALSE;
     ipt[ppn].use = FALSE;
     ipt[ppn].dirty = FALSE;
-
-    pageQueue->Append(ppn);
+    
+    if(pageReplacementPolicy == FIFO) {
+     
+        int * ppnPointer = new int;
+        
+        *ppnPointer = ppn;
+        
+        pageQueue->Append((void*)ppnPointer);
+    }
+    
+    if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE) {
+        
+        //only do this if necessary
+        currentThread->space->myExecutable->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
+    }
+    else if(currentThread->space->pageTable[neededVPN].diskLocation == SWAPFILE) {
+        
+        swapFile->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
+        
+        swapFileBitMap->Clear(currentThread->space->pageTable[neededVPN].byteOffset/PageSize);
+        ipt[ppn].dirty = TRUE;
+    }
     
     //update PageTable
     currentThread->space->pageTable[neededVPN].physicalPage = ppn;
@@ -852,39 +955,13 @@ int handleIPTMiss (int neededVPN) {
     currentThread->space->pageTable[neededVPN].dirty = FALSE;
     currentThread->space->pageTable[neededVPN].readOnly = FALSE;
 
+    /*
+    printIPT();
+    printTLB();
+    */
+    
     return ppn;
 }
-
-int handleMemoryFull() {
-    // choose page from IPT to evict
-    if (pageReplacementPolicy == FIFO) {
-        int page = pageQueue->Remove();
-    } else {
-        int page = rand() % NumPhysPages;
-    }
-
-    // if dirty, WriteAt() to swap file
-    if(ipt[page].dirty) {
-        int location = swapFileBitMap.Find() * PageSize;
-        swapFile->WriteAt(&(machine->mainMemory[ipt[page].physicalPage * PageSize]), PageSize, location);
-        // tell the page table the bye offset of the evicted page 
-        currentThread->space->pageTable[ipt[page].virtualPage].byteOffset = location;
-    }
-
-    // check if page belongs to our process
-    if (ipt[page].mySpace == currentThread->space) {
-        // if it does then check TLB
-        for (int i = 0; i < 4; i++) {
-            // propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
-            if (tlb[i].physicalPage == page) {
-                ipt[page].dirty = tlb[i].dirty;
-                tlb[i].valid = false;
-                pageTable[ipt[page].virtualPage].valid = false;
-            }
-        }
-    }
-}
-
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?

@@ -210,8 +210,6 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     }
     
     // we must have either a TLB or a page table, but not both!
-    printf("TLB: %d\n", tlb);
-    printf("PAGETABLE: %d\n", pageTable);
     ASSERT(tlb == NULL || pageTable == NULL);	
     ASSERT(tlb != NULL || pageTable != NULL);	
 

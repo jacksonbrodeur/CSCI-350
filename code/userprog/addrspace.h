@@ -17,12 +17,24 @@
 #include "filesys.h"
 #include "table.h"
 
+
 #define UserStackSize 1024 	// increase this as necessary!
 
 #define MaxOpenFiles 256
 #define MaxChildSpaces 256
 
-class PageTableEntry;
+enum FileLocation {
+    EXECUTABLE,
+    SWAPFILE,
+    NEITHER
+};
+
+struct PageTableEntry : public TranslationEntry {
+    
+    int byteOffset;
+    
+    int diskLocation;
+};
 
 class AddrSpace {
   public:
@@ -40,7 +52,8 @@ class AddrSpace {
     
     unsigned int codeDataPages;
     
-    PageTableEntry *pageTable;	// Assume linear page table translation
+    PageTableEntry *pageTable;
+    //TranslationEntry *pageTable;	// Assume linear page table translation
     // for now!
     
     OpenFile * myExecutable;

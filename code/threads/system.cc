@@ -142,18 +142,18 @@ Initialize(int argc, char **argv)
     //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
     processTable = new KernelProcess*[100];
 
-    pageReplacementPolicy = FIFO;
+    pageReplacementPolicy = RAND;
     pageQueue = new List;
     
     physicalPageBitMap = new BitMap(NumPhysPages);
     swapFileBitMap = new BitMap(500); //sufficiently large size
     
-    ipt = new IPT(NumPhysPages);
+    ipt = new IPT[NumPhysPages];
     for(int i = 0; i < NumPhysPages; i ++) {
         
-        ipt[i].virtualPage = i;	// for now, virtual page # = phys page #
-        ipt[i].physicalPage = ppn;
-        ipt[i].valid = TRUE;
+        ipt[i].virtualPage = -1;
+        ipt[i].physicalPage = i;
+        ipt[i].valid = FALSE;
         ipt[i].use = FALSE;
         ipt[i].dirty = FALSE;
         ipt[i].readOnly = FALSE;  // if the code segment was entirely on
@@ -178,20 +178,10 @@ Initialize(int argc, char **argv)
     printLock = new Lock("printLock");
     processTableLock = new Lock("processTableLock");
     
-    //swapfile.txt
-    char * filename = new char[12];
+    swapFile = fileSystem->Open("swapfile.txt");
     
-    if ( copyin("swapfile.txt", 11, filename) == -1 ) {
-        printf("%s","Bad pointer passed to copyin\n");
-    }
-    filename[len]='\0';
-    
-    swapFile = fileSystem->Open(filename);
-    
-    delete[] filename;
-    
-    if (executable == NULL) {
-        printf("Unable to open the swapfile %s\n", filename);
+    if (swapFile == NULL) {
+        printf("Unable to open the swapfile\n");
     }
 
 #ifdef USER_PROGRAM

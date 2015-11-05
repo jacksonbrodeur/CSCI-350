@@ -269,7 +269,7 @@ AddrSpace::InitRegisters()
 
 void AddrSpace::SaveState() 
 {
-    IntStatus old = interrupt->SetLevel(IntOff)
+    IntStatus old = interrupt->SetLevel(IntOff);
     for(int i = 0; i < TLBSize; i ++) {
         
         machine->tlb[i].valid = FALSE;
