@@ -140,14 +140,14 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     codeDataPages = divRoundUp(size, PageSize);
     
     
-    numPages = divRoundUp(size, PageSize);// + TOTALPAGESPERPROCESS; /* + divRoundUp(UserStackSize,PageSize) */
+    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize); //+TOTALPAGESPERPROCESS
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;
     
     DEBUG('b', "Numpages: %d, numphys: %d\n", numPages, NumPhysPages);
     
-    ASSERT(numPages <= NumPhysPages);		// check we're not trying
+    //ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have
 						// virtual memory
@@ -156,7 +156,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 					numPages, size);
 // first, set up the translation 
     pageTable = new PageTableEntry[numPages];
-    for (i = 0; i < numPages; i++) {
+    for (i = 0; i < (numPages-8); i++) {
         /*
         int ppn = physicalPageBitMap->Find();
         
