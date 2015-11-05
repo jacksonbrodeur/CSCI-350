@@ -900,10 +900,8 @@ int handleMemoryFull() {
     
     ipt[page].mySpace->pageTable[ipt[page].virtualPage].valid = FALSE;
     
-    /*
     printIPT();
     printTLB();
-     */
     
     return page;
 }
@@ -955,10 +953,8 @@ int handleIPTMiss (int neededVPN) {
     currentThread->space->pageTable[neededVPN].dirty = FALSE;
     currentThread->space->pageTable[neededVPN].readOnly = FALSE;
 
-    /*
     printIPT();
     printTLB();
-    */
     
     return ppn;
 }

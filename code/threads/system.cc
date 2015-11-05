@@ -45,6 +45,9 @@ Lock * cvTableLock;
 Lock * printLock;
 Lock * processTableLock;
 
+Lock * memoryLock;
+Lock * iptLock;
+
 OpenFile * swapFile;
 
 

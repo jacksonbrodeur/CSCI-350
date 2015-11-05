@@ -100,6 +100,9 @@ extern Lock * cvTableLock;
 extern Lock * printLock;
 extern Lock * processTableLock;
 
+extern Lock * memoryLock;
+extern Lock * iptLock;
+
 extern KernelProcess** processTable;
 extern BitMap * physicalPageBitMap;
 extern BitMap *swapFileBitMap;
