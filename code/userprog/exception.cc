@@ -446,9 +446,14 @@ void ExitSyscall(int status) {
         }
         //reclaim the exiting threads memory
         for (int i = 0; i < 8; i++) {
-            physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
             
+            memoryLock->Acquire();
+            physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
+            memoryLock->Release();
+            
+            iptLock->Acquire();
             ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage].valid = FALSE;
+            iptLock->Release();
             
             processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].virtualPage);
         }
@@ -475,9 +480,14 @@ void ExitSyscall(int status) {
 
         //reclaim the exiting threads memory
         for (int i = 0; i < 8; i++) {
-            physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
             
+            memoryLock->Acquire();
+            physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
+            memoryLock->Release();
+            
+            iptLock->Acquire();
             ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage].valid = FALSE;
+            iptLock->Release();
         }
 
         for(int i =0;i<MAX_LOCKS;i++) {
@@ -907,7 +917,12 @@ int handleMemoryFull() {
 
 int handleIPTMiss (int neededVPN) {
 
+    memoryLock->Acquire();
     int ppn = physicalPageBitMap->Find();
+    memoryLock->Release();
+    
+    
+    iptLock->Acquire();
     
     if(ppn == -1) {
         ppn = handleMemoryFull();
@@ -951,9 +966,11 @@ int handleIPTMiss (int neededVPN) {
     currentThread->space->pageTable[neededVPN].use = FALSE;
     currentThread->space->pageTable[neededVPN].dirty = FALSE;
     currentThread->space->pageTable[neededVPN].readOnly = FALSE;
-
+    
     printIPT();
     printTLB();
+    
+    iptLock->Release();
     
     return ppn;
 }
@@ -1086,6 +1103,8 @@ void ExceptionHandler(ExceptionType which) {
         return;
     }
     else if(which == PageFaultException) {
+        
+        
         IntStatus old = interrupt->SetLevel(IntOff);
         
         int VA = machine->ReadRegister(39);
