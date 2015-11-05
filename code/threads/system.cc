@@ -181,6 +181,9 @@ Initialize(int argc, char **argv)
     printLock = new Lock("printLock");
     processTableLock = new Lock("processTableLock");
     
+    memoryLock = new Lock("MemoryLock");
+    iptLock = new Lock("iptLock");
+    
     swapFile = fileSystem->Open("swapfile.txt");
     
     if (swapFile == NULL) {
