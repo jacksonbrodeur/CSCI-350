@@ -135,7 +135,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-    size = noffH.code.size + noffH.initData.size; //+ noffH.uninitData.size ;
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
     
     codeDataPages = divRoundUp(size, PageSize);
     
