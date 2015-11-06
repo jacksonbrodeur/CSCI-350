@@ -156,7 +156,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 					numPages, size);
 // first, set up the translation 
     pageTable = new PageTableEntry[numPages];
-    for (i = 0; i < (numPages-8); i++) {
+    for (i = 0; i < numPages; i++) {
         /*
         int ppn = physicalPageBitMap->Find();
         
@@ -181,8 +181,10 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
         if(i < codeDataPages) {
             
             //virtual page is in executable
-            pageTable[i].byteOffset = 40+pageTable[i].virtualPage*PageSize;
+            pageTable[i].byteOffset = noffH.code.inFileAddr + pageTable[i].virtualPage*PageSize;
             pageTable[i].diskLocation = EXECUTABLE;
+            
+            printf("Virtual Page %d is in the executable at byte offset %d\n",i,pageTable[i].byteOffset);
         }
         else {
             

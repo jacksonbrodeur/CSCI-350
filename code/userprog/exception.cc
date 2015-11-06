@@ -453,15 +453,23 @@ void ExitSyscall(int status) {
             //printf("About to clear physical page: %d\n", currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
             
             if(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].valid) {
+                
                 memoryLock->Acquire();
+                
                 physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
+                
+                processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].virtualPage);
+                
                 memoryLock->Release();
                 
                 iptLock->Acquire();
+                
                 ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage].valid = FALSE;
+                
+                currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].valid = FALSE;
+                
                 iptLock->Release();
                 
-                processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].virtualPage);
             }
         }
         //one thread has finished executing so keep track of this in the current process
@@ -490,6 +498,7 @@ void ExitSyscall(int status) {
             
             memoryLock->Acquire();
             physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
+            
             memoryLock->Release();
             
             iptLock->Acquire();
@@ -888,6 +897,8 @@ int handleMemoryFull() {
         page = rand() % NumPhysPages;
     }
     
+    printf("Going to evict physical page: %d\n",page);
+    
     for (int i = 0; i < 4; i++) {
         // propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
         if (machine->tlb[i].physicalPage == page && machine->tlb[i].valid) {
@@ -907,6 +918,8 @@ int handleMemoryFull() {
         }
         
         location = location * PageSize;
+        
+        printf("Writing to swapfile at location %d\n",location);
         
         swapFile->WriteAt(&(machine->mainMemory[page*PageSize]), PageSize, location);
         // tell the page table the bye offset of the evicted page
@@ -960,13 +973,15 @@ int handleIPTMiss (int neededVPN) {
     if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE) {
         
         //only do this if necessary
-        printf("reading from executable\n");
+        printf("reading from executable at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
+        
         currentThread->space->myExecutable->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
     }
     else if(currentThread->space->pageTable[neededVPN].diskLocation == SWAPFILE) {
         
         
-        printf("reading from swapfile\n");
+        printf("reading from swapfile at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
+        
         swapFile->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
         
         swapFileBitMap->Clear(currentThread->space->pageTable[neededVPN].byteOffset/PageSize);
