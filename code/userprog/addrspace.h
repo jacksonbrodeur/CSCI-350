@@ -57,8 +57,10 @@ class AddrSpace {
     // for now!
     
     OpenFile * myExecutable;
+    
+    unsigned int numPages;
  private:
-    unsigned int numPages;		// Number of pages in the virtual 
+        // Number of pages in the virtual
 					// address space
 };
 

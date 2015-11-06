@@ -10,7 +10,7 @@
 //
 //	In Nachos, user programs are executed one instruction at a time, 
 //	by the simulator.  Each memory reference is translated, checked
-//	for errors, etc.
+//	for errors, etc./Users/dylandavis/Desktop/CSCI-350/code/userprog/exception.cc
 //
 //  DO NOT CHANGE -- part of the machine emulation
 //
@@ -34,7 +34,7 @@ using namespace std;
 					// the disk sector size, for
 					// simplicity
 
-#define NumPhysPages    32
+#define NumPhysPages    42
 #define MemorySize 	(NumPhysPages * PageSize)
 #define TLBSize		4		// if there is a TLB, make it small
 
