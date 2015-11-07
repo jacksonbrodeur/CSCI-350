@@ -136,6 +136,8 @@ bool AcquireLock(int index, int machineID);
 bool ReleaseLock(int index, int machineID);
 
 int CreateCV(char* name);
+bool Wait(int conditionIndex, int lockIndex, int machineID);
+void Signal(int conditionIndex, int lockIndex);
 
 void RunServer()
 {
@@ -162,6 +164,8 @@ void RunServer()
         char data[MaxMailSize];
         bool success;
         char* name = new char[MaxMailSize];
+        int conditionIndex;
+        int lockIndex;
         switch(rpc) {
             case CREATE_LOCK:
                 name = new char[MaxMailSize];
@@ -207,7 +211,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                inMailHdr.to = 0;
+                outMailHdr.to = 0;
                 if(index < 0 || static_cast<uint64_t>(index) > serverLocks->size() - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -235,7 +239,52 @@ void RunServer()
                 success = postOffice->Send(outPktHdr, outMailHdr, data);
                 printf("Created CV named %s from machine %d\n", name, incomingMachineID);
                 break;
+            case WAIT:
+                ss >> conditionIndex;
+                ss >> lockIndex;
+                ss.clear();
+                ss.str("");
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverLocks->size() - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
+                success = Wait(conditionIndex, lockIndex, incomingMachineID);
+                if (success){
+                     printf("Machine %d is waiting on lock %d with condition %d\n", incomingMachineID, lockIndex, conditionIndex);
+                } else {
+                    ss << SUCCESS;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+                break;
+            case SIGNAL:
+                ss >> conditionIndex;
+                ss >> lockIndex;
+                ss.clear();
+                ss.str("");
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
 
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverLocks->size() - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
+                Signal(conditionIndex, lockIndex);
+
+                ss << SUCCESS;
+                strcpy(data, ss.str().c_str());
+                outMailHdr.length = strlen(data) + 1;
+                postOffice->Send(outPktHdr, outMailHdr, data);
+                break;
         }
     }
 }
@@ -298,5 +347,56 @@ int CreateCV(char* name) {
     int index = serverCVs->size();
     serverCVs->push_back(newCV);
     return index;
+}
+
+bool Wait(int conditionIndex, int lockIndex, int machineID) {
+    ServerCV * cv = serverCVs->at(conditionIndex);
+    if(lockIndex < 0 || static_cast<uint64_t>(lockIndex) > serverLocks->size() - 1) {
+        return false;
+    }
+    if (cv->waitingLock == -1) 
+    {
+        cv->waitingLock = lockIndex;
+    }
+    if(cv->waitingLock != lockIndex) {
+        return false;
+    }
+    cv->cvWaitQueue->push_back(machineID);
+    ReleaseLock(lockIndex, machineID);
+    return true;
+}
+
+void Signal(int conditionIndex, int lockIndex) {
+    ServerCV * cv = serverCVs->at(conditionIndex);
+    if(cv->waitingLock == -1) {
+        return;
+    }
+    if(cv->waitingLock != conditionIndex) {
+        return;
+    }
+    if(cv->cvWaitQueue->empty()) {
+        cv->waitingLock = -1;
+    } else {
+        int machineID = cv->cvWaitQueue->front();
+        cv->cvWaitQueue->pop_front();
+        stringstream ss;
+        PacketHeader outPktHdr;
+        MailHeader outMailHdr;
+
+        outPktHdr.to = machineID;
+        outMailHdr.to = 0;
+        ss << SUCCESS;
+        char data[MaxMailSize];
+        strcpy(data, ss.str().c_str());
+        outMailHdr.length = strlen(data) + 1;
+        bool success = AcquireLock(lockIndex, machineID);
+        printf("Machine %d has been signalled by CV %d\n", machineID, conditionIndex);
+        if(success) {
+            postOffice->Send(outPktHdr, outMailHdr, data);
+        } else {//else lock is busy, so don't send response
+            printf("Lock %d is busy so machine %d will wait\n", lockIndex, machineID);
+        }
+        
+    }
 }
 
