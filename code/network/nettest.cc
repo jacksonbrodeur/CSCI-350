@@ -110,15 +110,37 @@ struct ServerLock {
 
 };
 
+struct ServerCV {
+    char * name;
+    int waitingLock;
+    deque<int>* cvWaitQueue;
+
+    ServerCV() {
+        name = "";
+        waitingLock = -1;
+        cvWaitQueue = new deque<int>;
+    }
+
+    ServerCV(char * _name) {
+        name = _name;
+        waitingLock = -1;
+        cvWaitQueue = new deque<int>;
+    }
+};
+
 vector<ServerLock*> * serverLocks;
+vector<ServerCV*> * serverCVs;
 
 int CreateLock(char* name);
 bool AcquireLock(int index, int machineID);
 bool ReleaseLock(int index, int machineID);
 
+int CreateCV(char* name);
+
 void RunServer()
 {
     serverLocks = new vector<ServerLock*>;
+    serverCVs = new vector<ServerCV*>;
     printf("Nachos Server Program has started\n\n");
     while (true) {
         
@@ -139,9 +161,10 @@ void RunServer()
         int index;
         char data[MaxMailSize];
         bool success;
+        char* name = new char[MaxMailSize];
         switch(rpc) {
             case CREATE_LOCK:
-                char* name = new char[MaxMailSize];
+                name = new char[MaxMailSize];
                 ss >> name;
                 ss.clear();
                 ss.str("");
@@ -199,6 +222,19 @@ void RunServer()
                 outMailHdr.length = strlen(data) + 1;
                 postOffice->Send(outPktHdr, outMailHdr, data);
                 break;
+            case CREATE_CV:
+                ss >> name;
+                ss.clear();
+                ss.str("");
+                index = CreateCV(name);
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
+                ss << SUCCESS << " " << index;
+                strcpy(data, ss.str().c_str());
+                outMailHdr.length = strlen(data) + 1;
+                success = postOffice->Send(outPktHdr, outMailHdr, data);
+                printf("Created CV named %s from machine %d\n", name, incomingMachineID);
+                break;
 
         }
     }
@@ -255,5 +291,12 @@ bool ReleaseLock(int index, int machineID) {
         printf("Machine %d did not own lock %d so nothing happens\n", machineID, index);
     }
     return true;
+}
+
+int CreateCV(char* name) {
+    ServerCV * newCV = new ServerCV(name);
+    int index = serverCVs->size();
+    serverCVs->push_back(newCV);
+    return index;
 }
 

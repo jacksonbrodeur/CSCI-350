@@ -762,28 +762,62 @@ int CreateConditionSyscall(int vaddr, int len) {
     }
     
     if(copyin(vaddr, len, name) == -1) {
-        printf("Bad vaddr passed in to CreateLockSyscall\n");
+        printf("Bad vaddr passed in to CreateConditionSyscall\n");
         cvTableLock->Release();
         return -1;
     }
     
     name[len] = '\0';
-    
-    //Create the condition variable here
-    KernelCV * kernelCV = new KernelCV(name);
 
-    int index = -1;
-    for(int i = 0; i < MAX_LOCKS; i++) {
-        if (kernelCVs[i]->condition == NULL) {
-            kernelCVs[i] = kernelCV;
-            index = i;
-            break;
-        }
-    }
+    PacketHeader pktHdr;
+    MailHeader mailHdr;
+
+    //Server always should have machineID=0
     
-    DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
-    cvTableLock->Release();
+    stringstream ss;
+    ss << CREATE_CV << " " << name;
+    char * data = (char*)ss.str().c_str();
+    pktHdr.to = 0;
+    mailHdr.to = 0;
+    mailHdr.from = myMachineID;
+    mailHdr.length = strlen(data) + 1;
+    bool success = postOffice->Send(pktHdr, mailHdr, data);
+
+    if ( !success ) {
+      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+      interrupt->Halt();
+    }
+
+    char buffer[MaxMailSize];
+    postOffice->Receive(0, &pktHdr, &mailHdr, buffer);
+    ss.clear();
+    ss.str("");
+    ss << buffer;
+    int code;
+    int index;
+    ss >> code;
+    if(code != SUCCESS) {
+        printf("CreateCV has failed which should not happen, Terminating Program\n");
+        interrupt->Halt();
+    }
+    ss >> index;
+    ASSERT(index >= 0);
     return index;
+    
+    // //Create the condition variable here
+    // KernelCV * kernelCV = new KernelCV(name);
+
+    // int index = -1;
+    // for(int i = 0; i < MAX_LOCKS; i++) {
+    //     if (kernelCVs[i]->condition == NULL) {
+    //         kernelCVs[i] = kernelCV;
+    //         index = i;
+    //         break;
+    //     }
+    // }
+    
+    // DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
+    // cvTableLock->Release();
 }
 
 void DestroyConditionSyscall(int index) {
