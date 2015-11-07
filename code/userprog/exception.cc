@@ -866,14 +866,6 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
     if(code != SUCCESS) {
         printf("Condition is invalid");
     }
-    // cvTableLock->Acquire();
-    // if(validateCV(conditionIndex) && validateLock(lockIndex)) {
-    //     DEBUG('d', "Waiting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
-    //         kernelLocks[lockIndex]->lock->getName());
-    //     cvTableLock->Release();
-    //     kernelCVs[conditionIndex]->condition->Wait(kernelLocks[lockIndex]->lock);
-    // }
-    // cvTableLock->Release();
 }
 
 void SignalSyscall(int conditionIndex, int lockIndex) {
@@ -906,25 +898,46 @@ void SignalSyscall(int conditionIndex, int lockIndex) {
     if(code != SUCCESS) {
         printf("Condition is invalid");
     }
-    // cvTableLock->Acquire();
-    // if(validateCV(conditionIndex) && validateLock(lockIndex)) {
-    //     DEBUG('d', "Signalling on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
-    //         kernelLocks[lockIndex]->lock->getName());
-    //     kernelCVs[conditionIndex]->condition->Signal(kernelLocks[lockIndex]->lock);
-    // } else {
-    //     DEBUG('d', "Invalid lock or condition to Signal\n");
-    // }
-    // cvTableLock->Release();
 }
 
 void BroadcastSyscall(int conditionIndex, int lockIndex) {
-    cvTableLock->Acquire();
-    if(validateCV(conditionIndex) && validateLock(lockIndex)) {
-        DEBUG('d', "Broadcasting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
-            kernelLocks[lockIndex]->lock->getName());
-        kernelCVs[conditionIndex]->condition->Broadcast(kernelLocks[lockIndex]->lock);
+
+    stringstream ss;
+    PacketHeader pktHdr;
+    MailHeader mailHdr;
+    ss << BROADCAST << " " << conditionIndex << " " << lockIndex;
+
+    //Server always should have machineID=0
+    char * data = (char*)ss.str().c_str();
+    pktHdr.to = 0;
+    mailHdr.to = 0;
+    mailHdr.from = myMachineID;
+    mailHdr.length = strlen(data) + 1;
+    bool success = postOffice->Send(pktHdr, mailHdr, data);
+
+    if ( !success ) {
+      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+      interrupt->Halt();
     }
-    cvTableLock->Release();
+
+    char buffer[MaxMailSize];
+    postOffice->Receive(0, &pktHdr, &mailHdr, buffer);
+    ss.clear();
+    ss.str("");
+    ss << buffer;
+    printf("Buffer: %s\n", buffer);
+    int code;
+    ss >> code;
+    if(code != SUCCESS) {
+        printf("Condition is invalid");
+    }
+    // cvTableLock->Acquire();
+    // if(validateCV(conditionIndex) && validateLock(lockIndex)) {
+    //     DEBUG('d', "Broadcasting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
+    //         kernelLocks[lockIndex]->lock->getName());
+    //     kernelCVs[conditionIndex]->condition->Broadcast(kernelLocks[lockIndex]->lock);
+    // }
+    // cvTableLock->Release();
 }
 
 void PrintSyscall(int vaddr, int len, int params1, int params2) {

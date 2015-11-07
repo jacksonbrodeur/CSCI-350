@@ -138,6 +138,7 @@ bool ReleaseLock(int index, int machineID);
 int CreateCV(char* name);
 bool Wait(int conditionIndex, int lockIndex, int machineID);
 void Signal(int conditionIndex, int lockIndex);
+void Broadcast(int conditionIndex, int lockIndex);
 
 void RunServer()
 {
@@ -285,6 +286,27 @@ void RunServer()
                 outMailHdr.length = strlen(data) + 1;
                 postOffice->Send(outPktHdr, outMailHdr, data);
                 break;
+            case BROADCAST:
+                ss >> conditionIndex;
+                ss >> lockIndex;
+                ss.clear();
+                ss.str("");
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverLocks->size() - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
+
+                Broadcast(conditionIndex, lockIndex);
+                ss << SUCCESS;
+                strcpy(data, ss.str().c_str());
+                outMailHdr.length = strlen(data) + 1;
+                postOffice->Send(outPktHdr, outMailHdr, data);
+                break;
         }
     }
 }
@@ -397,6 +419,17 @@ void Signal(int conditionIndex, int lockIndex) {
             printf("Lock %d is busy so machine %d will wait\n", lockIndex, machineID);
         }
         
+    }
+}
+
+void Broadcast(int conditionIndex, int lockIndex) {
+    ServerCV * cv = serverCVs->at(conditionIndex);
+    if(cv->waitingLock != conditionIndex) {
+        return;
+    }
+
+    while(!cv->cvWaitQueue->empty()) {
+        Signal(conditionIndex, lockIndex);
     }
 }
 
