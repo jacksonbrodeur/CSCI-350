@@ -702,40 +702,51 @@ int AcquireSyscall(int index) {
         return ERROR;
     }
     return SUCCESS;
-
-
-    // lockTableLock->Acquire();
-    // if(validateLock(index)) {
-        
-    //     if(kernelLocks[index]->lock->isInUse())
-    //         printf("Lock is busy so I will wait\n");
-    //     else
-    //         printf("Lock is available so I will be the owner\n");
-        
-    //     kernelLocks[index]->lock->Acquire();
-
-    //     lockTableLock->Release();
-        
-    //     return 1;
-    // }
-    
-    // lockTableLock->Release();
-    // printf("Lock is invalid\n");
-    // return 0;
 }
 
 void ReleaseSyscall(int index) {
 
-    lockTableLock->Acquire();
-    if(validateLock(index)) {
-        kernelLocks[index]->lock->Release();
-    
-        // if the lock is not in use (owner == NULL) then delete it (set lock to NULL)
-        if(kernelLocks[index]->isToBeDeleted && !(kernelLocks[index]->lock->isInUse())) {
-            kernelLocks[index]->lock = NULL;
-        }
+    stringstream ss;
+    PacketHeader pktHdr;
+    MailHeader mailHdr;
+    ss << RELEASE << " " << index;
+
+    //Server always should have machineID=0
+    char * data = (char*)ss.str().c_str();
+    pktHdr.to = 0;
+    mailHdr.to = 0;
+    mailHdr.from = myMachineID;
+    mailHdr.length = strlen(data) + 1;
+    bool success = postOffice->Send(pktHdr, mailHdr, data);
+
+    if ( !success ) {
+      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+      interrupt->Halt();
     }
-    lockTableLock->Release();
+
+    char buffer[MaxMailSize];
+    postOffice->Receive(0, &pktHdr, &mailHdr, buffer);
+    ss.clear();
+    ss.str("");
+    ss << buffer;
+    printf("Buffer: %s\n", buffer);
+    int code;
+    ss >> code;
+    if(code != SUCCESS) {
+        printf("Lock is invalid");
+    }
+
+
+    // lockTableLock->Acquire();
+    // if(validateLock(index)) {
+    //     kernelLocks[index]->lock->Release();
+    
+    //     // if the lock is not in use (owner == NULL) then delete it (set lock to NULL)
+    //     if(kernelLocks[index]->isToBeDeleted && !(kernelLocks[index]->lock->isInUse())) {
+    //         kernelLocks[index]->lock = NULL;
+    //     }
+    // }
+    // lockTableLock->Release();
 }
 
 int CreateConditionSyscall(int vaddr, int len) {

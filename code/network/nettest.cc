@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <deque>
 #include "copyright.h"
 
 #include "system.h"
@@ -89,21 +90,21 @@ MailTest(int farAddr)
 
 struct ServerLock {
     char* name;
-    int holder;
-    vector<int>* waitQueue;
+    int owner;
+    deque<int>* waitQueue;
     bool isBusy;
 
     ServerLock() {
         name = "";
-        holder = -1;
-        waitQueue = new vector<int>;
+        owner = -1;
+        waitQueue = new deque<int>;
         isBusy = false; 
     }
 
     ServerLock(char * _name) {
         name = _name;
-        holder = -1;
-        waitQueue = new vector<int>;
+        owner = -1;
+        waitQueue = new deque<int>;
         isBusy = false;
     }
 
@@ -113,6 +114,7 @@ vector<ServerLock*> * serverLocks;
 
 int CreateLock(char* name);
 bool AcquireLock(int index, int machineID);
+bool ReleaseLock(int index, int machineID);
 
 void RunServer()
 {
@@ -161,6 +163,7 @@ void RunServer()
                 if(index < 0 || static_cast<uint64_t>(index) > serverLocks->size() - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
@@ -169,12 +172,34 @@ void RunServer()
                     //Send response to incomingMachineID
                     ss << SUCCESS;
                     strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
                 } else {//else lock is busy, so don't send response
                     printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
                 }
                 break;
+            case RELEASE:
+                ss >> index;
+                ss.clear();
+                ss.str("");
+                outPktHdr.to = incomingMachineID;
+                inMailHdr.to = 0;
+                if(index < 0 || static_cast<uint64_t>(index) > serverLocks->size() - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
+                printf("Releasing lock %d from machine %d\n", index, incomingMachineID);
+                success = ReleaseLock(index, incomingMachineID);
+                ss << SUCCESS;
+                strcpy(data, ss.str().c_str());
+                outMailHdr.length = strlen(data) + 1;
+                postOffice->Send(outPktHdr, outMailHdr, data);
+                break;
+
         }
     }
 }
@@ -189,10 +214,10 @@ int CreateLock(char* name) {
 bool AcquireLock(int index, int machineID) {
     ServerLock * sl = serverLocks->at(index);
     bool returnValue = true;
-    if(sl->holder == -1) {
-        sl->holder = machineID;
+    if(sl->owner == -1) {
+        sl->owner = machineID;
         sl->isBusy = true;
-    } else if(sl->holder == machineID) {
+    } else if(sl->owner == machineID) {
         //Do nothing
     } else if (sl->isBusy) {
         sl->waitQueue->push_back(machineID);
@@ -200,5 +225,35 @@ bool AcquireLock(int index, int machineID) {
     }
 
     return returnValue;
+}
+
+bool ReleaseLock(int index, int machineID) {
+    ServerLock * sl = serverLocks->at(index);
+    if(sl->owner == machineID) {
+        if(sl->waitQueue->empty()) {
+            sl->isBusy = false;
+            sl->owner = -1;
+        }
+        else {
+            int newOwner = sl->waitQueue->front();
+            sl->waitQueue->pop_front();
+            sl->owner = newOwner;
+            stringstream ss;
+            PacketHeader outPktHdr;
+            MailHeader outMailHdr;
+
+            outPktHdr.to = newOwner;
+            outMailHdr.to = 0;
+            ss << SUCCESS;
+            char data[MaxMailSize];
+            strcpy(data, ss.str().c_str());
+            outMailHdr.length = strlen(data) + 1;
+            postOffice->Send(outPktHdr, outMailHdr, data);
+            printf("Machine %d is now the owner of lock %d\n", newOwner, index);
+        }
+    } else {
+        printf("Machine %d did not own lock %d so nothing happens\n", machineID, index);
+    }
+    return true;
 }
 
