@@ -190,6 +190,8 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             
             //virtual page is not in the executable
             pageTable[i].diskLocation = NEITHER;
+            pageTable[i].byteOffset = -1;
+            printf("Virtual Page %d is not in the executable so byte offset = %d\n",i,pageTable[i].byteOffset);
         }
     }
     

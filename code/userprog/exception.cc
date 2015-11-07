@@ -919,7 +919,7 @@ int handleMemoryFull() {
         
         location = location * PageSize;
         
-        printf("Writing to swapfile at location %d\n",location);
+        printf("Writing VP %d to swapfile at location %d\n",ipt[page].virtualPage, location);
         
         swapFile->WriteAt(&(machine->mainMemory[page*PageSize]), PageSize, location);
         // tell the page table the bye offset of the evicted page
@@ -970,14 +970,14 @@ int handleIPTMiss (int neededVPN) {
         pageQueue->Append((void*)ppnPointer);
     }
     
-    if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE) {
+    if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE && currentThread->space->pageTable[neededVPN].byteOffset != -1) {
         
         //only do this if necessary
         printf("reading from executable at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
         
         currentThread->space->myExecutable->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
     }
-    else if(currentThread->space->pageTable[neededVPN].diskLocation == SWAPFILE) {
+    else if(currentThread->space->pageTable[neededVPN].diskLocation == SWAPFILE && currentThread->space->pageTable[neededVPN].byteOffset != -1) { //Should a stack page be able to write to the swap file???
         
         
         printf("reading from swapfile at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
