@@ -90,20 +90,20 @@ MailTest(int farAddr)
 struct ServerLock {
     char* name;
     int holder;
-    List* waitQueue;
+    vector<int>* waitQueue;
     bool isBusy;
 
     ServerLock() {
         name = "";
         holder = -1;
-        waitQueue = new List;
+        waitQueue = new vector<int>;
         isBusy = false; 
     }
 
     ServerLock(char * _name) {
         name = _name;
         holder = -1;
-        waitQueue = new List;
+        waitQueue = new vector<int>;
         isBusy = false;
     }
 
@@ -112,6 +112,7 @@ struct ServerLock {
 vector<ServerLock*> * serverLocks;
 
 int CreateLock(char* name);
+bool AcquireLock(int index, int machineID);
 
 void RunServer()
 {
@@ -132,20 +133,47 @@ void RunServer()
         int rpc;
         ss >> rpc;
 
+        int incomingMachineID = inMailHdr.from;
+        int index;
+        char data[MaxMailSize];
+        bool success;
         switch(rpc) {
             case CREATE_LOCK:
                 char* name = new char[MaxMailSize];
                 ss >> name;
                 ss.clear();
                 ss.str("");
-                int index = CreateLock(name);
-                outPktHdr.to = inPktHdr.from;
+                index = CreateLock(name);
+                outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
                 ss << SUCCESS << " " << index;
-                char data[MaxMailSize];
                 strcpy(data, ss.str().c_str());
                 outMailHdr.length = strlen(data) + 1;
-                bool success = postOffice->Send(outPktHdr, outMailHdr, data);
+                success = postOffice->Send(outPktHdr, outMailHdr, data);
+                printf("Created lock named %s from machine %d\n", name, incomingMachineID);
+                break;
+            case ACQUIRE:
+                ss >> index;
+                ss.clear();
+                ss.str("");
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
+                if(index < 0 || static_cast<uint64_t>(index) > serverLocks->size() - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
+                success = AcquireLock(index, incomingMachineID);
+                if(success) {
+                    //Send response to incomingMachineID
+                    ss << SUCCESS;
+                    strcpy(data, ss.str().c_str());
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
+                } else {//else lock is busy, so don't send response
+                    printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
+                }
                 break;
         }
     }
@@ -156,6 +184,21 @@ int CreateLock(char* name) {
     int index = serverLocks->size();
     serverLocks->push_back(newLock);
     return index;
+}
 
+bool AcquireLock(int index, int machineID) {
+    ServerLock * sl = serverLocks->at(index);
+    bool returnValue = true;
+    if(sl->holder == -1) {
+        sl->holder = machineID;
+        sl->isBusy = true;
+    } else if(sl->holder == machineID) {
+        //Do nothing
+    } else if (sl->isBusy) {
+        sl->waitQueue->push_back(machineID);
+        returnValue = false;
+    }
+
+    return returnValue;
 }
 
