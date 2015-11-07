@@ -23,12 +23,6 @@
 #define MaxOpenFiles 256
 #define MaxChildSpaces 256
 
-enum FileLocation {
-    EXECUTABLE,
-    SWAPFILE,
-    NEITHER
-};
-
 struct PageTableEntry : public TranslationEntry {
     
     int byteOffset;

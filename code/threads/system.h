@@ -87,7 +87,8 @@ struct IPT : public TranslationEntry {
 #define TOTALPAGESPERPROCESS 1000
 
 #define EXECUTABLE 0
-#define NEITHER 1
+#define SWAPFILE 1
+#define NEITHER 2
 #define FIFO 0
 #define RAND 1
 extern int pageReplacementPolicy;
