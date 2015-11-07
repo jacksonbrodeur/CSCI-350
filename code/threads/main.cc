@@ -62,6 +62,7 @@ extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 extern void launchPassportOffice();
 extern void testOne(), testTwo(), testThree(), testFour(), testFive(), testSix(), testSeven();
+extern void RunServer();
 
 //----------------------------------------------------------------------
 // main
@@ -157,6 +158,9 @@ main(int argc, char **argv)
 						// start up another nachos
             MailTest(atoi(*(argv + 1)));
             argCount = 2;
+        }
+        if (!strcmp(*argv, "-S")) {
+            RunServer();
         }
 #endif // NETWORK
     }

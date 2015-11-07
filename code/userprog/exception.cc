@@ -21,6 +21,7 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
+#include <sstream>
 #include "machine.h"
 #include "copyright.h"
 #include "system.h"
@@ -599,7 +600,8 @@ void YieldSyscall() {
     currentThread->Yield();
 }
 
-// Returns -1 if there is an error
+
+
 int CreateLockSyscall(int vaddr, int len) {
   
     char * name = new char[len+1];
@@ -616,21 +618,38 @@ int CreateLockSyscall(int vaddr, int len) {
 
     name[len] = '\0';
 
-    KernelLock * kernelLock = new KernelLock(name);
+    PacketHeader pktHdr;
+    MailHeader mailHdr;
 
-    lockTableLock->Acquire();
-    int index = -1;
-    for(int i = 0; i < MAX_LOCKS; i++) {
-      if (kernelLocks[i]->lock == NULL) {
-        kernelLocks[i] = kernelLock;
-        index = i;
-        break;
-        }
+    //Server always should have machineID=0
+    
+    stringstream ss;
+    ss << CREATE_LOCK << " " << name;
+    char * data = (char*)ss.str().c_str();
+    pktHdr.to = 0;
+    mailHdr.to = 0;
+    mailHdr.from = myMachineID;
+    mailHdr.length = strlen(data) + 1;
+    bool success = postOffice->Send(pktHdr, mailHdr, data);
+
+    if ( !success ) {
+      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+      interrupt->Halt();
     }
 
-    DEBUG('d', "Creating Lock: %s\n", kernelLocks[index]->lock->getName());
-
-    lockTableLock->Release();
+    char buffer[MaxMailSize];
+    postOffice->Receive(0, &pktHdr, &mailHdr, buffer);
+    ss.clear();
+    ss.str("");
+    ss << buffer;
+    int code;
+    int index;
+    ss >> code;
+    if(code != SUCCESS) {
+        printf("CreateLock has failed which should not happen, Terminating Program\n");
+    }
+    ss >> index;
+    ASSERT(index >= 0);
     return index;
 }
 

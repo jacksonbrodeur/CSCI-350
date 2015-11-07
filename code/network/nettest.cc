@@ -15,13 +15,19 @@
 // Copyright (c) 1992-1993 The Regents of the University of California.
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
-
+#include <sstream>
+#include <vector>
+#include <string>
+#include <cstring>
 #include "copyright.h"
 
 #include "system.h"
 #include "network.h"
 #include "post.h"
 #include "interrupt.h"
+#include "list.h"
+
+using namespace std;
 
 // Test out message delivery, by doing the following:
 //	1. send a message to the machine with ID "farAddr", at mail box #0
@@ -80,3 +86,76 @@ MailTest(int farAddr)
     // Then we're done!
     interrupt->Halt();
 }
+
+struct ServerLock {
+    char* name;
+    int holder;
+    List* waitQueue;
+    bool isBusy;
+
+    ServerLock() {
+        name = "";
+        holder = -1;
+        waitQueue = new List;
+        isBusy = false; 
+    }
+
+    ServerLock(char * _name) {
+        name = _name;
+        holder = -1;
+        waitQueue = new List;
+        isBusy = false;
+    }
+
+};
+
+vector<ServerLock*> * serverLocks;
+
+int CreateLock(char* name);
+
+void RunServer()
+{
+    serverLocks = new vector<ServerLock*>;
+    printf("Nachos Server Program has started\n\n");
+    while (true) {
+        
+        char buffer[MaxMailSize] = "";
+        PacketHeader outPktHdr;
+        PacketHeader inPktHdr;
+        MailHeader outMailHdr;
+        MailHeader inMailHdr;
+        postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+
+        printf("%s\n", buffer);
+        stringstream ss;
+        ss << buffer;
+        int rpc;
+        ss >> rpc;
+
+        switch(rpc) {
+            case CREATE_LOCK:
+                char* name = new char[MaxMailSize];
+                ss >> name;
+                ss.clear();
+                ss.str("");
+                int index = CreateLock(name);
+                outPktHdr.to = inPktHdr.from;
+                outMailHdr.to = 0;
+                ss << SUCCESS << " " << index;
+                char data[MaxMailSize];
+                strcpy(data, ss.str().c_str());
+                outMailHdr.length = strlen(data) + 1;
+                bool success = postOffice->Send(outPktHdr, outMailHdr, data);
+                break;
+        }
+    }
+}
+
+int CreateLock(char* name) {
+    ServerLock * newLock = new ServerLock(name);
+    int index = serverLocks->size();
+    serverLocks->push_back(newLock);
+    return index;
+
+}
+
