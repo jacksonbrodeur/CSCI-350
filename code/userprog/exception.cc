@@ -1153,9 +1153,13 @@ void ExceptionHandler(ExceptionType which) {
             }
                 
         }
-        
+
         if(ppn == -1) {
             ppn = handleIPTMiss(VPN);
+        }
+
+        if(machine->tlb[currentTLB].valid) {
+        	ipt[machine->tlb[currentTLB].physicalPage].dirty = machine->tlb[currentTLB].dirty;
         }   
 
         //now update TLB

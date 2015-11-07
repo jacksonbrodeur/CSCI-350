@@ -189,6 +189,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
         else {
             
             //virtual page is not in the executable
+            pageTable[i].byteOffset = -1;
             pageTable[i].diskLocation = NEITHER;
         }
     }

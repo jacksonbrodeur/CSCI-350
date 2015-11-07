@@ -185,7 +185,7 @@ Initialize(int argc, char **argv)
     iptLock = new Lock("iptLock");
     
     // TODO: append machine id to swap file because it's one per OS
-    swapFile = fileSystem->Open("swapfile.txt");
+    swapFile = fileSystem->Open("../vm/swapfile.txt");
     
     if (swapFile == NULL) {
         printf("Unable to open the swapfile\n");
