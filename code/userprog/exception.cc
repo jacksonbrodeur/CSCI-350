@@ -733,18 +733,6 @@ void ReleaseSyscall(int index) {
     if(code != SUCCESS) {
         printf("Lock is invalid");
     }
-
-
-    // lockTableLock->Acquire();
-    // if(validateLock(index)) {
-    //     kernelLocks[index]->lock->Release();
-    
-    //     // if the lock is not in use (owner == NULL) then delete it (set lock to NULL)
-    //     if(kernelLocks[index]->isToBeDeleted && !(kernelLocks[index]->lock->isInUse())) {
-    //         kernelLocks[index]->lock = NULL;
-    //     }
-    // }
-    // lockTableLock->Release();
 }
 
 int CreateConditionSyscall(int vaddr, int len) {
@@ -908,13 +896,6 @@ void BroadcastSyscall(int conditionIndex, int lockIndex) {
     if(code != SUCCESS) {
         printf("Condition is invalid");
     }
-    // cvTableLock->Acquire();
-    // if(validateCV(conditionIndex) && validateLock(lockIndex)) {
-    //     DEBUG('d', "Broadcasting on condition %s with lock %s\n", kernelCVs[conditionIndex]->condition->getName(),
-    //         kernelLocks[lockIndex]->lock->getName());
-    //     kernelCVs[conditionIndex]->condition->Broadcast(kernelLocks[lockIndex]->lock);
-    // }
-    // cvTableLock->Release();
 }
 
 void PrintSyscall(int vaddr, int len, int params1, int params2) {
