@@ -694,7 +694,6 @@ int AcquireSyscall(int index) {
     ss.clear();
     ss.str("");
     ss << buffer;
-    printf("Buffer: %s\n", buffer);
     int code;
     ss >> code;
     if(code != SUCCESS) {
@@ -729,7 +728,6 @@ void ReleaseSyscall(int index) {
     ss.clear();
     ss.str("");
     ss << buffer;
-    printf("Buffer: %s\n", buffer);
     int code;
     ss >> code;
     if(code != SUCCESS) {
@@ -842,7 +840,6 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
     ss.clear();
     ss.str("");
     ss << buffer;
-    printf("Buffer: %s\n", buffer);
     int code;
     ss >> code;
     if(code != SUCCESS) {
@@ -874,7 +871,6 @@ void SignalSyscall(int conditionIndex, int lockIndex) {
     ss.clear();
     ss.str("");
     ss << buffer;
-    printf("Buffer: %s\n", buffer);
     int code;
     ss >> code;
     if(code != SUCCESS) {
@@ -907,7 +903,6 @@ void BroadcastSyscall(int conditionIndex, int lockIndex) {
     ss.clear();
     ss.str("");
     ss << buffer;
-    printf("Buffer: %s\n", buffer);
     int code;
     ss >> code;
     if(code != SUCCESS) {
@@ -926,14 +921,14 @@ void PrintSyscall(int vaddr, int len, int params1, int params2) {
 
   printLock->Acquire();
   if(len < 0 || len > MAXFILENAME) {
-        printf("Invalid string length in CreateLockSyscall\n");
+        printf("Invalid string length in PrintSyscall\n");
         return;
   }
 
   char * string = new char[len + 1];
 
   if(copyin(vaddr, len, string) == -1) {
-        printf("Bad vaddr passed in to CreateLockSyscall\n");
+        printf("Bad vaddr passed in to PrintSyscall\n");
         return;
   }
     
@@ -976,12 +971,12 @@ int CreateMVSyscall(int vaddr, int len) {
     char * name = new char[len+1];
     
     if(len < 0 || len > MAXFILENAME) {
-        printf("Invalid string length in CreateConditionSyscall\n");
+        printf("Invalid string length in CreateMVSyscall\n");
         return -1;
     }
     
     if(copyin(vaddr, len, name) == -1) {
-        printf("Bad vaddr passed in to CreateConditionSyscall\n");
+        printf("Bad vaddr passed in to CreateMVSyscall\n");
         cvTableLock->Release();
         return -1;
     }
@@ -1052,7 +1047,6 @@ void SetSyscall(int index, int value) {
     ss.clear();
     ss.str("");
     ss << buffer;
-    printf("Buffer: %s\n", buffer);
     int code;
     ss >> code;
     if(code != SUCCESS) {
@@ -1084,7 +1078,6 @@ int GetSyscall(int index) {
     ss.clear();
     ss.str("");
     ss << buffer;
-    printf("Buffer: %s\n", buffer);
     int code;
     ss >> code;
     int value;

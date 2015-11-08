@@ -175,7 +175,7 @@ void RunServer()
         MailHeader inMailHdr;
         postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
 
-        printf("%s\n", buffer);
+        printf("Message from Machine %d: %s\n", inMailHdr.from, buffer);
         stringstream ss;
         ss << buffer;
         int rpc;
