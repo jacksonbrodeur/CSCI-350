@@ -750,8 +750,6 @@ void ReleaseSyscall(int index) {
 }
 
 int CreateConditionSyscall(int vaddr, int len) {
-  
-    cvTableLock->Acquire();
     
     char * name = new char[len+1];
     
@@ -763,7 +761,6 @@ int CreateConditionSyscall(int vaddr, int len) {
     
     if(copyin(vaddr, len, name) == -1) {
         printf("Bad vaddr passed in to CreateConditionSyscall\n");
-        cvTableLock->Release();
         return -1;
     }
     
@@ -803,21 +800,6 @@ int CreateConditionSyscall(int vaddr, int len) {
     ss >> index;
     ASSERT(index >= 0);
     return index;
-    
-    // //Create the condition variable here
-    // KernelCV * kernelCV = new KernelCV(name);
-
-    // int index = -1;
-    // for(int i = 0; i < MAX_LOCKS; i++) {
-    //     if (kernelCVs[i]->condition == NULL) {
-    //         kernelCVs[i] = kernelCV;
-    //         index = i;
-    //         break;
-    //     }
-    // }
-    
-    // DEBUG('d', "Creating Condition: %s\n", kernelCVs[index]->condition->getName());
-    // cvTableLock->Release();
 }
 
 void DestroyConditionSyscall(int index) {
@@ -990,6 +972,131 @@ int RandSyscall() {
     return rand();
 }
 
+int CreateMVSyscall(int vaddr, int len) {
+    char * name = new char[len+1];
+    
+    if(len < 0 || len > MAXFILENAME) {
+        printf("Invalid string length in CreateConditionSyscall\n");
+        return -1;
+    }
+    
+    if(copyin(vaddr, len, name) == -1) {
+        printf("Bad vaddr passed in to CreateConditionSyscall\n");
+        cvTableLock->Release();
+        return -1;
+    }
+    
+    name[len] = '\0';
+
+    PacketHeader pktHdr;
+    MailHeader mailHdr;
+
+    //Server always should have machineID=0
+    
+    stringstream ss;
+    ss << CREATE_MV  << " " << name;
+    char * data = (char*)ss.str().c_str();
+    pktHdr.to = 0;
+    mailHdr.to = 0;
+    mailHdr.from = myMachineID;
+    mailHdr.length = strlen(data) + 1;
+    bool success = postOffice->Send(pktHdr, mailHdr, data);
+
+    if ( !success ) {
+      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+      interrupt->Halt();
+    }
+
+    char buffer[MaxMailSize];
+    postOffice->Receive(0, &pktHdr, &mailHdr, buffer);
+    ss.clear();
+    ss.str("");
+    ss << buffer;
+    int code;
+    int index;
+    ss >> code;
+    if(code != SUCCESS) {
+        printf("CreateMV has failed which should not happen, Terminating Program\n");
+        interrupt->Halt();
+    }
+    ss >> index;
+    ASSERT(index >= 0);
+    return index;
+}
+
+void DestroyMVSyscall(int index) {
+
+}
+
+void SetSyscall(int index, int value) {
+    stringstream ss;
+    PacketHeader pktHdr;
+    MailHeader mailHdr;
+    ss << SET_MV << " " << index << " " << value;
+
+    //Server always should have machineID=0
+    char * data = (char*)ss.str().c_str();
+    pktHdr.to = 0;
+    mailHdr.to = 0;
+    mailHdr.from = myMachineID;
+    mailHdr.length = strlen(data) + 1;
+    bool success = postOffice->Send(pktHdr, mailHdr, data);
+
+    if ( !success ) {
+      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+      interrupt->Halt();
+    }
+
+    char buffer[MaxMailSize];
+    postOffice->Receive(0, &pktHdr, &mailHdr, buffer);
+    ss.clear();
+    ss.str("");
+    ss << buffer;
+    printf("Buffer: %s\n", buffer);
+    int code;
+    ss >> code;
+    if(code != SUCCESS) {
+        printf("MV is invalid");
+    }
+}
+
+int GetSyscall(int index) {
+    stringstream ss;
+    PacketHeader pktHdr;
+    MailHeader mailHdr;
+    ss << GET_MV << " " << index;
+
+    //Server always should have machineID=0
+    char * data = (char*)ss.str().c_str();
+    pktHdr.to = 0;
+    mailHdr.to = 0;
+    mailHdr.from = myMachineID;
+    mailHdr.length = strlen(data) + 1;
+    bool success = postOffice->Send(pktHdr, mailHdr, data);
+
+    if ( !success ) {
+      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+      interrupt->Halt();
+    }
+
+    char buffer[MaxMailSize];
+    postOffice->Receive(0, &pktHdr, &mailHdr, buffer);
+    ss.clear();
+    ss.str("");
+    ss << buffer;
+    printf("Buffer: %s\n", buffer);
+    int code;
+    ss >> code;
+    int value;
+    if(code != SUCCESS) {
+        printf("MV is invalid");
+    } else {
+        ss >> value;
+        return value;
+    }
+    return 0;
+}
+
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
@@ -1107,6 +1214,22 @@ void ExceptionHandler(ExceptionType which) {
             case SC_Rand:
                 DEBUG('a', "Rand syscall.\n");
                 rv = RandSyscall();
+                break;
+            case SC_CreateMV:
+                DEBUG('a', "CreateMV syscall.\n");
+                rv = CreateMVSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
+                break;
+            case SC_DestroyMV:
+                DEBUG('a', "DestroyMV syscall.\n");
+                DestroyMVSyscall(machine->ReadRegister(4));
+                break;
+            case SC_Get:
+                DEBUG('a', "Get syscall.\n");
+                rv = GetSyscall(machine->ReadRegister(4));
+                break;
+            case SC_Set:
+                DEBUG('a', "Set syscall.\n");
+                SetSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
                 break;
         }
         

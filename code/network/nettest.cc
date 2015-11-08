@@ -128,8 +128,24 @@ struct ServerCV {
     }
 };
 
+struct ServerMV {
+    char * name;
+    int value;
+
+    ServerMV() {
+        name = "";
+        value = 0;
+    }
+
+    ServerMV(char* _name) {
+        name = _name;
+        value = 0;
+    }
+};
+
 vector<ServerLock*> * serverLocks;
 vector<ServerCV*> * serverCVs;
+vector<ServerMV*> * serverMVs;
 
 int CreateLock(char* name);
 bool AcquireLock(int index, int machineID);
@@ -140,10 +156,15 @@ bool Wait(int conditionIndex, int lockIndex, int machineID);
 void Signal(int conditionIndex, int lockIndex);
 void Broadcast(int conditionIndex, int lockIndex);
 
+int CreateMV(char* name);
+void SetMV(int index, int value);
+int GetMV(int index);
+
 void RunServer()
 {
     serverLocks = new vector<ServerLock*>;
     serverCVs = new vector<ServerCV*>;
+    serverMVs = new vector<ServerMV*>;
     printf("Nachos Server Program has started\n\n");
     while (true) {
         
@@ -167,6 +188,7 @@ void RunServer()
         char* name = new char[MaxMailSize];
         int conditionIndex;
         int lockIndex;
+        int value;
         switch(rpc) {
             case CREATE_LOCK:
                 name = new char[MaxMailSize];
@@ -247,7 +269,7 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverLocks->size() - 1) {
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverCVs->size() - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -272,7 +294,7 @@ void RunServer()
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
 
-                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverLocks->size() - 1) {
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverCVs->size() - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -293,7 +315,7 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverLocks->size() - 1) {
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverCVs->size() - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -306,6 +328,58 @@ void RunServer()
                 strcpy(data, ss.str().c_str());
                 outMailHdr.length = strlen(data) + 1;
                 postOffice->Send(outPktHdr, outMailHdr, data);
+                break;
+            case CREATE_MV:
+                ss >> name;
+                ss.clear();
+                ss.str("");
+                index = CreateMV(name);
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
+                ss << SUCCESS << " " << index;
+                strcpy(data, ss.str().c_str());
+                outMailHdr.length = strlen(data) + 1;
+                success = postOffice->Send(outPktHdr, outMailHdr, data);
+                printf("Created MV named %s from machine %d\n", name, incomingMachineID);
+                break;
+            case SET_MV:
+                ss >> index;
+                ss >> value;
+                ss.clear();
+                ss.str("");
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
+                if(index < 0 || static_cast<uint64_t>(index) > serverMVs->size() - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
+                SetMV(index, value);
+                ss << SUCCESS;
+                strcpy(data, ss.str().c_str());
+                postOffice->Send(outPktHdr, outMailHdr, data);
+                printf("MV %d has been set to %d\n", index, value);
+                break;
+            case GET_MV:
+                ss >> index;
+                ss.clear();
+                ss.str("");
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = 0;
+                if(index < 0 || static_cast<uint64_t>(index) > serverMVs->size() - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
+                value = GetMV(index);
+                ss << SUCCESS << " " << value;
+                strcpy(data, ss.str().c_str());
+                postOffice->Send(outPktHdr, outMailHdr, data);
+                printf("MV %d has been retrieved with value %d\n", index, value);
                 break;
         }
     }
@@ -431,5 +505,21 @@ void Broadcast(int conditionIndex, int lockIndex) {
     while(!cv->cvWaitQueue->empty()) {
         Signal(conditionIndex, lockIndex);
     }
+}
+
+int CreateMV(char * name) {
+    ServerMV * mv = new ServerMV(name);
+    int index = serverMVs->size();
+    serverMVs->push_back(mv);
+    return index;
+}
+
+void SetMV(int index, int value) {
+    ServerMV * mv = serverMVs->at(index);
+    mv->value =value;
+}
+
+int GetMV(int index) {
+    return serverMVs->at(index)->value;
 }
 
