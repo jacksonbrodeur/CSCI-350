@@ -99,6 +99,17 @@ main(int argc, char **argv)
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
+
+        if (!strcmp(*argv, "-P")) { 
+            ASSERT(argc > 1);
+            argCount = 2;
+            if(!strcmp(*(argv + 1),"FIFO")){  
+                pageReplacementPolicy = FIFO;
+            } else if (!strcmp(*(argv + 1), "RAND")){
+                pageReplacementPolicy = RAND;
+            }
+        }
+
 #ifdef THREADS
         if (!strcmp(*argv, "-T"))               // Test Suite
             TestSuite();
@@ -111,17 +122,6 @@ main(int argc, char **argv)
         if (!strcmp(*argv, "-P2TM"))            //Problem 2 Tests - Max Values
             testMax();
 #endif //THREADS
-
-         if (!strcmp(*argv, "-P")) {        	// run a user program
-	    	ASSERT(argc > 1);
-	    	argCount = 2;
-            if(*(argv + 1) == "FIFO"){	
-            	pageReplacementPolicy = FIFO;
-            } else if (*(argv + 1) == "RAND"){
-            	pageReplacementPolicy = RAND;
-            }
-        }
-
 
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
