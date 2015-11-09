@@ -429,10 +429,9 @@ void ExitSyscall(int status) {
     
     printf("Exiting with status %d\n",status);
     
-    
     int currentProcess = findCurrentProcess();
     //check if this thread is the last process
-    if(!isLastExecutingThread(currentProcess)) {
+    if(processTable[currentProcess]->numThreadsExecuting > 1) {
         //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
         int threadListIndex = -1;
         //iterate through the current process's thread list to find the exiting thread
@@ -447,26 +446,23 @@ void ExitSyscall(int status) {
         //reclaim the exiting threads memory
         for (int i = 0; i < 8; i++) {
             
-            
-            //this assertion fails
-            
             //printf("About to clear physical page: %d\n", currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
             
-            if(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].valid) {
+            if(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].valid) {
                 
                 memoryLock->Acquire();
                 
-                physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
+                physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].physicalPage);
                 
-                processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].virtualPage);
+                processTable[currentProcess]->stackBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].virtualPage);
                 
                 memoryLock->Release();
                 
                 iptLock->Acquire();
                 
-                ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage].valid = FALSE;
+                ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].physicalPage].valid = FALSE;
                 
-                currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].valid = FALSE;
+                currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].valid = FALSE;
                 
                 iptLock->Release();
                 
@@ -475,11 +471,11 @@ void ExitSyscall(int status) {
         //one thread has finished executing so keep track of this in the current process
         processTable[currentProcess]->numThreadsExecuting--;
     }
-    else if(isLastExecutingThread(currentProcess) && isLastExecutingProcess()) {
+    else if(processTable[currentProcess]->numThreadsExecuting == 1 && isLastExecutingProcess()) {
         printf("System done\n");
         interrupt->Halt();
     }
-    else if(isLastExecutingThread(currentProcess) && !isLastExecutingProcess()) {
+    else if(processTable[currentProcess]->numThreadsExecuting == 1 && !isLastExecutingProcess()) {
         
         //reclaim 8 pages of stack (keep track of where currentthreads stack pages are)
         int threadListIndex = -1;
@@ -496,14 +492,19 @@ void ExitSyscall(int status) {
         //reclaim the exiting threads memory
         for (int i = 0; i < 8; i++) {
             
-            memoryLock->Acquire();
-            physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage);
-            
-            memoryLock->Release();
-            
-            iptLock->Acquire();
-            ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize + i)].physicalPage].valid = FALSE;
-            iptLock->Release();
+            if(ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].physicalPage].valid) {
+                
+                memoryLock->Acquire();
+
+                
+                physicalPageBitMap->Clear(currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].physicalPage);
+                
+                memoryLock->Release();
+                
+                iptLock->Acquire();
+                ipt[currentThread->space->pageTable[(processTable[currentProcess]->threadList[threadListIndex]->startingStackPage/PageSize - i)].physicalPage].valid = FALSE;
+                iptLock->Release();
+            }
         }
 
         for(int i =0;i<MAX_LOCKS;i++) {
@@ -919,11 +920,7 @@ int handleMemoryFull() {
         
         location = location * PageSize;
         
-<<<<<<< HEAD
-        printf("Writing VP %d to swapfile at location %d\n",ipt[page].virtualPage, location);
-=======
         // printf("Writing to swapfile at location %d\n",location);
->>>>>>> 7cea6f8d6aa29b23138689591760bbe9d4c28368
         
         swapFile->WriteAt(&(machine->mainMemory[page*PageSize]), PageSize, location);
         // tell the page table the bye offset of the evicted page
