@@ -40,6 +40,10 @@
 #define SC_Broadcast            19
 #define SC_Print                20
 #define SC_Rand                 21
+#define SC_CreateMV             22
+#define SC_DestroyMV            23
+#define SC_Get                  24
+#define SC_Set                  25
 
 #define MAXFILENAME 256
 
@@ -158,6 +162,14 @@ void Broadcast(int condition, int lock);
 void Print(char * string, int len, int intParams, int charParams);
 
 int Rand();
+
+int CreateMV(char * name, int len);
+
+void DestroyMV(int mv);
+
+void Set(int mv, int value);
+
+int Get(int mv);
 
 
 

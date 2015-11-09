@@ -127,9 +127,31 @@ extern FileSystem  *fileSystem;
 extern SynchDisk   *synchDisk;
 #endif
 
+//Define codes for sending syscalls to server
+#define CREATE_LOCK      0
+#define DESTROY_LOCK     1
+#define ACQUIRE          2
+#define RELEASE          3
+#define CREATE_CV        4
+#define DESTROY_CV       5
+#define WAIT             6
+#define SIGNAL           7
+#define BROADCAST        8
+#define CREATE_MV        9
+#define DESTROY_MV      10
+#define GET_MV          11
+#define SET_MV          12
+
+//Define codes for responses from server
+#define ERROR           0
+#define SUCCESS         1
+
+
+
 #ifdef NETWORK
 #include "post.h"
 extern PostOffice* postOffice;
+extern int myMachineID;
 #endif
 
 #endif // SYSTEM_H

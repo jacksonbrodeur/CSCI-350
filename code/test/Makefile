@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock releaselock createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport testvm
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv setmv getmv testvm
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -92,6 +92,13 @@ acquirelock: acquirelock.o start.o
 	$(LD) $(LDFLAGS) start.o acquirelock.o -o acquirelock.coff
 	../bin/coff2noff acquirelock.coff acquirelock
 
+acquirelockserver.o: acquirelockserver.c
+	$(CC) $(CFLAGS) -c acquirelockserver.c
+acquirelockserver: acquirelockserver.o start.o
+	$(LD) $(LDFLAGS) start.o acquirelockserver.o -o acquirelockserver.coff
+	../bin/coff2noff acquirelockserver.coff acquirelockserver
+
+
 createcondition.o: createcondition.c
 	$(CC) $(CFLAGS) -c createcondition.c
 createcondition: createcondition.o start.o
@@ -115,6 +122,12 @@ releaselock.o: releaselock.c
 releaselock: releaselock.o start.o
 	$(LD) $(LDFLAGS) start.o releaselock.o -o releaselock.coff
 	../bin/coff2noff releaselock.coff releaselock
+
+releaselockserver.o: releaselockserver.c
+	$(CC) $(CFLAGS) -c releaselockserver.c
+releaselockserver: releaselockserver.o start.o
+	$(LD) $(LDFLAGS) start.o releaselockserver.o -o releaselockserver.coff
+	../bin/coff2noff releaselockserver.coff releaselockserver
 
 rand.o: rand.c
 	$(CC) $(CFLAGS) -c rand.c
@@ -152,10 +165,47 @@ multipassport: multipassport.o start.o
 	$(LD) $(LDFLAGS) start.o multipassport.o -o multipassport.coff
 	../bin/coff2noff multipassport.coff multipassport
 
+signalcvserver.o: signalcvserver.c
+	$(CC) $(CFLAGS) -c signalcvserver.c
+signalcvserver: signalcvserver.o start.o
+	$(LD) $(LDFLAGS) start.o signalcvserver.o -o signalcvserver.coff
+	../bin/coff2noff signalcvserver.coff signalcvserver
+
+waitcvserver.o: waitcvserver.c
+	$(CC) $(CFLAGS) -c waitcvserver.c
+waitcvserver: waitcvserver.o start.o
+	$(LD) $(LDFLAGS) start.o waitcvserver.o -o waitcvserver.coff
+	../bin/coff2noff waitcvserver.coff waitcvserver
+
+broadcastcvserver.o: broadcastcvserver.c
+	$(CC) $(CFLAGS) -c broadcastcvserver.c
+broadcastcvserver: broadcastcvserver.o start.o
+	$(LD) $(LDFLAGS) start.o broadcastcvserver.o -o broadcastcvserver.coff
+	../bin/coff2noff broadcastcvserver.coff broadcastcvserver
+
+createmv.o: createmv.c
+	$(CC) $(CFLAGS) -c createmv.c
+createmv: createmv.o start.o
+	$(LD) $(LDFLAGS) start.o createmv.o -o createmv.coff
+	../bin/coff2noff createmv.coff createmv
+
+setmv.o: setmv.c
+	$(CC) $(CFLAGS) -c setmv.c
+setmv: setmv.o start.o
+	$(LD) $(LDFLAGS) start.o setmv.o -o setmv.coff
+	../bin/coff2noff setmv.coff setmv
+
+getmv.o: getmv.c
+	$(CC) $(CFLAGS) -c getmv.c
+getmv: getmv.o start.o
+	$(LD) $(LDFLAGS) start.o getmv.o -o getmv.coff
+	../bin/coff2noff getmv.coff getmv
+
 testvm.o: testvm.c
 	$(CC) $(CFLAGS) -c testvm.c
 testvm: testvm.o start.o
 	$(LD) $(LDFLAGS) start.o testvm.o -o testvm.coff
 	../bin/coff2noff testvm.coff testvm
+
 clean:
 	rm -f *.o *.coff
