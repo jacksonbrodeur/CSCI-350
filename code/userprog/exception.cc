@@ -897,7 +897,7 @@ int handleMemoryFull() {
         page = rand() % NumPhysPages;
     }
     
-    printf("Going to evict physical page: %d\n",page);
+    // printf("Going to evict physical page: %d\n",page);
     
     for (int i = 0; i < 4; i++) {
         // propagate the dirty bit to the IPT and invalidate that TLB entry. Be sure to update the page table for the evicted page.
@@ -919,7 +919,11 @@ int handleMemoryFull() {
         
         location = location * PageSize;
         
+<<<<<<< HEAD
         printf("Writing VP %d to swapfile at location %d\n",ipt[page].virtualPage, location);
+=======
+        // printf("Writing to swapfile at location %d\n",location);
+>>>>>>> 7cea6f8d6aa29b23138689591760bbe9d4c28368
         
         swapFile->WriteAt(&(machine->mainMemory[page*PageSize]), PageSize, location);
         // tell the page table the bye offset of the evicted page
@@ -931,10 +935,10 @@ int handleMemoryFull() {
     
     ipt[page].mySpace->pageTable[ipt[page].virtualPage].valid = FALSE;
     
-    printf("In handle memory full:\n");
-    printIPT();
-    printTLB();
-    printf("\n\n");
+    // printf("In handle memory full:\n");
+    // printIPT();
+    // printTLB();
+    // printf("\n\n");
     
     return page;
 }
@@ -973,14 +977,14 @@ int handleIPTMiss (int neededVPN) {
     if(currentThread->space->pageTable[neededVPN].diskLocation == EXECUTABLE && currentThread->space->pageTable[neededVPN].byteOffset != -1) {
         
         //only do this if necessary
-        printf("reading from executable at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
+        // printf("reading from executable at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
         
         currentThread->space->myExecutable->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
     }
     else if(currentThread->space->pageTable[neededVPN].diskLocation == SWAPFILE && currentThread->space->pageTable[neededVPN].byteOffset != -1) { //Should a stack page be able to write to the swap file???
         
         
-        printf("reading from swapfile at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
+        // printf("reading from swapfile at byte offset %d\n", currentThread->space->pageTable[neededVPN].byteOffset);
         
         swapFile->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, currentThread->space->pageTable[neededVPN].byteOffset);
         
@@ -996,10 +1000,10 @@ int handleIPTMiss (int neededVPN) {
     currentThread->space->pageTable[neededVPN].dirty = FALSE;
     currentThread->space->pageTable[neededVPN].readOnly = FALSE;
     
-    printf("In handle IPT miss:\n");
-    printIPT();
-    printTLB();
-    printf("\n\n");
+    // printf("In handle IPT miss:\n");
+    // printIPT();
+    // printTLB();
+    // printf("\n\n");
     
     iptLock->Release();
     
@@ -1141,7 +1145,7 @@ void ExceptionHandler(ExceptionType which) {
         int VA = machine->ReadRegister(39);
         int VPN = VA/PageSize;
         
-        printf("Needed vpn: %d\n", VPN);
+        // printf("Needed vpn: %d\n", VPN);
         
         int ppn = -1;
         for(int i = 0; i < NumPhysPages; i ++) {
