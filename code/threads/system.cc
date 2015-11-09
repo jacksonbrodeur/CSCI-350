@@ -73,7 +73,7 @@ KernelProcess::KernelProcess(Thread * processThread) {
     
     this->threadList = new KernelThread*[100];
     this->totalThreads = 0;
-    this->numThreadsExecuting = 0;
+    this->numThreadsExecuting = 1;
     this->myThread = processThread;
     this->mySpace = NULL;
 }
