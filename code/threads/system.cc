@@ -20,8 +20,11 @@ Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
 KernelProcess ** processTable;
-//BitMap * stackBitMap;
 BitMap * physicalPageBitMap;
+IPT * ipt;
+BitMap * swapFileBitMap;
+int pageReplacementPolicy;
+List* pageQueue;
 
 KernelLock::KernelLock() {
     this->lock = NULL;
@@ -41,6 +44,11 @@ Lock * lockTableLock;
 Lock * cvTableLock;
 Lock * printLock;
 Lock * processTableLock;
+
+Lock * memoryLock;
+Lock * iptLock;
+
+OpenFile * swapFile;
 
 
 KernelCV::KernelCV() {
@@ -65,7 +73,7 @@ KernelProcess::KernelProcess(Thread * processThread) {
     
     this->threadList = new KernelThread*[100];
     this->totalThreads = 0;
-    this->numThreadsExecuting = 0;
+    this->numThreadsExecuting = 1;
     this->myThread = processThread;
     this->mySpace = NULL;
 }
@@ -134,13 +142,30 @@ Initialize(int argc, char **argv)
     int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
-    
+
     //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
     processTable = new KernelProcess*[100];
+
+    pageReplacementPolicy = RAND;
+    pageQueue = new List;
     
     physicalPageBitMap = new BitMap(NumPhysPages);
+    swapFileBitMap = new BitMap(500); //sufficiently large size
+    
+    ipt = new IPT[NumPhysPages];
+    for(int i = 0; i < NumPhysPages; i ++) {
+        
+        ipt[i].virtualPage = -1;
+        ipt[i].physicalPage = i;
+        ipt[i].valid = FALSE;
+        ipt[i].use = FALSE;
+        ipt[i].dirty = FALSE;
+        ipt[i].readOnly = FALSE;  // if the code segment was entirely on
+        // a separate page, we could set its
+        // pages to be read-only
+    }
 
-    // initialize all locks within array of KernelLock objects 
+    // initialize all locks within array of KernelLock objects
     kernelLocks = new KernelLock*[MAX_LOCKS];
     for(int i = 0; i < MAX_LOCKS; i++) {
         kernelLocks[i] = new KernelLock();
@@ -156,6 +181,16 @@ Initialize(int argc, char **argv)
     cvTableLock = new Lock("cvTableLock");
     printLock = new Lock("printLock");
     processTableLock = new Lock("processTableLock");
+    
+    memoryLock = new Lock("MemoryLock");
+    iptLock = new Lock("iptLock");
+    
+    // TODO: append machine id to swap file because it's one per OS
+    swapFile = fileSystem->Open("../vm/swapfile.txt");
+    
+    if (swapFile == NULL) {
+        printf("Unable to open the swapfile\n");
+    }
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program

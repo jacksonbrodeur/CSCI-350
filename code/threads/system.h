@@ -16,6 +16,7 @@
 #include "stats.h"
 #include "timer.h"
 #include "synch.h"
+#include "bitmap.h"
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv); 	// Initialization,
@@ -76,8 +77,22 @@ struct KernelProcess
     KernelProcess(Thread * processThread);
 };
 
+struct IPT : public TranslationEntry {
+    
+    AddrSpace* mySpace;
+};
+
+
 #define MAX_LOCKS 1000
 #define TOTALPAGESPERPROCESS 1000
+
+#define EXECUTABLE 0
+#define SWAPFILE 1
+#define NEITHER 2
+#define FIFO 0
+#define RAND 1
+extern int pageReplacementPolicy;
+extern List* pageQueue;
 extern KernelLock** kernelLocks;
 extern KernelCV** kernelCVs;
 
@@ -86,11 +101,16 @@ extern Lock * cvTableLock;
 extern Lock * printLock;
 extern Lock * processTableLock;
 
+extern Lock * memoryLock;
+extern Lock * iptLock;
+
 extern KernelProcess** processTable;
-//extern BitMap * stackBitMap;
 extern BitMap * physicalPageBitMap;
+extern BitMap *swapFileBitMap;
 
+extern OpenFile * swapFile;
 
+extern IPT *ipt;
 
 #ifdef USER_PROGRAM
 #include "machine.h"

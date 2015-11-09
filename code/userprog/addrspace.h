@@ -17,10 +17,18 @@
 #include "filesys.h"
 #include "table.h"
 
-#define UserStackSize		1024 	// increase this as necessary!
+
+#define UserStackSize 1024 	// increase this as necessary!
 
 #define MaxOpenFiles 256
 #define MaxChildSpaces 256
+
+struct PageTableEntry : public TranslationEntry {
+    
+    int byteOffset;
+    
+    int diskLocation;
+};
 
 class AddrSpace {
   public:
@@ -38,11 +46,15 @@ class AddrSpace {
     
     unsigned int codeDataPages;
     
-    TranslationEntry *pageTable;	// Assume linear page table translation
+    PageTableEntry *pageTable;
+    //TranslationEntry *pageTable;	// Assume linear page table translation
     // for now!
-
+    
+    OpenFile * myExecutable;
+    
+    unsigned int numPages;
  private:
-    unsigned int numPages;		// Number of pages in the virtual 
+        // Number of pages in the virtual
 					// address space
 };
 
