@@ -10,7 +10,7 @@ I. Requirements:
 In Part 1 of the assignment we had to implement software-management of the TLB. To do this we also had to implement a form of software page translation for handling TLB misses as well as making sure the TLB state was set up properly on a context switch.
 To show that this was working we had to run a single program larger than 32 pages and show that it could run to completion. 
 
-In Part 2 we had to implement virtual memory. This involved having routines for moving a page between memory and disk and creating utilizing a swap file. We did not preload anything and thus had to keep track of every virutal page and its location. When memory was full we had to select a page to evict (either FIFO or random) which would be done with the help of an inverted page table. 
+In Part 2 we had to implement virtual memory. This involved having routines for moving a page between memory and disk and creating utilizing a swap file. We did not preload anything and thus had to keep track of every virtual page and its location (such as in the executable, in the swapfile, or neither). When memory was full we had to select a page to evict (either FIFO or random) which would be done with the help of an inverted page table. 
 To demonstrate that we had properly implemented virtual memory we had to run two programs, each larger than the 32 pages of main memory, and show that they would run to completion. The easiest way to do this was to show that two instances of matmult would successfully run. 
 
 In Part 3 ... [TODO]
@@ -19,7 +19,7 @@ II. Assumptions
 	- Reasonable assumptions you take for your scheme.
 	[TODO: think we need multiple swapfiles with the networking portion]
 
-	We named our swap file "swapfile.txt"
+	We named our swap file "swapfile.txt”. Also, when there is a context switch, the TLB needs to be invalidated so we accomplished this by placing the invalidation code inside of  the SaveState function in addrspace.cc because this function is called every time there is a context switch. Something else we assumed was that when we invalidate a page of memory, the only thing that needs to be set is the valid bit (to false). All of the other fields can just be ignored. Thus when attempting to use a page of memory (such as to clear it) we only need to check the valid bit before doing this.
 
 III. Design:
 - This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
@@ -76,8 +76,10 @@ IV. Implementation:
 		system.h
 		system.cc
 		main.cc
+		machine.h
 	+ Files added
 		test/testvm.c
+		vm/swapfile.txt
 
 	+ Data Structures added, and the file they were added to.
 		struct PageTableEntry : public TranslationEntry - addrspace.h
@@ -91,22 +93,34 @@ IV. Implementation:
 			}
 
 	+ Functions added and in which file.
+		handleIPTMiss - exception.cc
+		handleMemoryFull - exception.cc
+
 	+ Functions modified and in which file.
+		pageFaultException handling - exception.cc
+		ExitSyscall - exception.cc
+		RestoreState - addrspace.cc
+		Initialize - system.cc
+		AddrSpace constructor - addrspace.cc
 
 V. Testing:  (For each test case, you must show)
 	+ How to test
 - How to run the test cases, the commands, the arguments and so on.
 	The default page replacement policy is FIFO but you can select either RAND or FIFO with the -P flag (i.e. -P RAND)
-	To test parts 1 and 2 you can run the following command: "nachos -x ../test/vm" from the 'vm' directory.
+	To test parts 1 and 2 you can run the following command: "nachos -x ../test/testvm" from the 'vm' directory.
 	+ Test Output
  	This executes two matmult's and upon successful completion they will exit with value 7220 and will print these values out.
 
 VI. Discussion:
 	+ Experiment expectation.  (What is supposed to happen.)
+		After implementing part 1 and 2 (which gets rid of preloading memory) we expected that our user programs would now attempt to look in memory for pages that are not already loaded. Thus the user programs would now case a large amount of page fault exceptions and take longer to run. We do not expect our output for these user programs to change obviously. Matmult was expected to exit with status 7220 and sort was expected to exit with status 1023.
+
 	+ Experiment result.  (What actually happened.)
+		Once we implemented parts 1 and 2, our OS attempted to find virtual pages that were needed and not existing in our physical memory. As we expected, our page fault exception handler took care of this performing TLB, IPT, and PageTable looks ups where needed. Also, it was able to handle IPT misses by reading from an executable or swap file in the case of a code page. When physical memory filled up and we needed to load a page in, our exception handler evicts a page based on which eviction policy we are using.
 	+ Explanation
 		- Explain your experiment result - how it proves what 
 		  you were supposed to prove.
+		We printed out the IPT and TLB every time a load or eviction occurred. We were able to track each page and make sure we were in fact performing correct demand-paged memory allocation. When we run any amount of instances of matmult or sort, we get the correct exit statuses each time (7220 for matmult and 1023 for sort).
 
 VIII. Miscellaneous:
 - Whatever else you want the grader know about your development.  You can create your own subsections headings here.
