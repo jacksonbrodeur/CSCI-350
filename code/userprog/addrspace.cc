@@ -184,7 +184,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             pageTable[i].byteOffset = noffH.code.inFileAddr + pageTable[i].virtualPage*PageSize;
             pageTable[i].diskLocation = EXECUTABLE;
             
-            printf("Virtual Page %d is in the executable at byte offset %d\n",i,pageTable[i].byteOffset);
+            // printf("Virtual Page %d is in the executable at byte offset %d\n",i,pageTable[i].byteOffset);
         }
         else {
             
