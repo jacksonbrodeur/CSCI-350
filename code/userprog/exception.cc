@@ -1143,14 +1143,12 @@ int handleMemoryFull() {
     int page = -1;
     
     if (pageReplacementPolicy == FIFO) {
-        
         int * pagePointer = (int*)pageQueue->Remove();
         page = *pagePointer;
         delete pagePointer;
         
     }
     else {
-        
         page = rand() % NumPhysPages;
     }
     

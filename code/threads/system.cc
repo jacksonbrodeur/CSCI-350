@@ -146,7 +146,7 @@ Initialize(int argc, char **argv)
     //initialize the process table -- make it of size 100 to ensure it holds max possible customers/clerks
     processTable = new KernelProcess*[100];
 
-    pageReplacementPolicy = RAND;
+    pageReplacementPolicy = FIFO;
     pageQueue = new List;
     
     physicalPageBitMap = new BitMap(NumPhysPages);
