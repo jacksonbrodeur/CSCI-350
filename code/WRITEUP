@@ -21,7 +21,7 @@ II. Assumptions
 
 	We named our swap file "swapfile.txt”. Also, when there is a context switch, the TLB needs to be invalidated so we accomplished this by placing the invalidation code inside of  the SaveState function in addrspace.cc because this function is called every time there is a context switch. Something else we assumed was that when we invalidate a page of memory, the only thing that needs to be set is the valid bit (to false). All of the other fields can just be ignored. Thus when attempting to use a page of memory (such as to clear it) we only need to check the valid bit before doing this.
 
-	The Server will always have machine ID 0. The Server will always be running before any instance of nacho that needs access to RPCs is started. All monitor variables will be integers.
+	The Server will always have machine ID 0. The Server will always be running before any instance of nacho that needs access to RPCs is started. All monitor variables will be integers. The writers of the user programs will correctly use locks and conditions to controll access to the shared data.
 
 III. Design:
 - This section is to cover your logic and ideas as to how  you are going to solve the problem presented.  This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
@@ -87,7 +87,7 @@ Part 3
             char * name
             int value
 
-        We also had to modify the existing syscalls to create and send a message to the server when the user program wanted to access the functionality of Locks, Conditions, or Monitors. We also had to create the Server program that woulde receive and handle all requests from the user programs. We used the fact that clients that invoked the postOffice::receive() method would wait until they got a response to simulate the sleeping and waking of threads induced by locks and condition variables.
+        We also had to modify the existing syscalls to create and send a message to the server when the user program wanted to access the functionality of Locks, Conditions, or Monitors. The Monitor Variables are designed in a way that it is up to the user program to use locks and conditions properly to control access to the shared data. We also had to create the Server program that woulde receive and handle all requests from the user programs. We used the fact that clients that invoked the postOffice::receive() method would wait until they got a response to simulate the sleeping and waking of threads induced by locks and condition variables.
 
         The format of a message from the client to the server would first have an integer, saying which function should be called on the server side followed by any arguments required by that function. All arguments would be separated by a space.
         The message from the server back to the client would have an integer code indicating success or error with a return value if necessary.
@@ -295,7 +295,7 @@ V. Testing:  (For each test case, you must show)
 VI. Discussion:
 	+ Experiment expectation.  (What is supposed to happen.)
 		After implementing part 1 and 2 (which gets rid of preloading memory) we expected that our user programs would now attempt to look in memory for pages that are not already loaded. Thus the user programs would now case a large amount of page fault exceptions and take longer to run. We do not expect our output for these user programs to change obviously. Matmult was expected to exit with status 7220 and sort was expected to exit with status 1023.
-		
+
 
 	+ Experiment result.  (What actually happened.)
 		Once we implemented parts 1 and 2, our OS attempted to find virtual pages that were needed and not existing in our physical memory. As we expected, our page fault exception handler took care of this performing TLB, IPT, and PageTable looks ups where needed. Also, it was able to handle IPT misses by reading from an executable or swap file in the case of a code page. When physical memory filled up and we needed to load a page in, our exception handler evicts a page based on which eviction policy we are using.
