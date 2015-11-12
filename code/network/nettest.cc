@@ -386,6 +386,12 @@ void RunServer()
 }
 
 int CreateLock(char* name) {
+    for(unsigned int i = 0; i < serverLocks->size(); i++) {
+        ServerLock * l = serverLocks->at(i);
+        if (strcmp(l->name, name) == 0) {
+            return i;
+        }
+    }
     ServerLock * newLock = new ServerLock(name);
     int index = serverLocks->size();
     serverLocks->push_back(newLock);
@@ -439,6 +445,12 @@ bool ReleaseLock(int index, int machineID) {
 }
 
 int CreateCV(char* name) {
+    for(unsigned int i = 0; i < serverCVs->size(); i++) {
+        ServerCV * l = serverCVs->at(i);
+        if (strcmp(l->name, name) == 0) {
+            return i;
+        }
+    }
     ServerCV * newCV = new ServerCV(name);
     int index = serverCVs->size();
     serverCVs->push_back(newCV);
@@ -508,6 +520,12 @@ void Broadcast(int conditionIndex, int lockIndex) {
 }
 
 int CreateMV(char * name) {
+    for(unsigned int i = 0; i < serverMVs->size(); i++) {
+        ServerMV * l = serverMVs->at(i);
+        if (strcmp(l->name, name) == 0) {
+            return i;
+        }
+    }
     ServerMV * mv = new ServerMV(name);
     int index = serverMVs->size();
     serverMVs->push_back(mv);
