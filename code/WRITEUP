@@ -17,7 +17,6 @@ In Part 3 we had to implement remote procedure calls for the Lock and Condition 
 
 II. Assumptions
 	- Reasonable assumptions you take for your scheme.
-	[TODO: think we need multiple swapfiles with the networking portion]
 
 	We named our swap file "swapfile.txt”. Also, when there is a context switch, the TLB needs to be invalidated so we accomplished this by placing the invalidation code inside of  the SaveState function in addrspace.cc because this function is called every time there is a context switch. Something else we assumed was that when we invalidate a page of memory, the only thing that needs to be set is the valid bit (to false). All of the other fields can just be ignored. Thus when attempting to use a page of memory (such as to clear it) we only need to check the valid bit before doing this.
 
@@ -170,6 +169,7 @@ IV. Implementation:
 V. Testing:  (For each test case, you must show)
 	+ How to test
 - How to run the test cases, the commands, the arguments and so on.
+	To test parts 1 and 2 you can run the following command: "nachos -P {FIFO | RAND} -x ../test/testvm" from the 'vm' directory.
 	The default page replacement policy is FIFO but you can select either RAND or FIFO with the -P flag (i.e. -P RAND)
 	To test parts 1 and 2 you can run the following command: "nachos -x ../test/testvm" from the 'vm' directory.
 	+ Test Output
