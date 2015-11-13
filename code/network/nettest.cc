@@ -20,6 +20,7 @@
 #include <string>
 #include <cstring>
 #include <deque>
+#include <map>
 #include "copyright.h"
 
 #include "system.h"
@@ -30,6 +31,10 @@
 
 using namespace std;
 
+#define NUM_SERVERS 5
+
+#define NO          0
+#define YES         1
 // Test out message delivery, by doing the following:
 //	1. send a message to the machine with ID "farAddr", at mail box #0
 //	2. wait for the other machine's message to arrive (in our mailbox #0)
@@ -143,10 +148,30 @@ struct ServerMV {
     }
 };
 
+struct Request {
+    int rpcType;
+    char * name;
+    int index;
+    int lockIndex;
+    int conditionIndex;
+    int value;
+    int noCounter;
+
+
+
+};
+
 vector<ServerLock*> * serverLocks;
 vector<ServerCV*> * serverCVs;
 vector<ServerMV*> * serverMVs;
 
+map<int, Request*> requestTable; //Map Request ID to number of No's received
+
+int requestCounter = 0;
+
+void TakeAction(int requestID, int machineID, int mailbox);
+
+int FindLock(char* name);
 int CreateLock(char* name);
 bool AcquireLock(int index, int machineID);
 bool ReleaseLock(int index, int machineID);
@@ -181,7 +206,8 @@ void RunServer()
         int rpc;
         ss >> rpc;
 
-        int incomingMachineID = inMailHdr.from;
+        int incomingMachineID = inPktHdr.from;
+        int incomingMailbox = inMailHdr.from;
         int index;
         char data[MaxMailSize];
         bool success;
@@ -189,20 +215,96 @@ void RunServer()
         int conditionIndex;
         int lockIndex;
         int value;
+        int requestID;
+        int machineID;
+        int mailbox;
         switch(rpc) {
+            case S_RESPONSE:
+                int response;
+                ss >> response;
+                ss >> requestID;
+                if(response == NO) {
+                    requestTable[requestID]->noCounter++;
+                    if(requestTable[requestID]->noCounter == NUM_SERVERS - 1) {
+                        TakeAction(requestID, incomingMachineID, incomingMailbox);
+                    }
+                } //otherwise do nothing
+
+                break;
+            case S_CREATE_LOCK:
+                ss >> name;
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+                ss.clear();
+                ss.str("");
+                index = FindLock(name);
+                if(index == -1) {
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                } else {
+                    // Send reply to client with lock index
+                    outPktHdr.to = machineID;
+                    outMailHdr.to = mailbox;
+                    ss << SUCCESS << " " << index;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+
+                    ss.clear();
+                    ss.str("");
+
+                    //Send yes to other server
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+                break;
             case CREATE_LOCK:
                 name = new char[MaxMailSize];
                 ss >> name;
                 ss.clear();
                 ss.str("");
-                index = CreateLock(name);
-                outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
-                ss << SUCCESS << " " << index;
-                strcpy(data, ss.str().c_str());
-                outMailHdr.length = strlen(data) + 1;
-                success = postOffice->Send(outPktHdr, outMailHdr, data);
-                printf("Created lock named %s from machine %d\n", name, incomingMachineID);
+                index = FindLock(name);
+                if(index == -1) {
+                    int requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->name = name;
+                    r->noCounter = 0;
+                    requestTable[requestID] = r;
+                    //You don't have lock
+                    //Ask other servers
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        outPktHdr.to = i;
+                        outMailHdr.to = 0;
+                        ss << S_CREATE_LOCK << " " << name << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else {
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    ss << SUCCESS << " " << index;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    success = postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("Created lock named %s from machine %d\n", name, incomingMachineID);
+                }
+                //index = CreateLock(name);
                 break;
             case ACQUIRE:
                 ss >> index;
@@ -385,13 +487,47 @@ void RunServer()
     }
 }
 
-int CreateLock(char* name) {
+void TakeAction(int requestID, int machineID, int mailbox) {
+    Request * request = requestTable[requestID];
+    int rpc = request->rpcType;
+
+
+    int index;
+    PacketHeader outPktHdr;
+    MailHeader outMailHdr;
+    char data[MaxMailSize];
+    stringstream ss;
+    switch(rpc) {
+        case CREATE_LOCK:
+            index = CreateLock(request->name);
+            outPktHdr.to = machineID;
+            outMailHdr.to = mailbox;
+            ss << "SUCCESS" << " " << index;
+            strcpy(data, ss.str().c_str());
+            outMailHdr.length = strlen(data) + 1;
+            postOffice->Send(outPktHdr, outMailHdr, data);
+            break;
+        case CREATE_CV:
+            break;
+        case CREATE_MV:
+            break;
+        default:
+            //all other syscalls should have error messages indicating resource is invalid
+            break;
+    }
+}
+
+int FindLock(char* name) {
     for(unsigned int i = 0; i < serverLocks->size(); i++) {
         ServerLock * l = serverLocks->at(i);
         if (strcmp(l->name, name) == 0) {
             return i;
         }
     }
+    return -1;
+}
+
+int CreateLock(char* name) {    
     ServerLock * newLock = new ServerLock(name);
     int index = serverLocks->size();
     serverLocks->push_back(newLock);

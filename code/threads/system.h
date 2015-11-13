@@ -142,6 +142,10 @@ extern SynchDisk   *synchDisk;
 #define GET_MV          11
 #define SET_MV          12
 
+#define S_RESPONSE      13
+#define S_CREATE_LOCK   14
+
+
 //Define codes for responses from server
 #define ERROR           0
 #define SUCCESS         1
