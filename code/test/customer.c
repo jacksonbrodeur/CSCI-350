@@ -7,7 +7,7 @@ void pictureTransaction(Clerk * clerk, Customer * customer) {
     Signal(clerk->clerkCondition, clerk->clerkLock);
     Print("Customer %i has given SSN to PictureClerk %i\n", 46, customer->id * 1000 + clerk->myLine, 0);
     
-    while(customer->pictureTaken == 0) {
+    while(GetSyscall(customer->pictureTaken) == 0) {
         
         Wait(clerk->clerkCondition, clerk->clerkLock);
         if((Rand() % 10) == 0) {
@@ -242,7 +242,7 @@ main()
         applicationTransaction(&applicationClerks[myLine], me);
         
         /*if there is a senator in the office, make the customer wait after he is finished with the clerk he is currently using*/
-        while(numSenatorsHere>0 && !(me->isSenator))
+        while(GetSyscall(numSenatorsHere)>0 && !(me->isSenator))
         {
             Print("Customer %i is going outside the Passport Office because there is a Senator present\n", 85, me->id * 1000, 0);
             Acquire(senatorLock);

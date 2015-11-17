@@ -40,9 +40,9 @@ int customersFinished = 0;
 
 #define MAX_CUSTOMERS 200
 #define MAX_CLERKS 50
-int NUM_CUSTOMERS = 40;
+int NUM_CUSTOMERS = 20;
 int NUM_CLERKS = 5;
-int NUM_SENATORS = 3;
+int NUM_SENATORS = 10;
 
 typedef struct Customer {
     int id;
@@ -195,24 +195,6 @@ int main()
     Print("Number of Senators = %i\n", 25, NUM_SENATORS * 1000, 0);
 
     initializeData();
-
-    for (i = 0; i < NUM_CLERKS; i++) {
-        Fork(pictureClerk);
-    }
-    for (i = 0; i < NUM_CLERKS; i++) {
-        Fork(applicationClerk);
-    }
-    for (i = 0; i < NUM_CLERKS; i++) {
-        Fork(passportClerk);
-    }
-    for (i = 0; i < NUM_CLERKS; i++) {
-        Fork(cashier);
-    }
-    for(i = 0; i < NUM_CUSTOMERS + NUM_SENATORS; i++) {
-        Fork(customer);
-    }
-
-    Fork(manager);
 
     Exit(0);
 }
