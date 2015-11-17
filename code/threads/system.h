@@ -144,6 +144,9 @@ extern SynchDisk   *synchDisk;
 
 #define S_RESPONSE      13
 #define S_CREATE_LOCK   14
+#define S_CREATE_CV     15
+#define S_CREATE_MV     16
+#define S_ACQUIRE       17
 
 
 //Define codes for responses from server

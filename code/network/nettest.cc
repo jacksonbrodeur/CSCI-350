@@ -32,6 +32,7 @@
 using namespace std;
 
 #define NUM_SERVERS 5
+#define MAX_RESOURCES 100
 
 #define NO          0
 #define YES         1
@@ -168,6 +169,9 @@ vector<ServerMV*> * serverMVs;
 map<int, Request*> requestTable; //Map Request ID to number of No's received
 
 int requestCounter = 0;
+int lockCounter = 0;
+int cvCounter = 0;
+int mvCounter = 0;
 
 void TakeAction(int requestID);
 
@@ -176,11 +180,13 @@ int CreateLock(char* name);
 bool AcquireLock(int index, int machineID);
 bool ReleaseLock(int index, int machineID);
 
+int FindCV(char* name);
 int CreateCV(char* name);
 bool Wait(int conditionIndex, int lockIndex, int machineID);
 void Signal(int conditionIndex, int lockIndex);
 void Broadcast(int conditionIndex, int lockIndex);
 
+int FindMV(char* name);
 int CreateMV(char* name);
 void SetMV(int index, int value);
 int GetMV(int index);
@@ -190,6 +196,9 @@ void RunServer()
     serverLocks = new vector<ServerLock*>;
     serverCVs = new vector<ServerCV*>;
     serverMVs = new vector<ServerMV*>;
+    lockCounter += MAX_RESOURCES * myMachineID; // number resources to avoid having to reference by name 
+    cvCounter += MAX_RESOURCES * myMachineID; // when checking (take into account server - look for index 15 on server 2 request 215)
+    mvCounter += MAX_RESOURCES * myMachineID;
     printf("Nachos Server Program has started\n\n");
     while (true) {
         
@@ -230,7 +239,7 @@ void RunServer()
                         TakeAction(requestID);
                     }
                 } //otherwise do nothing
-
+                // TODO: do we want to do anything when you get a YES? reset the requestTable or something?
                 break;
             case S_CREATE_LOCK:
                 ss >> name;
@@ -311,32 +320,116 @@ void RunServer()
                     success = postOffice->Send(outPktHdr, outMailHdr, data);
                     printf("Retrieved lock named %s from machine %d\n", name, incomingMachineID);
                 }
-                //index = CreateLock(name);
                 break;
+            case S_ACQUIRE:
+                ss >> index;
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+                ss.clear();
+                ss.str("");
+                // see if i have it and then send request to servers if I don't
+                if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    printf("Did not find lock %s, sending NO to server %d\n", name, incomingMachineID);
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                } else { // I should have it (it's in my range)
+                    if (index % MAX_RESOURCES > serverLocks.size()) {
+                        // in my range but invalid
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    success = AcquireLock(index, incomingMachineID);
+                    if(success) {
+                        //Send response to incomingMachineID
+                        ss << SUCCESS;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
+                    } else {//else lock is busy, so don't send response
+                        printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
+                    }
+                    ss.clear();
+                    ss.str("");
+
+                    //Send yes to other server
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+            	break;
             case ACQUIRE:
                 ss >> index;
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(index < 0 || static_cast<uint64_t>(index) > serverLocks->size() - 1) {
+                if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-                success = AcquireLock(index, incomingMachineID);
-                if(success) {
-                    //Send response to incomingMachineID
-                    ss << SUCCESS;
-                    strcpy(data, ss.str().c_str());
-                    outMailHdr.length = strlen(data) + 1;
-                    postOffice->Send(outPktHdr, outMailHdr, data);
-                    printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
-                } else {//else lock is busy, so don't send response
-                    printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
-                }
+                // see if i have it and then send request to servers if I don't
+                if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    printf("Did not find lock %s\n", name);
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->name = name;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    requestTable[requestID] = r;
+                    //You don't have lock
+                    //Ask other servers
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check ACQUIRE\n", i);
+                        outPktHdr.to = i;
+                        outMailHdr.to = 0;
+                        ss << S_ACQUIRE << " " << index << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else { // I should have it (it's in my range)
+                    if (index % MAX_RESOURCES > serverLocks.size()) {
+                        // in my range but invalid
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    success = AcquireLock(index, incomingMachineID);
+                    if(success) {
+                        //Send response to incomingMachineID
+                        ss << SUCCESS;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
+                    } else {//else lock is busy, so don't send response
+                        printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
+                    }
+                }                
                 break;
             case RELEASE:
                 ss >> index;
@@ -344,7 +437,7 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(index < 0 || static_cast<uint64_t>(index) > serverLocks->size() - 1) {
+                if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -358,18 +451,84 @@ void RunServer()
                 outMailHdr.length = strlen(data) + 1;
                 postOffice->Send(outPktHdr, outMailHdr, data);
                 break;
+            case S_CREATE_CV:
+            	ss >> name;
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+                ss.clear();
+                ss.str("");
+                index = FindCV(name);
+                if(index == -1) {
+                    printf("Did not find CV %s, sending NO to server %d\n", name, incomingMachineID);
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                } else {
+                    printf("Found CV %s, messaging client [%d:%d] and sending YES to server %d\n", name, machineID, mailbox, incomingMachineID);
+                    // Send reply to client with CV index
+                    outPktHdr.to = machineID;
+                    outMailHdr.to = mailbox;
+                    ss << SUCCESS << " " << index;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+
+                    ss.clear();
+                    ss.str("");
+
+                    //Send yes to other server
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+            	break;
             case CREATE_CV:
                 ss >> name;
                 ss.clear();
                 ss.str("");
-                index = CreateCV(name);
-                outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
-                ss << SUCCESS << " " << index;
-                strcpy(data, ss.str().c_str());
-                outMailHdr.length = strlen(data) + 1;
-                success = postOffice->Send(outPktHdr, outMailHdr, data);
-                printf("Created CV named %s from machine %d\n", name, incomingMachineID);
+                index = FindCV(name);
+                if(index == -1) {
+                    printf("Did not find CV %s\n", name);
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->name = name;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    requestTable[requestID] = r;
+                    //You don't have CV
+                    //Ask other servers
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check CREATE_CV\n", i);
+                        outPktHdr.to = i;
+                        outMailHdr.to = 0;
+                        ss << S_CREATE_CV << " " << name << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else {
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    ss << SUCCESS << " " << index;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    success = postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("Retrieved CV named %s from machine %d\n", name, incomingMachineID);
+                }
                 break;
             case WAIT:
                 ss >> conditionIndex;
@@ -378,7 +537,7 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverCVs->size() - 1) {
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -403,7 +562,7 @@ void RunServer()
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
 
-                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverCVs->size() - 1) {
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -424,7 +583,7 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > serverCVs->size() - 1) {
+                if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -438,18 +597,84 @@ void RunServer()
                 outMailHdr.length = strlen(data) + 1;
                 postOffice->Send(outPktHdr, outMailHdr, data);
                 break;
+            case S_CREATE_MV:
+            	ss >> name;
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+                ss.clear();
+                ss.str("");
+                index = FindMV(name);
+                if(index == -1) {
+                    printf("Did not find MV %s, sending NO to server %d\n", name, incomingMachineID);
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                } else {
+                    printf("Found MV %s, messaging client [%d:%d] and sending YES to server %d\n", name, machineID, mailbox, incomingMachineID);
+                    // Send reply to client with CV index
+                    outPktHdr.to = machineID;
+                    outMailHdr.to = mailbox;
+                    ss << SUCCESS << " " << index;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+
+                    ss.clear();
+                    ss.str("");
+
+                    //Send yes to other server
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+            	break;
             case CREATE_MV:
                 ss >> name;
                 ss.clear();
                 ss.str("");
-                index = CreateMV(name);
-                outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
-                ss << SUCCESS << " " << index;
-                strcpy(data, ss.str().c_str());
-                outMailHdr.length = strlen(data) + 1;
-                success = postOffice->Send(outPktHdr, outMailHdr, data);
-                printf("Created MV named %s from machine %d\n", name, incomingMachineID);
+                index = FindMV(name);
+                if(index == -1) {
+                    printf("Did not find MV %s\n", name);
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->name = name;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    requestTable[requestID] = r;
+                    //You don't have CV
+                    //Ask other servers
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check CREATE_MV\n", i);
+                        outPktHdr.to = i;
+                        outMailHdr.to = 0;
+                        ss << S_CREATE_MV << " " << name << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else {
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    ss << SUCCESS << " " << index;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    success = postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("Retrieved CV named %s from machine %d\n", name, incomingMachineID);
+                }
                 break;
             case SET_MV:
                 ss >> index;
@@ -458,7 +683,7 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(index < 0 || static_cast<uint64_t>(index) > serverMVs->size() - 1) {
+                if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -477,7 +702,7 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = 0;
-                if(index < 0 || static_cast<uint64_t>(index) > serverMVs->size() - 1) {
+                if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -504,25 +729,36 @@ void TakeAction(int requestID) {
     MailHeader outMailHdr;
     char data[MaxMailSize];
     stringstream ss;
+    bool success = false;
     switch(rpc) {
         case CREATE_LOCK:
+        	success = true;
             index = CreateLock(request->name);
-            outPktHdr.to = request->fromMachineID;
-            outMailHdr.to = request->fromMailbox;
-            ss << "SUCCESS" << " " << index;
-            strcpy(data, ss.str().c_str());
-            outMailHdr.length = strlen(data) + 1;
-            printf("Created Lock %s at index %d from client [%d:%d]\n", request->name, index, request->fromMachineID, request->fromMailbox);
-            postOffice->Send(outPktHdr, outMailHdr, data);
             break;
         case CREATE_CV:
+        	success = true;
+        	index = CreateCV(request->name);
             break;
         case CREATE_MV:
+        	success = true;
+        	index = CreateMV(request->name);
             break;
         default:
             //all other syscalls should have error messages indicating resource is invalid
+        	index = -1;
             break;
     }
+    outPktHdr.to = request->fromMachineID;
+    outMailHdr.to = request->fromMailbox;
+    if (success) {
+    	ss << "SUCCESS" << " " << index;
+    } else {
+    	ss << "FAIL" << " " << index;
+    }
+    strcpy(data, ss.str().c_str());
+    outMailHdr.length = strlen(data) + 1;
+    printf("Created Lock %s at index %d from client [%d:%d]\n", request->name, index, request->fromMachineID, request->fromMailbox);
+    postOffice->Send(outPktHdr, outMailHdr, data);
 }
 
 int FindLock(char* name) {
@@ -535,15 +771,35 @@ int FindLock(char* name) {
     return -1;
 }
 
+int FindCV(char* name) {
+    for(unsigned int i = 0; i < serverCVs->size(); i++) {
+        ServerCV * l = serverCVs->at(i);
+        if (strcmp(l->name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int FindMV(char* name) {
+    for(unsigned int i = 0; i < serverMVs->size(); i++) {
+        ServerMV * l = serverMVs->at(i);
+        if (strcmp(l->name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int CreateLock(char* name) {    
     ServerLock * newLock = new ServerLock(name);
-    int index = serverLocks->size();
+    int index = lockCounter++;
     serverLocks->push_back(newLock);
     return index;
 }
 
 bool AcquireLock(int index, int machineID) {
-    ServerLock * sl = serverLocks->at(index);
+    ServerLock * sl = serverLocks->at(index % MAX_RESOURCES);
     bool returnValue = true;
     if(sl->owner == -1) {
         sl->owner = machineID;
@@ -589,14 +845,8 @@ bool ReleaseLock(int index, int machineID) {
 }
 
 int CreateCV(char* name) {
-    for(unsigned int i = 0; i < serverCVs->size(); i++) {
-        ServerCV * l = serverCVs->at(i);
-        if (strcmp(l->name, name) == 0) {
-            return i;
-        }
-    }
     ServerCV * newCV = new ServerCV(name);
-    int index = serverCVs->size();
+    int index = cvCounter++;
     serverCVs->push_back(newCV);
     return index;
 }
@@ -664,14 +914,8 @@ void Broadcast(int conditionIndex, int lockIndex) {
 }
 
 int CreateMV(char * name) {
-    for(unsigned int i = 0; i < serverMVs->size(); i++) {
-        ServerMV * l = serverMVs->at(i);
-        if (strcmp(l->name, name) == 0) {
-            return i;
-        }
-    }
     ServerMV * mv = new ServerMV(name);
-    int index = serverMVs->size();
+    int index = mvCounter++;
     serverMVs->push_back(mv);
     return index;
 }
