@@ -313,7 +313,7 @@ void RunServer()
                     }
                 } else {
                     outPktHdr.to = incomingMachineID;
-                    outMailHdr.to = 0;
+                    outMailHdr.to = incomingMailbox;
                     ss << SUCCESS << " " << index;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -338,7 +338,7 @@ void RunServer()
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverLocks.size()) {
+                    if (index % MAX_RESOURCES > serverLocks->size()) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -351,6 +351,8 @@ void RunServer()
                         //Send response to incomingMachineID
                         ss << SUCCESS;
                         strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
@@ -374,10 +376,10 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
+                    outMailHdr.to = incomingMailbox;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
@@ -410,10 +412,11 @@ void RunServer()
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverLocks.size()) {
+                    if (index % MAX_RESOURCES > serverLocks->size()) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         break;
@@ -423,6 +426,7 @@ void RunServer()
                         //Send response to incomingMachineID
                         ss << SUCCESS;
                         strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
@@ -522,7 +526,7 @@ void RunServer()
                     }
                 } else {
                     outPktHdr.to = incomingMachineID;
-                    outMailHdr.to = 0;
+                    outMailHdr.to = incomingMailbox;
                     ss << SUCCESS << " " << index;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -536,7 +540,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -560,7 +564,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
 
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
@@ -582,7 +586,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -668,7 +672,7 @@ void RunServer()
                     }
                 } else {
                     outPktHdr.to = incomingMachineID;
-                    outMailHdr.to = 0;
+                    outMailHdr.to = incomingMailbox;
                     ss << SUCCESS << " " << index;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -682,7 +686,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -701,7 +705,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -751,9 +755,9 @@ void TakeAction(int requestID) {
     outPktHdr.to = request->fromMachineID;
     outMailHdr.to = request->fromMailbox;
     if (success) {
-    	ss << "SUCCESS" << " " << index;
+    	ss << SUCCESS << " " << index;
     } else {
-    	ss << "FAIL" << " " << index;
+    	ss << ERROR << " " << index;
     }
     strcpy(data, ss.str().c_str());
     outMailHdr.length = strlen(data) + 1;
