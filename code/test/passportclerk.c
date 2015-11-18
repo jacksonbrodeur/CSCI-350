@@ -1,28 +1,47 @@
 #include "syscall.h"
 
+#define NUM_CUSTOMERS 20
+#define NUM_SENATORS 10
+
+
+
 main()
 {
-    Clerk tempClerk;
     int myLine;
-    Clerk * me;
     int i;
+    int counterLock = GetSyscall(/*counterLock index*/);
+
+    int lineCount;
+    int bribeLineCount;
+    int state;
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
+    
+    int breakLock;
+    int breakCondition;
+    
+    int clerkLock;
+    int clerkType;
+    Customer * customer;
+    int money;
     
     Acquire(counterLock);
-    myLine = numPassportClerks;
-    numPassportClerks++;
+    myLine = CreateSyscall(/*numPassportClerks*/);
+    SetSyscall(/*numPassportClerks++*/);
     me = &passportClerks[myLine];
     Release(counterLock);
     
     /* On duty while there are still customers who haven't completed process */
-    while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
+    while(GetSyscall(/*customersFinished*/) < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(passportClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(me->bribeLineCount > 0) { /* Check bribe line first... */
+        if(GetSyscall(/*me->bribeLineCount*/) > 0) { /* Check bribe line first... */
             Print("Passport Clerk %i has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
             Signal(me->bribeLineCondition, passportClerkLock);
-            me->state = BUSY;
-        } else if(me->lineCount > 0) { /* then check regular line */
+            SetSyscall(/*me->state*/) = BUSY;
+        } else if(GetSyscall(/*me->lineCount*/) > 0) { /* then check regular line */
             Print("Passport Clerk %i has signalled a customer to come to their counter\n", 69, myLine * 1000, 0);
             Signal(me->lineCondition, passportClerkLock);
             me->state = BUSY;
