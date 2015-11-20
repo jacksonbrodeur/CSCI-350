@@ -32,7 +32,6 @@
 
 using namespace std;
 
-#define NUM_SERVERS 5
 #define MAX_RESOURCES 100
 
 #define NO          0
@@ -210,7 +209,7 @@ void RunServer()
         MailHeader inMailHdr;
         postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
 
-        printf("Message from Machine %d: %s\n", inMailHdr.from, buffer);
+        printf("Message from Machine [%d:%d]: %s\n", inPktHdr.from, inMailHdr.from, buffer);
         stringstream ss;
         ss << buffer;
         int rpc;
@@ -255,6 +254,8 @@ void RunServer()
                     ss << S_RESPONSE << " " << NO << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
+                    outMailHdr.to = 0;
                     outMailHdr.to = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
@@ -306,9 +307,13 @@ void RunServer()
                         }
                         printf("Sending message to Server %d to check CREATE_LOCK\n", i);
                         outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
+                        outMailHdr.from = 0;
                         ss << S_CREATE_LOCK << " " << name << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
@@ -335,7 +340,9 @@ void RunServer()
                     ss << S_RESPONSE << " " << NO << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = 0;
+                    outMailHdr.from = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 } else { // I should have it (it's in my range)
@@ -349,7 +356,7 @@ void RunServer()
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         break;
                     }
-                    success = AcquireLock(index, machineID, mailbox);
+                    success = AcquireLock(index % MAX_RESOURCES, machineID, mailbox);
                     if(success) {
                         //Send response to machineID
                         ss << SUCCESS;
@@ -369,7 +376,9 @@ void RunServer()
                     ss << S_RESPONSE << " " << YES << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = 0;
+                    outMailHdr.from = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 }
@@ -407,9 +416,13 @@ void RunServer()
                         }
                         printf("Sending message to Server %d to check ACQUIRE\n", i);
                         outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
+                        outMailHdr.from = 0;
                         ss << S_ACQUIRE << " " << index << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
@@ -423,7 +436,7 @@ void RunServer()
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         break;
                     }
-                    success = AcquireLock(index, incomingMachineID, incomingMailbox);
+                    success = AcquireLock(index % MAX_RESOURCES, incomingMachineID, incomingMailbox);
                     if(success) {
                         //Send response to incomingMachineID
                         ss << SUCCESS;
@@ -449,7 +462,9 @@ void RunServer()
                     ss << S_RESPONSE << " " << NO << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = 0;
+                    outMailHdr.from = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);             
                 } else {
@@ -463,7 +478,7 @@ void RunServer()
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         break;
                     }
-                    success = ReleaseLock(index, machineID, mailbox);
+                    success = ReleaseLock(index % MAX_RESOURCES, machineID, mailbox);
                     //success should always be true;
                     ss << SUCCESS;
                     strcpy(data, ss.str().c_str());
@@ -480,7 +495,9 @@ void RunServer()
                     ss << S_RESPONSE << " " << YES << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = 0;
+                    outMailHdr.from = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 }
@@ -520,9 +537,13 @@ void RunServer()
                         }
                         printf("Sending message to Server %d to check ACQUIRE\n", i);
                         outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
+                        outMailHdr.from = 0;
                         ss << S_RELEASE << " " << index << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
@@ -539,7 +560,7 @@ void RunServer()
                         break;
                     }
                     printf("Releasing lock %d from machine [%d:%d]\n", index, incomingMachineID, incomingMailbox);
-                    success = ReleaseLock(index, incomingMachineID, incomingMailbox);
+                    success = ReleaseLock(index % MAX_RESOURCES, incomingMachineID, incomingMailbox);
                     ss << SUCCESS;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -559,7 +580,9 @@ void RunServer()
                     ss << S_RESPONSE << " " << NO << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = 0;
+                    outMailHdr.from = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 } else {
@@ -579,7 +602,9 @@ void RunServer()
                     ss << S_RESPONSE << " " << YES << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = 0;
+                    outMailHdr.from = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 }
@@ -609,9 +634,13 @@ void RunServer()
                         }
                         printf("Sending message to Server %d to check CREATE_CV\n", i);
                         outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
+                        outMailHdr.from = 0;
                         ss << S_CREATE_CV << " " << name << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
@@ -712,7 +741,9 @@ void RunServer()
                     printf("Found MV %s, messaging client [%d:%d] and sending YES to server %d\n", name, machineID, mailbox, incomingMachineID);
                     // Send reply to client with CV index
                     outPktHdr.to = machineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = mailbox;
+                    outMailHdr.from = 0;
                     ss << SUCCESS << " " << index;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -725,7 +756,9 @@ void RunServer()
                     ss << S_RESPONSE << " " << YES << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
                     outMailHdr.to = 0;
+                    outMailHdr.from = 0;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 }
@@ -755,9 +788,13 @@ void RunServer()
                         }
                         printf("Sending message to Server %d to check CREATE_MV\n", i);
                         outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
+                        outMailHdr.from = 0;
                         ss << S_CREATE_MV << " " << name << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
@@ -894,7 +931,7 @@ int CreateLock(char* name) {
 }
 
 bool AcquireLock(int index, int machineID, int mailbox) {
-    ServerLock * sl = serverLocks->at(index % MAX_RESOURCES);
+    ServerLock * sl = serverLocks->at(index);
     bool returnValue = true;
     if(sl->owner.first == -1) {
         sl->owner = make_pair(machineID, mailbox);

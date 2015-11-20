@@ -662,9 +662,10 @@ int CreateLockSyscall(int vaddr, int len) {
     stringstream ss;
     ss << CREATE_LOCK << " " << name;
     char * data = (char*)ss.str().c_str();
-    pktHdr.to = 0;
+    pktHdr.to = rand() % NUM_SERVERS;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -713,9 +714,10 @@ int AcquireSyscall(int index) {
 
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
-    pktHdr.to = 0;
+    pktHdr.to = rand() % NUM_SERVERS;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -747,9 +749,10 @@ void ReleaseSyscall(int index) {
 
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
-    pktHdr.to = 0;
+    pktHdr.to = rand() % NUM_SERVERS;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -796,8 +799,9 @@ int CreateConditionSyscall(int vaddr, int len) {
     ss << CREATE_CV << " " << name;
     char * data = (char*)ss.str().c_str();
     pktHdr.to = 0;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -848,8 +852,9 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
     pktHdr.to = 0;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -879,8 +884,9 @@ void SignalSyscall(int conditionIndex, int lockIndex) {
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
     pktHdr.to = 0;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -911,8 +917,9 @@ void BroadcastSyscall(int conditionIndex, int lockIndex) {
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
     pktHdr.to = 0;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -1008,8 +1015,9 @@ int CreateMVSyscall(int vaddr, int len) {
     ss << CREATE_MV  << " " << name;
     char * data = (char*)ss.str().c_str();
     pktHdr.to = 0;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -1048,8 +1056,9 @@ void SetSyscall(int index, int value) {
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
     pktHdr.to = 0;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
@@ -1079,8 +1088,9 @@ int GetSyscall(int index) {
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
     pktHdr.to = 0;
+    pktHdr.from = myMachineID;
     mailHdr.to = 0;
-    mailHdr.from = myMachineID;
+    mailHdr.from = 0;
     mailHdr.length = strlen(data) + 1;
     bool success = postOffice->Send(pktHdr, mailHdr, data);
 
