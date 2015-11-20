@@ -21,6 +21,7 @@
 #include <cstring>
 #include <deque>
 #include <map>
+#include <utility>
 #include "copyright.h"
 
 #include "system.h"
@@ -96,21 +97,21 @@ MailTest(int farAddr)
 
 struct ServerLock {
     char* name;
-    int owner;
-    deque<int>* waitQueue;
+    pair<int, int> owner;
+    deque<pair<int, int> >* waitQueue;
     bool isBusy;
 
     ServerLock() {
         name = "";
-        owner = -1;
-        waitQueue = new deque<int>;
+        owner = make_pair(-1, 0);
+        waitQueue = new deque<pair<int,int> >;
         isBusy = false; 
     }
 
     ServerLock(char * _name) {
         name = _name;
-        owner = -1;
-        waitQueue = new deque<int>;
+        owner = make_pair(-1, 0);
+        waitQueue = new deque<pair<int, int> >;
         isBusy = false;
     }
 
@@ -177,8 +178,8 @@ void TakeAction(int requestID);
 
 int FindLock(char* name);
 int CreateLock(char* name);
-bool AcquireLock(int index, int machineID);
-bool ReleaseLock(int index, int machineID);
+bool AcquireLock(int index, int machineID, int mailbox);
+bool ReleaseLock(int index, int machineID, int mailbox);
 
 int FindCV(char* name);
 int CreateCV(char* name);
@@ -317,7 +318,7 @@ void RunServer()
                     }
                 } else {
                     outPktHdr.to = incomingMachineID;
-                    outMailHdr.to = 0;
+                    outMailHdr.to = incomingMailbox;
                     ss << SUCCESS << " " << index;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -334,7 +335,7 @@ void RunServer()
                 ss.str("");
                 // see if i have it and then send request to servers if I don't
                 if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
-                    printf("Did not find lock %s, sending NO to server %d\n", name, incomingMachineID);
+                    printf("Did not find lock %d, sending NO to server %d\n", index, incomingMachineID);
                     ss << S_RESPONSE << " " << NO << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
@@ -342,19 +343,23 @@ void RunServer()
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverLocks.size()) {
+                    if (index % MAX_RESOURCES > serverLocks->size()) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         break;
                     }
-                    success = AcquireLock(index, incomingMachineID);
+                    success = AcquireLock(index, machineID, mailbox);
                     if(success) {
-                        //Send response to incomingMachineID
+                        //Send response to machineID
                         ss << SUCCESS;
                         strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
@@ -378,22 +383,21 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
+                    outMailHdr.to = incomingMailbox;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
                 // see if i have it and then send request to servers if I don't
                 if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
-                    printf("Did not find lock %s\n", name);
+                    printf("Did not find lock %d\n", index);
                     requestID = requestCounter;
                     requestCounter++;
                     Request * r = new Request();
                     r->rpcType = rpc;
-                    r->name = name;
                     r->noCounter = 0;
                     r->fromMachineID = incomingMachineID;
                     r->fromMailbox = incomingMailbox;
@@ -414,19 +418,21 @@ void RunServer()
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverLocks.size()) {
+                    if (index % MAX_RESOURCES > serverLocks->size()) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         break;
                     }
-                    success = AcquireLock(index, incomingMachineID);
+                    success = AcquireLock(index, incomingMachineID, incomingMailbox);
                     if(success) {
                         //Send response to incomingMachineID
                         ss << SUCCESS;
                         strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
@@ -435,25 +441,114 @@ void RunServer()
                     }
                 }                
                 break;
+            case S_RELEASE:
+                ss >> index;
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+                ss.clear();
+                ss.str("");
+                if(index < (myMachineID * MAX_RESOURCES) || index > (myMachineID + 1) * MAX_RESOURCES - 1) {
+                    printf("Did not find lock %d, sending NO to server %d\n", index, incomingMachineID);
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);             
+                } else {
+                    if(index % MAX_RESOURCES > serverLocks->size()) {
+                        //Lock is in my range but does not exist
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    success = ReleaseLock(index, machineID, mailbox);
+                    //success should always be true;
+                    ss << SUCCESS;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = machineID;
+                    outMailHdr.to = mailbox;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("Released lock %d from machine %d\n", index, incomingMachineID);
+
+                    ss.clear();
+                    ss.str("");
+                    
+                    //Send yes to the original server
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+                break;
             case RELEASE:
                 ss >> index;
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
+                    //Index is out of range for all servers
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-                printf("Releasing lock %d from machine %d\n", index, incomingMachineID);
-                success = ReleaseLock(index, incomingMachineID);
-                ss << SUCCESS;
-                strcpy(data, ss.str().c_str());
-                outMailHdr.length = strlen(data) + 1;
-                postOffice->Send(outPktHdr, outMailHdr, data);
+                if(index < myMachineID * MAX_RESOURCES || index > (myMachineID + 1) * MAX_RESOURCES - 1) {
+                    //Lock is not located on this server but might be on another
+                    printf("Did not find lock %d\n", index);
+                    //Store request so that some of its state is saved for when you get 'no's from other servers
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    requestTable[requestID] = r;
+
+                    //Ask other servers to do the release
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check ACQUIRE\n", i);
+                        outPktHdr.to = i;
+                        outMailHdr.to = 0;
+                        ss << S_RELEASE << " " << index << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+
+                } else {
+                    //I should have it because it is in my range
+                    if (index % MAX_RESOURCES > serverLocks->size()) {
+                        // index is in my range but lock doesn't exist
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    printf("Releasing lock %d from machine [%d:%d]\n", index, incomingMachineID, incomingMailbox);
+                    success = ReleaseLock(index, incomingMachineID, incomingMailbox);
+                    ss << SUCCESS;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
                 break;
             case S_CREATE_CV:
             	ss >> name;
@@ -526,7 +621,7 @@ void RunServer()
                     }
                 } else {
                     outPktHdr.to = incomingMachineID;
-                    outMailHdr.to = 0;
+                    outMailHdr.to = incomingMailbox;
                     ss << SUCCESS << " " << index;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -540,7 +635,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -564,7 +659,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
 
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
@@ -586,7 +681,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -672,7 +767,7 @@ void RunServer()
                     }
                 } else {
                     outPktHdr.to = incomingMachineID;
-                    outMailHdr.to = 0;
+                    outMailHdr.to = incomingMailbox;
                     ss << SUCCESS << " " << index;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
@@ -686,7 +781,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -705,7 +800,7 @@ void RunServer()
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
-                outMailHdr.to = 0;
+                outMailHdr.to = incomingMailbox;
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -755,9 +850,9 @@ void TakeAction(int requestID) {
     outPktHdr.to = request->fromMachineID;
     outMailHdr.to = request->fromMailbox;
     if (success) {
-    	ss << "SUCCESS" << " " << index;
+    	ss << SUCCESS << " " << index;
     } else {
-    	ss << "FAIL" << " " << index;
+    	ss << ERROR << " " << index;
     }
     strcpy(data, ss.str().c_str());
     outMailHdr.length = strlen(data) + 1;
@@ -802,48 +897,47 @@ int CreateLock(char* name) {
     return index;
 }
 
-bool AcquireLock(int index, int machineID) {
+bool AcquireLock(int index, int machineID, int mailbox) {
     ServerLock * sl = serverLocks->at(index % MAX_RESOURCES);
     bool returnValue = true;
-    if(sl->owner == -1) {
-        sl->owner = machineID;
+    if(sl->owner.first == -1) {
+        sl->owner = make_pair(machineID, mailbox);
         sl->isBusy = true;
-    } else if(sl->owner == machineID) {
-        //Do nothing
+    } else if(sl->owner.first == machineID && sl->owner.second == mailbox) {
+        //Do nothing I already have the lock
     } else if (sl->isBusy) {
-        sl->waitQueue->push_back(machineID);
+        sl->waitQueue->push_back(make_pair(machineID, mailbox));
         returnValue = false;
     }
 
     return returnValue;
 }
 
-bool ReleaseLock(int index, int machineID) {
+bool ReleaseLock(int index, int machineID, int mailbox) {
     ServerLock * sl = serverLocks->at(index);
-    if(sl->owner == machineID) {
+    if(sl->owner.first == machineID && sl->owner.second == mailbox) {
         if(sl->waitQueue->empty()) {
             sl->isBusy = false;
-            sl->owner = -1;
-        }
-        else {
-            int newOwner = sl->waitQueue->front();
+            sl->owner = make_pair(-1, 0);
+        } else {
+            pair<int, int> newOwner = sl->waitQueue->front();
             sl->waitQueue->pop_front();
             sl->owner = newOwner;
             stringstream ss;
             PacketHeader outPktHdr;
             MailHeader outMailHdr;
 
-            outPktHdr.to = newOwner;
-            outMailHdr.to = 0;
+            outPktHdr.to = newOwner.first;
+            outMailHdr.to = newOwner.second;
             ss << SUCCESS;
             char data[MaxMailSize];
             strcpy(data, ss.str().c_str());
             outMailHdr.length = strlen(data) + 1;
             postOffice->Send(outPktHdr, outMailHdr, data);
-            printf("Machine %d is now the owner of lock %d\n", newOwner, index);
+            printf("Machine [%d:%d] is now the owner of lock %d\n", newOwner.first, newOwner.second, index);
         }
     } else {
-        printf("Machine %d did not own lock %d so nothing happens\n", machineID, index);
+        printf("Machine [%d:%d] did not own lock %d so nothing happens\n", machineID, mailbox, index);
     }
     return true;
 }
@@ -868,7 +962,7 @@ bool Wait(int conditionIndex, int lockIndex, int machineID) {
         return false;
     }
     cv->cvWaitQueue->push_back(machineID);
-    ReleaseLock(lockIndex, machineID);
+    ReleaseLock(lockIndex, machineID, 0);
     return true;
 }
 
@@ -895,7 +989,7 @@ void Signal(int conditionIndex, int lockIndex) {
         char data[MaxMailSize];
         strcpy(data, ss.str().c_str());
         outMailHdr.length = strlen(data) + 1;
-        bool success = AcquireLock(lockIndex, machineID);
+        bool success = AcquireLock(lockIndex, machineID, 0);
         printf("Machine %d has been signalled by CV %d\n", machineID, conditionIndex);
         if(success) {
             postOffice->Send(outPktHdr, outMailHdr, data);

@@ -147,6 +147,7 @@ extern SynchDisk   *synchDisk;
 #define S_CREATE_CV     15
 #define S_CREATE_MV     16
 #define S_ACQUIRE       17
+#define S_RELEASE       18
 
 
 //Define codes for responses from server
