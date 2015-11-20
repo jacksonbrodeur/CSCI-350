@@ -174,6 +174,7 @@ int lockCounter = 0;
 int cvCounter = 0;
 int mvCounter = 0;
 
+bool haveSameCreate(char* name);
 void TakeAction(int requestID);
 
 int FindLock(char* name);
@@ -255,13 +256,18 @@ void RunServer()
                 ss.str("");
                 index = FindLock(name);
                 if(index == -1) {
-                    printf("Did not find lock %s, sending NO to server %d\n", name, incomingMachineID);
-                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    if (haveSameCreate(name) && (myMachineID < incomingMachineID)) {
+                        printf("Have same pending request for lock %s, sending YES to server %d because my machine ID is lower\n", name, incomingMachineID);
+                        ss << S_RESPONSE << " " << YES << " " << requestID;
+                    } else {
+                        printf("Did not find lock %s, sending NO to server %d\n", name, incomingMachineID);
+                        ss << S_RESPONSE << " " << NO << " " << requestID;
+                    } 
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
                     outMailHdr.to = 0;
                     outMailHdr.length = strlen(data) + 1;
-                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    postOffice->Send(outPktHdr, outMailHdr, data);                 
                 } else {
                     printf("Found lock %s, messaging client [%d:%d] and sending YES to server %d\n", name, machineID, mailbox, incomingMachineID);
                     // Send reply to client with lock index
@@ -275,7 +281,7 @@ void RunServer()
                     ss.clear();
                     ss.str("");
 
-                    //Send yes to other server
+                    //Send yes to other serve
                     ss << S_RESPONSE << " " << YES << " " << requestID;
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
@@ -333,7 +339,7 @@ void RunServer()
                 ss >> mailbox;
                 ss.clear();
                 ss.str("");
-                // see if i have it and then send request to servers if I don't
+                // see if i have it 
                 if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
                     printf("Did not find lock %d, sending NO to server %d\n", index, incomingMachineID);
                     ss << S_RESPONSE << " " << NO << " " << requestID;
@@ -559,13 +565,18 @@ void RunServer()
                 ss.str("");
                 index = FindCV(name);
                 if(index == -1) {
-                    printf("Did not find CV %s, sending NO to server %d\n", name, incomingMachineID);
-                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    if (haveSameCreate(name) && (myMachineID < incomingMachineID)) {
+                        printf("Have same pending request for CV %s, sending YES to server %d because my machine ID is lower\n", name, incomingMachineID);
+                        ss << S_RESPONSE << " " << YES << " " << requestID;
+                    } else {
+                        printf("Did not find CV %s, sending NO to server %d\n", name, incomingMachineID);
+                        ss << S_RESPONSE << " " << NO << " " << requestID;
+                    } 
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
                     outMailHdr.to = 0;
                     outMailHdr.length = strlen(data) + 1;
-                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    postOffice->Send(outPktHdr, outMailHdr, data);   
                 } else {
                     printf("Found CV %s, messaging client [%d:%d] and sending YES to server %d\n", name, machineID, mailbox, incomingMachineID);
                     // Send reply to client with CV index
@@ -643,6 +654,57 @@ void RunServer()
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
+
+                // See if I have the lcok and then send request to servers if I don't
+                if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    printf("Did not find lock %d\n", index);
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    requestTable[requestID] = r;
+                    //You don't have lock
+                    //Ask other servers
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check ACQUIRE\n", i);
+                        outPktHdr.to = i;
+                        outMailHdr.to = 0;
+                        // send my (server) address so we will get the lock, not the client
+                        ss << S_ACQUIRE << " " << index << " " << requestID << " " << myMachineID << " " << 0;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else { // I should have it (it's in my range)
+                    if (index % MAX_RESOURCES > serverLocks->size()) {
+                        // in my range but invalid
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    success = AcquireLock(index, incomingMachineID, incomingMailbox);
+                    if(success) {
+                        //Send response to incomingMachineID
+                        // do Release (pass parameter to not send msg to requester)
+                        // TODO: add extra parameter for ^^ and update existing RELEASE calls
+                    } else { // lock is busy, so don't send response
+                        printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
+                    }
+                }                
+
+                // TODO: add switch case for SUCCESS - when server tell's "client" (us as server in this case) lock is acquired
+                // SUCCESS case would handle the rest of the CV Wait - code below vvv I believe. But we need to make sure we keep the address straight
+                // old code from proj 3
                 success = Wait(conditionIndex, lockIndex, incomingMachineID);
                 if (success){
                      printf("Machine %d is waiting on lock %d with condition %d\n", incomingMachineID, lockIndex, conditionIndex);
@@ -705,8 +767,13 @@ void RunServer()
                 ss.str("");
                 index = FindMV(name);
                 if(index == -1) {
-                    printf("Did not find MV %s, sending NO to server %d\n", name, incomingMachineID);
-                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    if (haveSameCreate(name) && (myMachineID < incomingMachineID)) {
+                        printf("Have same pending request for MV %s, sending YES to server %d because my machine ID is lower\n", name, incomingMachineID);
+                        ss << S_RESPONSE << " " << YES << " " << requestID;
+                    } else {
+                        printf("Did not find MV %s, sending NO to server %d\n", name, incomingMachineID);
+                        ss << S_RESPONSE << " " << NO << " " << requestID;
+                    } 
                     strcpy(data, ss.str().c_str());
                     outPktHdr.to = incomingMachineID;
                     outMailHdr.to = 0;
@@ -816,6 +883,16 @@ void RunServer()
                 break;
         }
     }
+}
+
+bool haveSameCreate(char * name) {
+    // check to see if this create resource is in my pending request table
+    for (map<char,int>::iterator it=requestTable.begin(); it!=requestTable.end(); ++it) {
+        if (!strcmp(it->second->name, name)) { // I have a pending request for the same resource
+            return true;
+        }
+    }
+    return false;
 }
 
 void TakeAction(int requestID) {
