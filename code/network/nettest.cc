@@ -233,13 +233,17 @@ void RunServer()
                 ss >> response;
                 ss >> requestID;
                 if(response == NO) {
-                    printf("Received a NO from server %d regarding request %d\n", incomingMachineID, requestID);
-                    requestTable[requestID]->noCounter++;
-                    if(requestTable[requestID]->noCounter == NUM_SERVERS - 1) {
-                        TakeAction(requestID);
-                    }
-                } //otherwise do nothing
-                // TODO: do we want to do anything when you get a YES? reset the requestTable or something?
+                    if (requestTable.count(requestID) > 0) {
+                        printf("Received a NO from server %d regarding request %d\n", incomingMachineID, requestID);
+                        requestTable[requestID]->noCounter++;
+                        if(requestTable[requestID]->noCounter == NUM_SERVERS - 1) {
+                            TakeAction(requestID);
+                        }
+                    } // else: request does not exist in table (request has been resolved) so do nothing
+                } else { 
+                    // it's a yes so we will indicate that this request is closed by removing it 
+                    requestTable.erase(requestID);
+                }
                 break;
             case S_CREATE_LOCK:
                 ss >> name;
