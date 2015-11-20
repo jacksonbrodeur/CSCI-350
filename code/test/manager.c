@@ -1,6 +1,6 @@
 #include "syscall.h"
 
-main()
+int main()
 {
     int signalPictureClerk;
     int signalAppClerk;
@@ -19,29 +19,33 @@ main()
     
     int i;
     
-    while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
+    while(Get(customersFinished)[0] < Get(NUM_CUSTOMERS)[0] + Get(NUM_SENATORS)[0]) {
         
-        signalPictureClerk=FALSE;
-        signalAppClerk=FALSE;
-        signalPassportClerk=FALSE;
-        signalCashier=FALSE;
+        signalPictureClerk = FALSE;
+        signalAppClerk = FALSE;
+        signalPassportClerk = FALSE;
+        signalCashier = FALSE;
         
         pictureClerksAllOnBreak = TRUE;
         applicationClerksAllOnBreak = TRUE;
         passportClerksAllOnBreak = TRUE;
         cashiersAllOnBreak = TRUE;
-        
+
+
+        // TODO: implement Get and Set for shared data (see setup.h) from here down
+
+
         /*see if 1) there are any clerks with 3 or more customers waiting on them and 2) if all clerks of a certain type are on break*/
-        for(i = 0; i< NUM_CLERKS; i++)
+        for(i = 0; i< Get(NUM_CLERKS)[0]; i++)
         {
             if(pictureClerks[i].lineCount + pictureClerks[i].bribeLineCount >= 3)
-                signalPictureClerk=TRUE;
+                signalPictureClerk = TRUE;
             if(applicationClerks[i].lineCount + applicationClerks[i].bribeLineCount >= 3)
-                signalAppClerk=TRUE;
-            if(passportClerks[i].lineCount + passportClerks[i].bribeLineCount >=3)
-                signalPassportClerk=TRUE;
-            if(cashiers[i].lineCount>=3)
-                signalCashier=TRUE;
+                signalAppClerk = TRUE;
+            if(passportClerks[i].lineCount + passportClerks[i].bribeLineCount >= 3)
+                signalPassportClerk = TRUE;
+            if(cashiers[i].lineCount >= 3)
+                signalCashier = TRUE;
             if(pictureClerks[i].state == BUSY || pictureClerks[i].state == AVAILABLE)
                 pictureClerksAllOnBreak = FALSE;
             if(applicationClerks[i].state == BUSY || applicationClerks[i].state == AVAILABLE)
@@ -60,7 +64,7 @@ main()
             /*pictureClerks[0].state = AVAILABLE;*/
             Signal(pictureClerks[0].breakCondition, pictureClerks[0].breakLock);
             Release(pictureClerkLock);
-            pictureClerksAllOnBreak=FALSE;
+            pictureClerksAllOnBreak = FALSE;
         }
         if(applicationClerksAllOnBreak)
         {
@@ -69,7 +73,7 @@ main()
             /*applicationClerks[0].state = AVAILABLE;*/
             Signal(applicationClerks[0].breakCondition, applicationClerks[0].breakLock);
             Release(applicationClerkLock);
-            applicationClerksAllOnBreak=FALSE;
+            applicationClerksAllOnBreak = FALSE;
         }
         if(passportClerksAllOnBreak)
         {
@@ -78,7 +82,7 @@ main()
             /*passportClerks[0].state = AVAILABLE;*/
             Signal(passportClerks[0].breakCondition, passportClerks[0].breakLock);
             Release(passportClerkLock);
-            passportClerksAllOnBreak=FALSE;
+            passportClerksAllOnBreak = FALSE;
         }
         if(cashiersAllOnBreak)
         {
@@ -100,7 +104,7 @@ main()
                 /*pictureClerks[i].state = AVAILABLE;*/
                 Signal(pictureClerks[i].breakCondition, pictureClerks[i].breakLock);
                 Release(pictureClerkLock);
-                signalPictureClerk=FALSE;
+                signalPictureClerk = FALSE;
             }
             if(signalAppClerk && applicationClerks[i].state == ONBREAK)
             {
@@ -109,7 +113,7 @@ main()
                 /*applicationClerks[i].state = AVAILABLE;*/
                 Signal(applicationClerks[i].breakCondition, applicationClerks[i].breakLock);
                 Release(applicationClerkLock);
-                signalAppClerk=FALSE;
+                signalAppClerk = FALSE;
                 
             }
             if(signalPassportClerk && passportClerks[i].state == ONBREAK)
@@ -119,7 +123,7 @@ main()
                 /*passportClerks[i].state = AVAILABLE;*/
                 Signal(passportClerks[i].breakCondition, passportClerks[i].breakLock);
                 Release(passportClerkLock);
-                signalPassportClerk=FALSE;
+                signalPassportClerk = FALSE;
             }
             if(signalCashier && cashiers[i].state == ONBREAK)
             {
