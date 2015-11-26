@@ -1047,11 +1047,11 @@ void DestroyMVSyscall(int index) {
 
 }
 
-void SetSyscall(int index, int value) {
+void SetSyscall(int index, int mvIndex, int value) {
     stringstream ss;
     PacketHeader pktHdr;
     MailHeader mailHdr;
-    ss << SET_MV << " " << index << " " << value;
+    ss << SET_MV << " " << index << " " << mvIndex << " " << value;
 
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
@@ -1079,11 +1079,11 @@ void SetSyscall(int index, int value) {
     }
 }
 
-int GetSyscall(int index) {
+int GetSyscall(int index, int mvIndex) {
     stringstream ss;
     PacketHeader pktHdr;
     MailHeader mailHdr;
-    ss << GET_MV << " " << index;
+    ss << GET_MV << " " << index << " " << mvIndex;
 
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
@@ -1399,11 +1399,11 @@ void ExceptionHandler(ExceptionType which) {
                 break;
             case SC_Get:
                 DEBUG('a', "Get syscall.\n");
-                rv = GetSyscall(machine->ReadRegister(4));
+                rv = GetSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
                 break;
             case SC_Set:
                 DEBUG('a', "Set syscall.\n");
-                SetSyscall(machine->ReadRegister(4), machine->ReadRegister(5));
+                SetSyscall(machine->ReadRegister(4), machine->ReadRegister(5), machine>ReadRegister(6));
                 break;
         }
         
