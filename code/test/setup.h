@@ -51,11 +51,87 @@ int totalCustomerMoney;
 int storeJustOpened;
 int customersFinished;
 
-int customers;
-int pictureClerks;
-int applicationClerks;
-int passportClerks;
-int cashiers;
+
+// Customer struct
+//////////////////
+int customerIDs; // changed from "id"
+int applicationFiled;
+int pictureTaken;
+int pictureFiled;
+int passportCertified;
+int passportGiven;
+int cashierPaid;
+int custMoney; // changed from "money"
+int isSenator;
+
+// Clerk struct
+///////////////
+// picture clerk
+int picLine; 
+int picLineCount; 
+int picBribeLineCount;
+int picState;
+int picLineCV;
+int picBribeLineCV;
+int picClerkCV;
+
+int picBreakLock;
+int picBreakCV;
+
+int picClerkLock;
+int picClerkType;
+int picCustomer;
+int picMoney;
+// application clerk
+int appLine; 
+int appLineCount; 
+int appBribeLineCount;
+int appState;
+int appLineCV;
+int appBribeLineCV;
+int appClerkCV;
+
+int appBreakLock;
+int appBreakCV;
+
+int appClerkLock;
+int appClerkType;
+int appCustomer;
+int appMoney;
+// passport clerk
+int ppLine; 
+int ppLineCount; 
+int ppBribeLineCount;
+int ppState;
+int ppLineCV;
+int ppBribeLineCV;
+int ppClerkCV;
+
+int ppBreakLock;
+int ppBreakCV;
+
+int ppClerkLock;
+int ppClerkType;
+int ppCustomer;
+int ppMoney;
+// cashier
+int cashLine; 
+int cashLineCount; 
+int cashBribeLineCount;
+int cashState;
+int cashLineCV;
+int cashBribeLineCV;
+int cashClerkCV;
+
+int cashBreakLock;
+int cashBreakCV;
+
+int cashClerkLock;
+int cashClerkType;
+int cashCustomer;
+int cashMoney;
+
+
 
 
 void setup()
@@ -72,34 +148,111 @@ void setup()
     senatorCondition = CreateCondition("senatorCV", 9);
 
     // MVs (shared data)
-    // TODO: update sets here (pass singleton array of 0)
     numApplicationClerks = CreateMV("numAppClerks", 12);
-    Set(numApplicationClerks, 0);
+    Set(numApplicationClerks, 0, 0);
     numPictureClerks = CreateMV("numPicClerks", 12);
-    Set(numPicClerks, 0);
+    Set(numPicClerks, 0, 0);
     numPassportClerks = CreateMV("numPassportClerks", 17);
-    Set(numPassportClerks, 0);
+    Set(numPassportClerks, 0, 0);
     numCashiers = CreateMV("numCashiers", 11);
-    Set(numCashiers, 0);
+    Set(numCashiers, 0, 0);
     numCustomers = CreateMV("numCustomers", 12);
-    Set(numCustomers, 0);
+    Set(numCustomers, 0, 0);
     numSenatorsHere = CreateMV("numSenatorsHere", 15);
-    Set(numSenatorsHere, 0);
+    Set(numSenatorsHere, 0, 0);
     totalCustomerMoney = CreateMV("totalCustMoney", 14);
-    Set(totalCustMoney, 0);
+    Set(totalCustMoney, 0, 0);
     storeJustOpened = CreateMV("storeJustOpened", 15);
-    Set(storeJustOpened, 0);
+    Set(storeJustOpened, 0, 0);
     customersFinished = CreateMV("customersFinished", 17);
-    Set(customersFinished, 0);
+    Set(customersFinished, 0, 0);
     NUM_CUSTOMERS = CreateMV("NUM_CUSTOMERS", 13);
+    Set(NUM_CUSTOMERS, 0, 40);
     NUM_CLERKS = CreateMV("NUM_CLERKS", 10);
+    Set(NUM_CLERKS, 0, 5);
     NUM_SENATORS = CreateMV("NUM_SENATORS", 12);
+    Set(NUM_SENATORS, 0, 3);
 
-    // entity arrays
- 	customers = CreateMV("customers", 9);
- 	pictureClerks = CreateMV("pictureClerks", 13);
- 	applicationClerks = CreateMV("applicationClerks", 17);
- 	passportClerks = CreateMV("passportClerks", 14);
- 	cashiers = CreateMV("cashiers", 8);
- 	// TODO: set them as arrays with MAX_CUSTOMERS / MAX_CLERKS
+
+ 	// TODO: should MAX_CUSTOMERS be 200 and not 50 (what he said we'll use)?
+
+    // customer
+    customerIDs = CreateMV("customerIDs", 11); 
+    applicationFiled = CreateMV("applicationFiled", 16);
+    pictureTaken = CreateMV("pictureTaken", 12);
+    pictureFiled = CreateMV("pictureFiled", 12);
+    passportCertified = CreateMV("passportCertified", 17);
+    passportGiven = CreateMV("passportGiven", 13);
+    cashierPaid = CreateMV("cashierPaid", 11);
+    custMoney = CreateMV("custMoney", 9); 
+    isSenator = CreateMV("isSenator", 9);
+
+
+    // picture clerk
+    picLine = CreateMV("picLine", 7);
+    picLineCount = CreateMV("picLineCount", 12);
+    picBribeLineCount = CreateMV("picBribeLineCount", 17);
+    picState = CreateMV("picState", 8);
+    picLineCV = CreateMV("picLineCV", 9);
+    picBribeLineCV = CreateMV("picBribeLineCV", 14);
+    picClerkCV = CreateMV("picClerkCV", 10);
+
+    picBreakLock = CreateMV("picBreakLock", 12);
+    picBreakCV = CreateMV("picBreakCV", 10);
+
+    picClerkLock = CreateMV("picClerkLock", 12);
+    picClerkType = CreateMV("picClerkType", 12);
+    picCustomer = CreateMV("picCustomer", 11);
+    picMoney = CreateMV("picMoney", 8);
+
+    // application clerk
+    appLine = CreateMV("appLine", 7);
+    appLineCount = CreateMV("appLineCount", 12);
+    appBribeLineCount = CreateMV("appBribeLineCount", 17);
+    appState = CreateMV("appState", 8);
+    appLineCV = CreateMV("appLineCV", 9);
+    appBribeLineCV = CreateMV("appBribeLineCV", 14);
+    appClerkCV = CreateMV("appClerkCV", 10);
+
+    appBreakLock = CreateMV("appBreakLock", 12);
+    appBreakCV = CreateMV("appBreakCV", 10);
+
+    appClerkLock = CreateMV("appClerkLock", 12);
+    appClerkType = CreateMV("appClerkType", 12);
+    appCustomer = CreateMV("appCustomer", 11);
+    appMoney = CreateMV("appMoney", 8);
+
+    // passport clerk
+    ppLine = CreateMV("ppLine", 6);
+    ppLineCount = CreateMV("ppLineCount", 11);
+    ppBribeLineCount = CreateMV("ppBribeLineCount", 16);
+    ppState = CreateMV("ppState", 7);
+    ppLineCV = CreateMV("ppLineCV", 8);
+    ppBribeLineCV = CreateMV("ppBribeLineCV", 13);
+    ppClerkCV = CreateMV("ppClerkCV", 9);
+
+    ppBreakLock = CreateMV("ppBreakLock", 11);
+    ppBreakCV = CreateMV("ppBreakCV", 9);
+
+    ppClerkLock = CreateMV("ppClerkLock", 11);
+    ppClerkType = CreateMV("ppClerkType", 11);
+    ppCustomer = CreateMV("ppCustomer", 10);
+    ppMoney = CreateMV("ppMoney", 7);
+
+    // cashier
+    cashLine = CreateMV("cashLine", 8);
+    cashLineCount = CreateMV("cashLineCount", 13);
+    cashBribeLineCount = CreateMV("cashBribeLineCount", 18);
+    cashState = CreateMV("cashState", 9);
+    cashLineCV = CreateMV("cashLineCV", 10);
+    cashBribeLineCV = CreateMV("cashBribeLineCV", 15);
+    cashClerkCV = CreateMV("cashClerkCV", 11);
+
+    cashBreakLock = CreateMV("cashBreakLock", 13);
+    cashBreakCV = CreateMV("cashBreakCV", 11);
+
+    cashClerkLock = CreateMV("cashClerkLock", 13);
+    cashClerkType = CreateMV("cashClerkType", 13);
+    cashCustomer = CreateMV("cashCustomer", 12);
+    cashMoney = CreateMV("cashMoney", 9);
 }
