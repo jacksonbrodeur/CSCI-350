@@ -1002,7 +1002,7 @@ void RunServer()
                     ss << SUCCESS;
                     strcpy(data, ss.str().c_str());
                     postOffice->Send(outPktHdr, outMailHdr, data);
-                    printf("MV %d has been set to %d\n", index, value);
+                    printf("MV %d[%d] has been set to %d\n", index, mvIndex, value);
                 }
                 break;
             case S_GET_MV:
@@ -1044,7 +1044,7 @@ void RunServer()
                     outMailHdr.to = mailbox;
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
-                    printf("MV %d[%d] has been set to %d\n", index, mvIndex, value);
+                    printf("MV %d[%d] has been Retrieved with value %d\n", index, mvIndex, value);
 
                     ss.clear();
                     ss.str("");
@@ -1123,7 +1123,7 @@ void RunServer()
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
-                    printf("MV %d has been retrieved with value %d\n", index, value);
+                    printf("MV %d[%d] has been retrieved with value %d\n", index, mvIndex, value);
                 }
                 break;
         }
