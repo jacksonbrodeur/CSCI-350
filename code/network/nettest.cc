@@ -930,7 +930,7 @@ void RunServer()
 
 bool haveSameCreate(char * name) {
     // check to see if this create resource is in my pending request table
-    for (map<char,int>::iterator it=requestTable.begin(); it!=requestTable.end(); ++it) {
+    for (map<int,Request*>::iterator it=requestTable.begin(); it!=requestTable.end(); ++it) {
         if (!strcmp(it->second->name, name)) { // I have a pending request for the same resource
             return true;
         }

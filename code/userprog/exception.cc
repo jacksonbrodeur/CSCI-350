@@ -1403,7 +1403,7 @@ void ExceptionHandler(ExceptionType which) {
                 break;
             case SC_Set:
                 DEBUG('a', "Set syscall.\n");
-                SetSyscall(machine->ReadRegister(4), machine->ReadRegister(5), machine>ReadRegister(6));
+                SetSyscall(machine->ReadRegister(4), machine->ReadRegister(5), machine->ReadRegister(6));
                 break;
         }
         
