@@ -148,6 +148,8 @@ extern SynchDisk   *synchDisk;
 #define S_CREATE_MV     16
 #define S_ACQUIRE       17
 #define S_RELEASE       18
+#define S_SET_MV        19
+#define S_GET_MV        20
 
 
 //Define codes for responses from server

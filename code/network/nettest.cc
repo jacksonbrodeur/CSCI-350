@@ -883,6 +883,62 @@ void RunServer()
                     printf("Retrieved CV named %s from machine %d\n", name, incomingMachineID);
                 }
                 break;
+            case S_SET_MV:
+
+                ss >> index;
+                ss >> mvIndex;
+                ss >> value;
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+                ss.clear();
+                ss.str("");
+
+                if(index < (myMachineID * MAX_RESOURCES) || index > (myMachineID + 1) * MAX_RESOURCES - 1) {
+                    printf("Did not find mv %d, sending NO to server %d\n", index, incomingMachineID);
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.from = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);             
+                } else {
+                    if(index % MAX_RESOURCES > serverMVs->size()) {
+                        //MV is in my range but does not exist
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    
+                    SetMV(index % MAX_RESOURCES, mvIndex, value);
+                    ss << SUCCESS;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = machineID;
+                    outMailHdr.to = mailbox;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("MV %d[%d] has been set to %d\n", index, mvIndex, value);
+
+                    ss.clear();
+                    ss.str("");
+                    
+                    //Send yes to the original server
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.from = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+                break;
             case SET_MV:
                 ss >> index;
                 ss >> mvIndex;
@@ -891,19 +947,119 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = incomingMailbox;
+
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
+                    // index is out of range on all servers
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-                SetMV(index, mvIndex, value);
-                ss << SUCCESS;
-                strcpy(data, ss.str().c_str());
-                postOffice->Send(outPktHdr, outMailHdr, data);
-                printf("MV %d has been set to %d\n", index, value);
+
+                if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    printf("Did not find mv %d\n", index);
+                    // MV is not on my server but might be on another
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    requestTable[requestID] = r;
+                    //You don't have mv
+                    //Ask other servers
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check SET\n", i);
+                        outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
+                        outMailHdr.to = 0;
+                        outMailHdr.from = 0;
+                        ss << S_SET_MV << " " << index << " " << mvIndex << " " << value << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else { // I should have it (it's in my range)
+                    if (index % MAX_RESOURCES > serverMVs->size()) {
+                        // in my range but invalid
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    
+                    SetMV(index % MAX_RESOURCES, mvIndex, value);
+                    ss << SUCCESS;
+                    strcpy(data, ss.str().c_str());
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("MV %d has been set to %d\n", index, value);
+                }
                 break;
+            case S_GET_MV:
+
+                ss >> index;
+                ss >> mvIndex;
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+                ss.clear();
+                ss.str("");
+
+                if(index < (myMachineID * MAX_RESOURCES) || index > (myMachineID + 1) * MAX_RESOURCES - 1) {
+                    printf("Did not find mv %d, sending NO to server %d\n", index, incomingMachineID);
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.from = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);             
+                } else {
+                    if(index % MAX_RESOURCES > serverMVs->size()) {
+                        //MV is in my range but does not exist
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    
+                    value = GetMV(index % MAX_RESOURCES, mvIndex);
+                    ss << SUCCESS << " " << value;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = machineID;
+                    outMailHdr.to = mailbox;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("MV %d[%d] has been set to %d\n", index, mvIndex, value);
+
+                    ss.clear();
+                    ss.str("");
+                    
+                    //Send yes to the original server
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.from = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+                break;            
             case GET_MV:
                 ss >> index;
                 ss >> mvIndex;
@@ -911,18 +1067,64 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = incomingMailbox;
+
                 if(index < 0 || static_cast<uint64_t>(index) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
+                    // Index is out of range on all servers
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-                value = GetMV(index, mvIndex); 
-                ss << SUCCESS << " " << value;
-                strcpy(data, ss.str().c_str());
-                postOffice->Send(outPktHdr, outMailHdr, data);
-                printf("MV %d has been retrieved with value %d\n", index, value);
+
+                if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    printf("Did not find mv %d\n", index);
+                    //Did not find MV on my server but may be on another
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    requestTable[requestID] = r;
+                    //You don't have mv
+                    //Ask other servers
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check Get\n", i);
+                        outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
+                        outMailHdr.to = 0;
+                        outMailHdr.from = 0;
+                        ss << S_GET_MV << " " << index << " " << mvIndex << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else { // I should have it (it's in my range)
+                    if (index % MAX_RESOURCES > serverMVs->size()) {
+                        // in my range but invalid
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    
+                    value = GetMV(index % MAX_RESOURCES, mvIndex);
+                    ss << SUCCESS << " " << value;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    printf("MV %d has been retrieved with value %d\n", index, value);
+                }
                 break;
         }
     }
