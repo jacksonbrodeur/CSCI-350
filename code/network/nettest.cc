@@ -30,6 +30,8 @@
 
 using namespace std;
 
+#define MAX_MV 50
+
 // Test out message delivery, by doing the following:
 //	1. send a message to the machine with ID "farAddr", at mail box #0
 //	2. wait for the other machine's message to arrive (in our mailbox #0)
@@ -130,16 +132,20 @@ struct ServerCV {
 
 struct ServerMV {
     char * name;
-    int value;
+    int value[MAX_MV];
 
     ServerMV() {
         name = "";
-        value = 0;
+        for(int i = 0; i < MAX_MV; i++) {
+            value[i] = 0;
+        }
     }
 
     ServerMV(char* _name) {
         name = _name;
-        value = 0;
+        for(int i = 0; i < MAX_MV; i++) {
+            value[i] = 0;
+        }    
     }
 };
 
@@ -157,8 +163,8 @@ void Signal(int conditionIndex, int lockIndex);
 void Broadcast(int conditionIndex, int lockIndex);
 
 int CreateMV(char* name);
-void SetMV(int index, int value);
-int GetMV(int index);
+void SetMV(int serverIndex, int mvIndex, int value);
+int GetMV(int serverIndex, int mvIndex);
 
 void RunServer()
 {
@@ -183,6 +189,7 @@ void RunServer()
 
         int incomingMachineID = inMailHdr.from;
         int index;
+        int mvIndex;
         char data[MaxMailSize];
         bool success;
         char* name = new char[MaxMailSize];
@@ -344,6 +351,7 @@ void RunServer()
                 break;
             case SET_MV:
                 ss >> index;
+                ss >> mvIndex;
                 ss >> value;
                 ss.clear();
                 ss.str("");
@@ -356,7 +364,7 @@ void RunServer()
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-                SetMV(index, value);
+                SetMV(index, mvIndex, value);
                 ss << SUCCESS;
                 strcpy(data, ss.str().c_str());
                 postOffice->Send(outPktHdr, outMailHdr, data);
@@ -364,6 +372,7 @@ void RunServer()
                 break;
             case GET_MV:
                 ss >> index;
+                ss >> mvIndex;
                 ss.clear();
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
@@ -375,7 +384,7 @@ void RunServer()
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-                value = GetMV(index);
+                value = GetMV(index, mvIndex);
                 ss << SUCCESS << " " << value;
                 strcpy(data, ss.str().c_str());
                 postOffice->Send(outPktHdr, outMailHdr, data);
@@ -532,12 +541,12 @@ int CreateMV(char * name) {
     return index;
 }
 
-void SetMV(int index, int value) {
-    ServerMV * mv = serverMVs->at(index);
-    mv->value =value;
+void SetMV(int serverIndex, int mvIndex, int value) {
+    ServerMV * mv = serverMVs->at(serverIndex);
+    mv->value[mvIndex] = value;
 }
 
-int GetMV(int index) {
-    return serverMVs->at(index)->value;
+int GetMV(int serverIndex, int mvIndex) {
+    return serverMVs->at(serverIndex)->value[mvIndex];
 }
 
