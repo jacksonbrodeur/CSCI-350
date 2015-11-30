@@ -9,28 +9,26 @@ main()
     int myLine;
     int i;
     int j = Rand() % 80 + 20;
-    int counterLock = GetSyscall(/*counterLock index */);
 
-    int lineCount;
-    int bribeLineCount;
-    int state;
-    int lineCondition;
-    int bribeLineCondition;
-    int clerkCondition;
-
-    int breakLock;
-    int breakCondition;
-
-    int clerkLock;
     int clerkType;
-    Customer * customer;
     int money;
-    
+
     Acquire(counterLock);
-    myLine = CreateSyscall(numApplicationClerks);
-    SetSyscall(numApplicationClerks++);
+   myLine = Get(numApplicationClerks, 0);
+   Set(numApplicationClerks, 0, myLine + 1);
     me = &applicationClerks[myLine];
     Release(counterLock);
+
+    int lineCondition = Get(appLineCV, myLine);
+    int bribeLineCondition = Get(appBribeLineCV, myLine);
+
+    int clerkCondition = Get(appClerkCV, 0);
+
+
+    int breakLock = Get(appBreakLock, myLine);
+    int breakCondition = Get(appBreakCV, myLine);
+
+    int clerkLock = Get(appClerkLock, myLine);
     
     while(GetSyscall(customersFinished) < NUM_CUSTOMERS + NUM_SENATORS) {
         

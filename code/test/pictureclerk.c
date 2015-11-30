@@ -7,28 +7,26 @@ main()
     int firstTime = 1;
     int i;
     int j = Rand() % 80 + 20;
-    int counterLock = GetSyscall(/*counterLock index */);
-    int lineCount;
-    int bribeLineCount;
-    int state;
-    int lineCondition;
-    int bribeLineCondition;
-    int clerkCondition;
 
-    int breakLock = Get(picClerkLock, myLine);
-    int breakCondition = Get(picBribeLineCV, myLinke);
-
-    int clerkLock = Get(picClerkLock, myLine);
     int clerkType;
-
-    Customer * customer;
     int money;
 
     Acquire(counterLock);
-   
-    SetSyscall(0);
+   myLine = Get(numPictureClerks, 0);
+   Set(numPictureClerks, 0, myLine + 1);
     me = &pictureClerks[myLine];
     Release(counterLock);
+
+    int lineCondition = Get(picLineCV, myLine);
+    int bribeLineCondition = Get(picBribeLineCV, myLine);
+
+    int clerkCondition = Get(picClerkCV, 0);
+
+
+    int breakLock = Get(picBreakLock, myLine);
+    int breakCondition = Get(picBreakCV, myLine);
+
+    int clerkLock = Get(picClerkLock, myLine);
     
     while(Get(customersFinished, 0) < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(pictureClerkLock);
