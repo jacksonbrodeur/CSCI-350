@@ -2,30 +2,45 @@
 
 main()
 {
-    Clerk tempClerk;
     int myLine;
     int firstTime = 1;
     int i;
     int j = Rand() % 80 + 20;
-    Clerk * me;
+    int counterLock = GetSyscall(/*counterLock index */);
+    int lineCount;
+    int bribeLineCount;
+    int state;
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
+
+    int breakLock;
+    int breakCondition;
+
+    int clerkLock;
+    int clerkType;
+
+    Customer * customer;
+    int money;
+
     Acquire(counterLock);
-    myLine = numPictureClerks;
-    numPictureClerks++;
+    myLine = CreateSyscall(/*numPictureClerks*/);
+    SetSyscall(/*numPictureClerks++*/);
     me = &pictureClerks[myLine];
     Release(counterLock);
     
-    while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
+    while(GetSyscall(/*customersFinished*/) < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(pictureClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(me->bribeLineCount > 0) {
+        if(GetSyscall(/*me->bribeLineCount*/) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
             Signal(me->bribeLineCondition, pictureClerkLock);
-            me->state = BUSY;
-        } else if(me->lineCount > 0) {
+            SetSyscall(/*me->state*/) = BUSY;
+        } else if(GetSyscall(/*me->lineCount*/) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
             Signal(me->lineCondition, pictureClerkLock);
-            me->state = BUSY;
+            SetSyscall(/*me->state*/) = BUSY;
         } else {
             
             if(storeJustOpened >= NUM_CLERKS * 4) {

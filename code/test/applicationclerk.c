@@ -1,29 +1,47 @@
 #include "syscall.h"
+#include "setup.h"
+
+#define NUM_CUSTOMERS 20
+#define NUM_SENATORS 10
 
 main()
 {
-    Clerk tempClerk;
     int myLine;
     int i;
     int j = Rand() % 80 + 20;
-    Clerk * me;
+    int counterLock = GetSyscall(/*counterLock index */);
+
+    int lineCount;
+    int bribeLineCount;
+    int state;
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
+
+    int breakLock;
+    int breakCondition;
+
+    int clerkLock;
+    int clerkType;
+    Customer * customer;
+    int money;
     
     Acquire(counterLock);
-    myLine = numApplicationClerks;
-    numApplicationClerks++;
+    myLine = CreateSyscall(/*numApplicationClerks;*/);
+    SetSyscall(/*numPassportClerks++*/);
     me = &applicationClerks[myLine];
     Release(counterLock);
     
-    while(customersFinished < NUM_CUSTOMERS + NUM_SENATORS) {
+    while(GetSyscall(/*customersFinished*/) < NUM_CUSTOMERS + NUM_SENATORS) {
         
         Acquire(applicationClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(me->bribeLineCount > 0) {
+        if(GetSyscall(/*me->bribeLineCount*/) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
             Signal(me->bribeLineCondition, applicationClerkLock);
-            me->state = BUSY;
-        } else if(me->lineCount > 0) {
+            SetSyscall(/*me->state*/) = BUSY;
+        } else if(GetSyscall(/*me->lineCount*/) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
             Signal(me->lineCondition, applicationClerkLock);
             me->state = BUSY;
