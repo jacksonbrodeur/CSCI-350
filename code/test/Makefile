@@ -213,5 +213,23 @@ customer: customer.o start.o
 	$(LD) $(LDFLAGS) start.o customer.o -o customer.coff
 	../bin/coff2noff customer.coff customer	
 
+pictureclerk.o: pictureclerk.c
+	$(CC) $(CFLAGS) -c pictureclerk.c
+pictureclerk: pictureclerk.o start.o
+	$(LD) $(LDFLAGS) start.o pictureclerk.o -o pictureclerk.coff
+	../bin/coff2noff pictureclerk.coff pictureclerk
+
+passportclerk.o: passportclerk.c
+	$(CC) $(CFLAGS) -c passportclerk.c
+pictureclerk: passportclerk.o start.o
+	$(LD) $(LDFLAGS) start.o passportclerk.o -o passportclerk.coff
+	../bin/coff2noff passportclerk.coff passportclerk
+
+applicationclerk.o: applicationclerk.c
+	$(CC) $(CFLAGS) -c applicationclerk.c
+pictureclerk: applicationclerk.o start.o
+	$(LD) $(LDFLAGS) start.o applicationclerk.o -o applicationclerk.coff
+	../bin/coff2noff applicationclerk.coff applicationclerk
+
 clean:
 	rm -f *.o *.coff
