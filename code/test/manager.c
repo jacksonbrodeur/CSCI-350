@@ -19,7 +19,7 @@ int main()
     
     int i;
     
-    while(Get(customersFinished)[0] < Get(NUM_CUSTOMERS)[0] + Get(NUM_SENATORS)[0]) {
+    while(Get(customersFinished, 0) < NUM_CUSTOMERS + NUM_SENATORS) {
         
         signalPictureClerk = FALSE;
         signalAppClerk = FALSE;
@@ -31,28 +31,28 @@ int main()
         passportClerksAllOnBreak = TRUE;
         cashiersAllOnBreak = TRUE;
 
-
-        // TODO: implement Get and Set for shared data (see setup.h) from here down
-
-
         /*see if 1) there are any clerks with 3 or more customers waiting on them and 2) if all clerks of a certain type are on break*/
-        for(i = 0; i< Get(NUM_CLERKS)[0]; i++)
+        for(i = 0; i < NUM_CLERKS; i++)
         {
-            if(pictureClerks[i].lineCount + pictureClerks[i].bribeLineCount >= 3)
+            if(Get(picLineCount, i) + Get(picBribeLineCount, i) >= 3)
                 signalPictureClerk = TRUE;
-            if(applicationClerks[i].lineCount + applicationClerks[i].bribeLineCount >= 3)
+            if(Get(appLineCount, i) + Get(appLineCount, i) >= 3)
                 signalAppClerk = TRUE;
-            if(passportClerks[i].lineCount + passportClerks[i].bribeLineCount >= 3)
+            if(Get(ppLineCount, i) + Get(ppBribeLineCount, i) >= 3)
                 signalPassportClerk = TRUE;
-            if(cashiers[i].lineCount >= 3)
+            if(Get(cashLineCount, i) >= 3)
                 signalCashier = TRUE;
-            if(pictureClerks[i].state == BUSY || pictureClerks[i].state == AVAILABLE)
+            int pictureState = Get(picState, i);
+            if(pictureState == BUSY || pictureState == AVAILABLE)
                 pictureClerksAllOnBreak = FALSE;
-            if(applicationClerks[i].state == BUSY || applicationClerks[i].state == AVAILABLE)
+            int applicationState = Get(appState, i);
+            if(applicationState == BUSY || applicationState == AVAILABLE)
                 applicationClerksAllOnBreak = FALSE;
-            if(passportClerks[i].state == BUSY || passportClerks[i].state == AVAILABLE)
+            int passportState = Get(ppState, i);
+            if(passportState == BUSY || passportState == AVAILABLE)
                 passportClerksAllOnBreak = FALSE;
-            if(cashiers[i].state == BUSY || cashiers[i].state == AVAILABLE)
+            int cashierState = Get(cashState, i);
+            if(cashierState == BUSY || cashierState == AVAILABLE)
                 cashiersAllOnBreak = FALSE;
         }
         
@@ -62,7 +62,7 @@ int main()
             Print("Manager has woken up a PictureClerk\n", 37, 0, 0);
             Acquire(pictureClerkLock);
             /*pictureClerks[0].state = AVAILABLE;*/
-            Signal(pictureClerks[0].breakCondition, pictureClerks[0].breakLock);
+            Signal(Get(picBreakCV, 0), Get(picBreakLock, 0)); // TODO: right now it just wakes up clerk 0
             Release(pictureClerkLock);
             pictureClerksAllOnBreak = FALSE;
         }
@@ -71,7 +71,7 @@ int main()
             Print("Manager has woken up an ApplicationClerk\n", 42, 0, 0);
             Acquire(applicationClerkLock);
             /*applicationClerks[0].state = AVAILABLE;*/
-            Signal(applicationClerks[0].breakCondition, applicationClerks[0].breakLock);
+            Signal(Get(appBreakCV, 0), Get(appBreakLock, 0)); // TODO: right now it just wakes up clerk 0
             Release(applicationClerkLock);
             applicationClerksAllOnBreak = FALSE;
         }
@@ -80,7 +80,7 @@ int main()
             Print("Manager has woken up a PassportClerk\n", 38, 0, 0);
             Acquire(passportClerkLock);
             /*passportClerks[0].state = AVAILABLE;*/
-            Signal(passportClerks[0].breakCondition, passportClerks[0].breakLock);
+            Signal(Get(ppBreakCV, 0), Get(ppBreakLock, 0)); // TODO: right now it just wakes up clerk 0
             Release(passportClerkLock);
             passportClerksAllOnBreak = FALSE;
         }
@@ -89,7 +89,7 @@ int main()
             Print("Manager has woken up a Cashier\n", 32, 0, 0);
             Acquire(cashierLock);
             /*cashiers[0].state = AVAILABLE;*/
-            Signal(cashiers[0].breakCondition, cashiers[0].breakLock);
+            Signal(Get(cashBreakCV, 0), Get(cashBreakLock, 0)); // TODO: right now it just wakes up clerk 0
             Release(cashierLock);
             cashiersAllOnBreak = FALSE;
         }
@@ -97,40 +97,40 @@ int main()
         /*if a certain type of clerk has more than 3 customers waiting on them, wake up another clerk of that type*/
         for(i = 0; i < NUM_CLERKS; i++)
         {
-            if(signalPictureClerk && pictureClerks[i].state == ONBREAK)
+            if(signalPictureClerk && Get(picState, i) == ONBREAK)
             {
                 Print("Manager has woken up a PictureClerk\n", 37, 0, 0);
                 Acquire(pictureClerkLock);
                 /*pictureClerks[i].state = AVAILABLE;*/
-                Signal(pictureClerks[i].breakCondition, pictureClerks[i].breakLock);
+                Signal(Get(picBreakCV, i), Get(picBreakLock, i)); 
                 Release(pictureClerkLock);
                 signalPictureClerk = FALSE;
             }
-            if(signalAppClerk && applicationClerks[i].state == ONBREAK)
+            if(signalAppClerk && Get(appState, i) == ONBREAK)
             {
                 Print("Manager has woken up an ApplicationClerk\n", 42, 0, 0);
                 Acquire(applicationClerkLock);
                 /*applicationClerks[i].state = AVAILABLE;*/
-                Signal(applicationClerks[i].breakCondition, applicationClerks[i].breakLock);
+				Signal(Get(appBreakCV, i), Get(appBreakLock, i)); 
                 Release(applicationClerkLock);
                 signalAppClerk = FALSE;
                 
             }
-            if(signalPassportClerk && passportClerks[i].state == ONBREAK)
+            if(signalPassportClerk && Get(ppState, i) == ONBREAK)
             {
                 Print("Manager has woken up a PassportClerk\n", 38, 0, 0);
                 Acquire(passportClerkLock);
                 /*passportClerks[i].state = AVAILABLE;*/
-                Signal(passportClerks[i].breakCondition, passportClerks[i].breakLock);
+				Signal(Get(ppBreakCV, i), Get(ppBreakLock, i)); 
                 Release(passportClerkLock);
                 signalPassportClerk = FALSE;
             }
-            if(signalCashier && cashiers[i].state == ONBREAK)
+            if(signalCashier && Get(cashState, i) == ONBREAK)
             {
                 Print("Manager has woken up a Cashier\n", 32, 0, 0);
                 Acquire(cashierLock);
                 /*cashiers[i].state = AVAILABLE;*/
-                Signal(cashiers[i].breakCondition, cashiers[i].breakLock);
+                Signal(Get(cashBreakCV, i), Get(cashBreakLock, i)); 
                 Release(cashierLock);
                 signalCashier = FALSE;
             }
@@ -150,10 +150,10 @@ int main()
         /*tally up the revenues and print them*/
         for (i = 0; i < NUM_CLERKS; i++)
         {
-            pictureRevenue += pictureClerks[i].money;
-            applicationRevenue += applicationClerks[i].money;
-            passportRevenue += passportClerks[i].money;
-            cashierRevenue += cashiers[i].money;
+            pictureRevenue += Get(picMoney, i);
+            applicationRevenue += Get(appMoney, i);
+            passportRevenue += Get(ppMoney, i);
+            cashierRevenue += Get(cashMoney, i);
         }
         
         Print("Manager has counted a total of $%i for PictureClerks\n", 54, pictureRevenue * 1000, 0);
@@ -166,45 +166,45 @@ int main()
     }
     Print("This passport office has finished\n", 34, 0, 0);
     
-    /*delete program data*/
+    // /*delete program data*/
     
-    DestroyLock(pictureClerkLock);
-    DestroyLock(applicationClerkLock);
-    DestroyLock(passportClerkLock);
-    DestroyLock(cashierLock);
+    // DestroyLock(pictureClerkLock);
+    // DestroyLock(applicationClerkLock);
+    // DestroyLock(passportClerkLock);
+    // DestroyLock(cashierLock);
     
-    DestroyLock(senatorLock);
-    DestroyCondition(senatorCondition);
+    // DestroyLock(senatorLock);
+    // DestroyCondition(senatorCondition);
     
-    /* Destroy Locks and Conditions within each Clerk */
-    for(i = 0; i < NUM_CLERKS; i++) {
-        DestroyLock(applicationClerks[i].breakLock);
-        DestroyLock(applicationClerks[i].clerkLock);
-        DestroyCondition(applicationClerks[i].clerkCondition);
-        DestroyCondition(applicationClerks[i].breakCondition);
-        DestroyCondition(applicationClerks[i].bribeLineCondition);
-        DestroyCondition(applicationClerks[i].lineCondition);
+    // /* Destroy Locks and Conditions within each Clerk */
+    // for(i = 0; i < NUM_CLERKS; i++) {
+    //     DestroyLock(applicationClerks[i].breakLock);
+    //     DestroyLock(applicationClerks[i].clerkLock);
+    //     DestroyCondition(applicationClerks[i].clerkCondition);
+    //     DestroyCondition(applicationClerks[i].breakCondition);
+    //     DestroyCondition(applicationClerks[i].bribeLineCondition);
+    //     DestroyCondition(applicationClerks[i].lineCondition);
         
-        DestroyLock(pictureClerks[i].breakLock);
-        DestroyLock(pictureClerks[i].clerkLock);
-        DestroyCondition(pictureClerks[i].clerkCondition);
-        DestroyCondition(pictureClerks[i].breakCondition);
-        DestroyCondition(pictureClerks[i].bribeLineCondition);
-        DestroyCondition(pictureClerks[i].lineCondition);
+    //     DestroyLock(pictureClerks[i].breakLock);
+    //     DestroyLock(pictureClerks[i].clerkLock);
+    //     DestroyCondition(pictureClerks[i].clerkCondition);
+    //     DestroyCondition(pictureClerks[i].breakCondition);
+    //     DestroyCondition(pictureClerks[i].bribeLineCondition);
+    //     DestroyCondition(pictureClerks[i].lineCondition);
         
-        DestroyLock(passportClerks[i].breakLock);
-        DestroyLock(passportClerks[i].clerkLock);
-        DestroyCondition(passportClerks[i].clerkCondition);
-        DestroyCondition(passportClerks[i].breakCondition);
-        DestroyCondition(passportClerks[i].bribeLineCondition);
-        DestroyCondition(passportClerks[i].lineCondition);
+    //     DestroyLock(passportClerks[i].breakLock);
+    //     DestroyLock(passportClerks[i].clerkLock);
+    //     DestroyCondition(passportClerks[i].clerkCondition);
+    //     DestroyCondition(passportClerks[i].breakCondition);
+    //     DestroyCondition(passportClerks[i].bribeLineCondition);
+    //     DestroyCondition(passportClerks[i].lineCondition);
         
-        DestroyLock(cashiers[i].breakLock);
-        DestroyLock(cashiers[i].clerkLock);
-        DestroyCondition(cashiers[i].clerkCondition);
-        DestroyCondition(cashiers[i].breakCondition);
-        DestroyCondition(cashiers[i].bribeLineCondition);
-        DestroyCondition(cashiers[i].lineCondition);
-    }
+    //     DestroyLock(cashiers[i].breakLock);
+    //     DestroyLock(cashiers[i].clerkLock);
+    //     DestroyCondition(cashiers[i].clerkCondition);
+    //     DestroyCondition(cashiers[i].breakCondition);
+    //     DestroyCondition(cashiers[i].bribeLineCondition);
+    //     DestroyCondition(cashiers[i].lineCondition);
+    // }
     Exit(0);
 }
