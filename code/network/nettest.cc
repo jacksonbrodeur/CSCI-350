@@ -1150,19 +1150,23 @@ void TakeAction(int requestID) {
     MailHeader outMailHdr;
     char data[MaxMailSize];
     stringstream ss;
+    string resourceType;
     bool success = false;
     switch(rpc) {
         case CREATE_LOCK:
         	success = true;
             index = CreateLock(request->name);
+            resourceType = "Lock";
             break;
         case CREATE_CV:
         	success = true;
         	index = CreateCV(request->name);
+            resourceType = "CV";
             break;
         case CREATE_MV:
         	success = true;
         	index = CreateMV(request->name);
+            resourceType = "MV";
             break;
         default:
             //all other syscalls should have error messages indicating resource is invalid
@@ -1178,7 +1182,7 @@ void TakeAction(int requestID) {
     }
     strcpy(data, ss.str().c_str());
     outMailHdr.length = strlen(data) + 1;
-    printf("Created Lock %s at index %d from client [%d:%d]\n", request->name, index, request->fromMachineID, request->fromMailbox);
+    printf("Created %s %s at index %d from client [%d:%d]\n", resourceType, request->name, index, request->fromMachineID, request->fromMailbox);
     postOffice->Send(outPktHdr, outMailHdr, data);
 }
 

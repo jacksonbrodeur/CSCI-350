@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv setmv getmv testvm multiserverlock
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm multiserverlock multimv
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -212,6 +212,12 @@ multiserverlock.o: multiserverlock.c
 multiserverlock: multiserverlock.o start.o
 	$(LD) $(LDFLAGS) start.o multiserverlock.o -o multiserverlock.coff
 	../bin/coff2noff multiserverlock.coff multiserverlock
+
+multimv.o: multimv.c
+	$(CC) $(CFLAGS) -c multimv.c
+multimv: multimv.o start.o
+	$(LD) $(LDFLAGS) start.o multimv.o -o multimv.coff
+	../bin/coff2noff multimv.coff multimv
 
 clean:
 	rm -f *.o *.coff
