@@ -27,21 +27,21 @@ main()
     int money;
     
     Acquire(counterLock);
-    myLine = CreateSyscall(/*numApplicationClerks;*/);
-    SetSyscall(/*numPassportClerks++*/);
+    myLine = CreateSyscall(numApplicationClerks);
+    SetSyscall(numApplicationClerks++);
     me = &applicationClerks[myLine];
     Release(counterLock);
     
-    while(GetSyscall(/*customersFinished*/) < NUM_CUSTOMERS + NUM_SENATORS) {
+    while(GetSyscall(customersFinished) < NUM_CUSTOMERS + NUM_SENATORS) {
         
         Acquire(applicationClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(GetSyscall(/*me->bribeLineCount*/) > 0) {
+        if(GetSyscall(appBribeLineCount) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
             Signal(me->bribeLineCondition, applicationClerkLock);
-            SetSyscall(/*me->state*/) = BUSY;
-        } else if(GetSyscall(/*me->lineCount*/) > 0) {
+            SetSyscall(appState) = BUSY;
+        } else if(GetSyscall(appLineCount) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
             Signal(me->lineCondition, applicationClerkLock);
             me->state = BUSY;

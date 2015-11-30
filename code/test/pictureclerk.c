@@ -25,23 +25,23 @@ main()
     int money;
 
     Acquire(counterLock);
-    myLine = CreateSyscall(/*numPictureClerks*/);
-    SetSyscall(/*numPictureClerks++*/);
+    myLine = CreateSyscall(numPictureClerks);
+    SetSyscall(0);
     me = &pictureClerks[myLine];
     Release(counterLock);
     
-    while(GetSyscall(/*customersFinished*/) < NUM_CUSTOMERS + NUM_SENATORS) {
+    while(GetSyscall(customersFinished) < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(pictureClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(GetSyscall(/*me->bribeLineCount*/) > 0) {
+        if(GetSyscall(picBribeLineCount) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
             Signal(me->bribeLineCondition, pictureClerkLock);
-            SetSyscall(/*me->state*/) = BUSY;
-        } else if(GetSyscall(/*me->lineCount*/) > 0) {
+            SetSyscall(picState) = BUSY;
+        } else if(GetSyscall(picLineCount) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
             Signal(me->lineCondition, pictureClerkLock);
-            SetSyscall(/*me->state*/) = BUSY;
+            SetSyscall(picState) = BUSY;
         } else {
             
             if(storeJustOpened >= NUM_CLERKS * 4) {
