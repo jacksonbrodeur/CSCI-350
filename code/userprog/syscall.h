@@ -167,9 +167,9 @@ int CreateMV(char * name, int len);
 
 void DestroyMV(int mv);
 
-void Set(int mv, int value);
+void Set(int mv, int index, int value);
 
-int Get(int mv);
+int Get(int mv, int index);
 
 
 

@@ -1,6 +1,6 @@
-// setup.h 
-// used to set up all the resources needed for the passport office
-// call this first from the other user programs (i.e. customer.c)
+/* setup.h 
+ used to set up all the resources needed for the passport office
+ call this first from the other user programs (i.e. customer.c) */
 
 #include "syscall.h"
 
@@ -50,21 +50,21 @@ int storeJustOpened;
 int customersFinished;
 
 
-// Customer struct
-//////////////////
-int customerIDs; // changed from "id"
+/* Customer struct */
+/*/////////////// */
+int customerIDs; /* changed from "id"*/
 int applicationFiled;
 int pictureTaken;
 int pictureFiled;
 int passportCertified;
 int passportGiven;
 int cashierPaid;
-int custMoney; // changed from "money"
+int custMoney; /* changed from "money" */
 int isSenator;
 
-// Clerk struct
-///////////////
-// picture clerk
+/* Clerk struct */
+/*//////////// */
+/* picture clerk */
 int picLine; 
 int picLineCount; 
 int picBribeLineCount;
@@ -80,7 +80,7 @@ int picClerkLock;
 int picClerkType;
 int picCustomer;
 int picMoney;
-// application clerk
+/* application clerk */
 int appLine; 
 int appLineCount; 
 int appBribeLineCount;
@@ -96,7 +96,7 @@ int appClerkLock;
 int appClerkType;
 int appCustomer;
 int appMoney;
-// passport clerk
+/* passport clerk */
 int ppLine; 
 int ppLineCount; 
 int ppBribeLineCount;
@@ -112,7 +112,7 @@ int ppClerkLock;
 int ppClerkType;
 int ppCustomer;
 int ppMoney;
-// cashier
+/* cashier */
 int cashLine; 
 int cashLineCount; 
 int cashBribeLineCount;
@@ -134,7 +134,7 @@ int cashMoney;
 
 void setup()
 {
-	// locks
+	/* locks */
 	counterLock = CreateLock("counterLock", 11);
     senatorLock = CreateLock("senatorLock", 11);
     applicationClerkLock = CreateLock("applicationLock", 15);
@@ -142,14 +142,14 @@ void setup()
     passportClerkLock = CreateLock("passportLock", 12);
     cashierLock = CreateLock("cashierLock", 11);
     
-    // CVs
+    /* CVs */
     senatorCondition = CreateCondition("senatorCV", 9);
 
-    // MVs (shared data)
+    /* MVs (shared data) */
     numApplicationClerks = CreateMV("numAppClerks", 12);
     Set(numApplicationClerks, 0, 0);
     numPictureClerks = CreateMV("numPicClerks", 12);
-    Set(numPicClerks, 0, 0);
+    Set(numPictureClerks, 0, 0);
     numPassportClerks = CreateMV("numPassportClerks", 17);
     Set(numPassportClerks, 0, 0);
     numCashiers = CreateMV("numCashiers", 11);
@@ -159,16 +159,16 @@ void setup()
     numSenatorsHere = CreateMV("numSenatorsHere", 15);
     Set(numSenatorsHere, 0, 0);
     totalCustomerMoney = CreateMV("totalCustMoney", 14);
-    Set(totalCustMoney, 0, 0);
+    Set(totalCustomerMoney, 0, 0);
     storeJustOpened = CreateMV("storeJustOpened", 15);
     Set(storeJustOpened, 0, 0);
     customersFinished = CreateMV("customersFinished", 17);
     Set(customersFinished, 0, 0);
 
 
- 	// TODO: should MAX_CUSTOMERS be 200 and not 50 (what he said we'll use)?
+ 	/* TODO: should MAX_CUSTOMERS be 200 and not 50 (what he said we'll use)?*/
 
-    // customer
+    /* customer */
     customerIDs = CreateMV("customerIDs", 11); 
     applicationFiled = CreateMV("applicationFiled", 16);
     pictureTaken = CreateMV("pictureTaken", 12);
@@ -176,11 +176,11 @@ void setup()
     passportCertified = CreateMV("passportCertified", 17);
     passportGiven = CreateMV("passportGiven", 13);
     cashierPaid = CreateMV("cashierPaid", 11);
-    custMoney = CreateMV("custMoney", 9); 
+    custMoney = CreateMV("custMoney", 9);
     isSenator = CreateMV("isSenator", 9);
 
 
-    // picture clerk
+    /* picture clerk */
     picLine = CreateMV("picLine", 7);
     picLineCount = CreateMV("picLineCount", 12);
     picBribeLineCount = CreateMV("picBribeLineCount", 17);
@@ -197,7 +197,7 @@ void setup()
     picCustomer = CreateMV("picCustomer", 11);
     picMoney = CreateMV("picMoney", 8);
 
-    // application clerk
+    /* application clerk */
     appLine = CreateMV("appLine", 7);
     appLineCount = CreateMV("appLineCount", 12);
     appBribeLineCount = CreateMV("appBribeLineCount", 17);
@@ -214,7 +214,7 @@ void setup()
     appCustomer = CreateMV("appCustomer", 11);
     appMoney = CreateMV("appMoney", 8);
 
-    // passport clerk
+    /* passport clerk */
     ppLine = CreateMV("ppLine", 6);
     ppLineCount = CreateMV("ppLineCount", 11);
     ppBribeLineCount = CreateMV("ppBribeLineCount", 16);
@@ -231,7 +231,7 @@ void setup()
     ppCustomer = CreateMV("ppCustomer", 10);
     ppMoney = CreateMV("ppMoney", 7);
 
-    // cashier
+    /* cashier */
     cashLine = CreateMV("cashLine", 8);
     cashLineCount = CreateMV("cashLineCount", 13);
     cashBribeLineCount = CreateMV("cashBribeLineCount", 18);

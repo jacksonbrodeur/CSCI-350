@@ -1,4 +1,5 @@
 #include "syscall.h"
+#include "setup.h"
 
 #define NUM_CUSTOMERS 20
 #define NUM_SENATORS 10
