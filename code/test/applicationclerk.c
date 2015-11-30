@@ -37,11 +37,11 @@ main()
         Acquire(applicationClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(GetSyscall(appBribeLineCount) > 0) {
+        if(GetSyscall(appBribeLineCount, myLine) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
             Signal(me->bribeLineCondition, applicationClerkLock);
             SetSyscall(appState) = BUSY;
-        } else if(GetSyscall(appLineCount) > 0) {
+        } else if(GetSyscall(appLineCount, myLine) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
             Signal(me->lineCondition, applicationClerkLock);
             me->state = BUSY;

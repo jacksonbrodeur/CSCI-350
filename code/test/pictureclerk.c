@@ -34,11 +34,11 @@ main()
         Acquire(pictureClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(GetSyscall(picBribeLineCount) > 0) {
+        if(GetSyscall(picBribeLineCount, myLine) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
             Signal(me->bribeLineCondition, pictureClerkLock);
             SetSyscall(picState) = BUSY;
-        } else if(GetSyscall(picLineCount) > 0) {
+        } else if(GetSyscall(picLineCount, myLine) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
             Signal(me->lineCondition, pictureClerkLock);
             SetSyscall(picState) = BUSY;
