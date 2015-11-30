@@ -8,7 +8,7 @@
 #define FALSE 0
 #define NULL 0
 
-#define MAX_CUSTOMERS 200
+#define MAX_CUSTOMERS 50
 #define MAX_CLERKS 50
 
 /* Clerk States */
@@ -22,11 +22,9 @@
 #define PASSPORTCLERK 2
 #define CASHIER 3
 
-// should we #define these ^^ ?
-
-int NUM_CUSTOMERS;
-int NUM_CLERKS;
-int NUM_SENATORS;
+#define NUM_CUSTOMERS 50
+#define NUM_CLERKS 5
+#define NUM_SENATORS 3
 
 /* Clerk Locks */
 int applicationClerkLock;
@@ -166,12 +164,6 @@ void setup()
     Set(storeJustOpened, 0, 0);
     customersFinished = CreateMV("customersFinished", 17);
     Set(customersFinished, 0, 0);
-    NUM_CUSTOMERS = CreateMV("NUM_CUSTOMERS", 13);
-    Set(NUM_CUSTOMERS, 0, 40);
-    NUM_CLERKS = CreateMV("NUM_CLERKS", 10);
-    Set(NUM_CLERKS, 0, 5);
-    NUM_SENATORS = CreateMV("NUM_SENATORS", 12);
-    Set(NUM_SENATORS, 0, 3);
 
 
  	// TODO: should MAX_CUSTOMERS be 200 and not 50 (what he said we'll use)?
