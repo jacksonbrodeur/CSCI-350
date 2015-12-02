@@ -798,7 +798,7 @@ int CreateConditionSyscall(int vaddr, int len) {
     stringstream ss;
     ss << CREATE_CV << " " << name;
     char * data = (char*)ss.str().c_str();
-    pktHdr.to = 0;
+    pktHdr.to = rand() % NUM_SERVERS;
     pktHdr.from = myMachineID;
     mailHdr.to = 0;
     mailHdr.from = 0;
@@ -851,7 +851,7 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
 
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
-    pktHdr.to = 0;
+    pktHdr.to = rand() % NUM_SERVERS;
     pktHdr.from = myMachineID;
     mailHdr.to = 0;
     mailHdr.from = 0;
@@ -883,7 +883,7 @@ void SignalSyscall(int conditionIndex, int lockIndex) {
 
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
-    pktHdr.to = 0;
+    pktHdr.to = rand() % NUM_SERVERS;
     pktHdr.from = myMachineID;
     mailHdr.to = 0;
     mailHdr.from = 0;
@@ -916,7 +916,7 @@ void BroadcastSyscall(int conditionIndex, int lockIndex) {
 
     //Server always should have machineID=0
     char * data = (char*)ss.str().c_str();
-    pktHdr.to = 0;
+    pktHdr.to = rand() % NUM_SERVERS;
     pktHdr.from = myMachineID;
     mailHdr.to = 0;
     mailHdr.from = 0;
