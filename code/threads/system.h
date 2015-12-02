@@ -151,6 +151,8 @@ extern SynchDisk   *synchDisk;
 #define S_SET_MV        19
 #define S_GET_MV        20
 #define S_WAIT          21
+#define S_SIGNAL        22
+#define S_BROADCAST     23
 
 
 //Define codes for responses from server

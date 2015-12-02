@@ -884,6 +884,71 @@ void RunServer()
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 }
                 break;
+            case S_SIGNAL:
+                ss >> conditionIndex;
+                ss >> lockIndex;
+                ss >> requestID;
+                ss.clear();
+                ss.str("");
+
+                if(conditionIndex < (myMachineID * MAX_RESOURCES) || conditionIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    //Send no response to original server
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                } else { //I should have the cv
+                    if (conditionIndex % MAX_RESOURCES > serverCVs->size() - 1) {
+                        // in my range but invalid
+                        ss << S_RESPONSE << " " << NO << " " << requestID;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = incomingMachineID;
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+
+                    //I do have the cv
+
+                    ServerCV * cv = serverCVs->at(conditionIndex % MAX_RESOURCES);
+                    if(cv->waitingLock == -1 || cv->waitingLock != conditionIndex) {
+                        //Do nothing
+                    } else if(cv->cvWaitQueue->empty()) {
+                        cv->waitingLock = -1;
+                    } else {
+                        //I do have the condition, get the first element from cvWaitQueue
+                        machineID = cv->cvWaitQueue->front().first;
+                        mailbox = cv->cvWaitQueue->front().second;
+                        cv->cvWaitQueue->pop_front();
+                        if(cv->cvWaitQueue->empty()) {
+                            cv->waitingLock = -1;
+                        }
+
+                        // Want to acquire lock
+
+                        ss << ACQUIRE << " " << lockIndex;
+                        outPktHdr.to = myMachineID;
+                        outPktHdr.from = machineID;
+                        outMailHdr.to = 0;
+                        outMailHdr.from = mailbox;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                    }
+                    ss.clear();
+                    ss.str("");
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = incomingMailbox;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+
+                break;
             case SIGNAL:
                 ss >> conditionIndex;
                 ss >> lockIndex;
@@ -892,6 +957,13 @@ void RunServer()
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = incomingMailbox;
 
+                if(lockIndex < 0 || static_cast<uint64_t>(lockIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -899,12 +971,156 @@ void RunServer()
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-                Signal(conditionIndex, lockIndex);
 
+                if(conditionIndex < (myMachineID * MAX_RESOURCES) || conditionIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    // I don't have the cv
+                    // Ask other servers
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    r->lockIndex = lockIndex;
+                    r->conditionIndex = conditionIndex;
+                    requestTable[requestID] = r;
+
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check if it has CV %d\n", i, conditionIndex);
+                        outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
+                        outMailHdr.to = 0;
+                        outMailHdr.from = 0;
+                        ss << S_SIGNAL << " " << conditionIndex << " " << lockIndex << " " << requestID;
+                        strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else { //I should have the condition
+                    if (conditionIndex % MAX_RESOURCES > serverCVs->size() - 1) {
+                        // in my range but invalid
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+
+                    //Validate cv
+                    ServerCV * cv = serverCVs->at(conditionIndex % MAX_RESOURCES);
+                    if(cv->waitingLock == -1 || cv->waitingLock != lockIndex) {
+                        ss << SUCCESS;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = incomingMachineID;
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    if(cv->cvWaitQueue->empty()) {
+                        cv->waitingLock = -1;
+                    } else {
+                        //I do have the condition, get the first element from cvWaitQueue
+                        machineID = cv->cvWaitQueue->front().first;
+                        mailbox = cv->cvWaitQueue->front().second;
+                        cv->cvWaitQueue->pop_front();
+                        if(cv->cvWaitQueue->empty()) {
+                            cv->waitingLock = -1;
+                        }
+
+                        // Want to acquire lock
+
+                        ss << ACQUIRE << " " << lockIndex;
+                        outPktHdr.to = myMachineID;
+                        outPktHdr.from = machineID;
+                        outMailHdr.to = 0;
+                        outMailHdr.from = mailbox;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                    }
+
+                }
+
+                // Send response to client calling Signal
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = incomingMailbox;
+                ss.clear();
+                ss.str("");
                 ss << SUCCESS;
                 strcpy(data, ss.str().c_str());
                 outMailHdr.length = strlen(data) + 1;
                 postOffice->Send(outPktHdr, outMailHdr, data);
+
+                break;
+            case S_BROADCAST:
+                ss >> conditionIndex;
+                ss >> lockIndex;
+                ss >> requestID;
+                ss.clear();
+                ss.str("");
+
+                if(conditionIndex < (myMachineID * MAX_RESOURCES) || conditionIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    //I don't have condition, send NO response
+                    ss << S_RESPONSE << " " << NO << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                } else { //I should have the condition
+                    if (conditionIndex % MAX_RESOURCES > serverCVs->size() - 1) {
+                        // in my range but invalid
+                        ss << S_RESPONSE << " " << NO << " " << requestID;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = incomingMachineID;
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+
+                    //I have the cv, broadcast
+
+                    ServerCV * cv = serverCVs->at(conditionIndex % MAX_RESOURCES);
+                    if(cv->waitingLock == -1 || cv->waitingLock != lockIndex) {
+                        // Do nothing
+                    } else {
+                        while(!cv->cvWaitQueue->empty()) {
+                            machineID = cv->cvWaitQueue->front().first;
+                            mailbox = cv->cvWaitQueue->front().second;
+                            cv->cvWaitQueue->pop_front();
+                            ss << ACQUIRE << " " << lockIndex;
+                            outPktHdr.to = myMachineID;
+                            outPktHdr.from = machineID;
+                            outMailHdr.to = 0;
+                            outMailHdr.from = mailbox;
+                            strcpy(data, ss.str().c_str());
+                            ss.clear();
+                            ss.str("");
+                            outMailHdr.length = strlen(data) + 1;
+                            postOffice->Send(outPktHdr, outMailHdr, data);
+                        }
+                        cv->waitingLock = -1;
+                    }
+
+                    //Send a YES to server
+                    ss.clear();
+                    ss.str("");
+                    ss << S_RESPONSE << " " << YES << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outMailHdr.to = 0;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                }
+
                 break;
             case BROADCAST:
                 ss >> conditionIndex;
@@ -920,10 +1136,95 @@ void RunServer()
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
+                if(lockIndex < 0 || static_cast<uint64_t>(lockIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
 
-                Broadcast(conditionIndex, lockIndex);
+                if(conditionIndex < (myMachineID * MAX_RESOURCES) || conditionIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    // I don't have the cv
+                    // Ask other servers
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    r->lockIndex = lockIndex;
+                    r->conditionIndex = conditionIndex;
+                    requestTable[requestID] = r;
+
+                    for (int i = 0; i < NUM_SERVERS; i++)
+                    {
+                        if(i == myMachineID) {
+                            continue;
+                        }
+                        printf("Sending message to Server %d to check if it has CV %d\n", i, conditionIndex);
+                        outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
+                        outMailHdr.to = 0;
+                        outMailHdr.from = 0;
+                        ss << S_BROADCAST << " " << conditionIndex << " " << lockIndex << " " << requestID;
+                        strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr,outMailHdr, data);
+                    }
+                } else {// I should have the cv
+                    if (conditionIndex % MAX_RESOURCES > serverCVs->size() - 1) {
+                        // in my range but invalid
+                        ss << ERROR;
+                        strcpy(data, ss.str().c_str());
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+
+                    // I do have the cv so signal all waiting clients
+                    ServerCV * cv = serverCVs->at(conditionIndex % MAX_RESOURCES);
+                    if(cv->waitingLock == -1 || cv->waitingLock != lockIndex) {
+                        ss << SUCCESS;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = incomingMachineID;
+                        outMailHdr.to = incomingMailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                        break;
+                    }
+                    while(!cv->cvWaitQueue->empty()) {
+                        machineID = cv->cvWaitQueue->front().first;
+                        mailbox = cv->cvWaitQueue->front().second;
+                        cv->cvWaitQueue->pop_front();
+                        ss << ACQUIRE << " " << lockIndex;
+                        outPktHdr.to = myMachineID;
+                        outPktHdr.from = machineID;
+                        outMailHdr.to = 0;
+                        outMailHdr.from = mailbox;
+                        strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                    }
+                    cv->waitingLock = -1;
+
+                    
+
+                }
+
+                // Send message back to client that called Broadcast
+                ss.clear();
+                ss.str("");
                 ss << SUCCESS;
                 strcpy(data, ss.str().c_str());
+                outPktHdr.to = incomingMachineID;
+                outMailHdr.to = incomingMailbox;
                 outMailHdr.length = strlen(data) + 1;
                 postOffice->Send(outPktHdr, outMailHdr, data);
                 break;
@@ -1313,13 +1614,14 @@ void TakeAction(int requestID) {
     outMailHdr.to = request->fromMailbox;
     if (success) {
     	ss << SUCCESS << " " << index;
+        strcpy(data, ss.str().c_str());
+        outMailHdr.length = strlen(data) + 1;
+        //printf("Created %s %s at index %d from client [%d:%d]\n", resourceType, request->name, index, request->fromMachineID, request->fromMailbox);
+        postOffice->Send(outPktHdr, outMailHdr, data);
     } else {
-    	ss << ERROR << " " << index;
+        printf("ERROR in %s syscall\n", rpc);
     }
-    strcpy(data, ss.str().c_str());
-    outMailHdr.length = strlen(data) + 1;
-    //printf("Created %s %s at index %d from client [%d:%d]\n", resourceType, request->name, index, request->fromMachineID, request->fromMailbox);
-    postOffice->Send(outPktHdr, outMailHdr, data);
+    
 }
 
 int FindLock(char* name) {
