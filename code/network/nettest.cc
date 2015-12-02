@@ -120,18 +120,18 @@ struct ServerLock {
 struct ServerCV {
     char * name;
     int waitingLock;
-    deque<int>* cvWaitQueue;
+    deque<pair<int, int> >* cvWaitQueue;
 
     ServerCV() {
         name = "";
         waitingLock = -1;
-        cvWaitQueue = new deque<int>;
+        cvWaitQueue = new deque<pair<int, int> >;
     }
 
     ServerCV(char * _name) {
         name = _name;
         waitingLock = -1;
-        cvWaitQueue = new deque<int>;
+        cvWaitQueue = new deque<pair<int, int> >;
     }
 };
 
@@ -186,7 +186,7 @@ bool ReleaseLock(int index, int machineID, int mailbox);
 
 int FindCV(char* name);
 int CreateCV(char* name);
-bool Wait(int conditionIndex, int lockIndex, int machineID);
+bool Wait(int conditionIndex, int lockIndex, int machineID, int mailbox);
 void Signal(int conditionIndex, int lockIndex);
 void Broadcast(int conditionIndex, int lockIndex);
 
@@ -233,6 +233,10 @@ void RunServer()
         int machineID;
         int mailbox;
         switch(rpc) {
+            case SUCCESS:
+                break;
+            case ERROR:
+                break;
             case S_RESPONSE:
                 int response;
                 ss >> response;
@@ -247,6 +251,70 @@ void RunServer()
                     } // else: request does not exist in table (request has been resolved) so do nothing
                 } else { 
                     // it's a yes so we will indicate that this request is closed by removing it 
+                    Request * r = requestTable[requestID];
+                    if(r->rpcType == WAIT) {
+                        //Check the cv
+
+                        if(r->conditionIndex < (myMachineID * MAX_RESOURCES) || r->conditionIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                            // I don't have the cv
+                            requestID = requestCounter;
+                            requestCounter++;
+
+                            Request * req = new Request();
+                            req->rpcType = S_WAIT;
+                            req->noCounter = 0;
+                            req->fromMachineID = r->fromMachineID;
+                            req->fromMailbox = r->fromMailbox;
+                            req->lockIndex = r->lockIndex;
+                            req->conditionIndex = r->conditionIndex;
+                            requestTable[requestID] = req;
+                            for (int i = 0; i < NUM_SERVERS; i++)
+                            {
+                                if(i == myMachineID) {
+                                    continue;
+                                }
+                                printf("Sending message to Server %d to check if it has CV %d\n", i, r->conditionIndex);
+                                outPktHdr.to = i;
+                                outPktHdr.from = myMachineID;
+                                outMailHdr.to = 0;
+                                outMailHdr.from = 0;
+                                ss << S_WAIT << " " << r->lockIndex << " " << r->conditionIndex << " " << requestID << " " << r->fromMachineID << " " << r->fromMailbox;
+                                strcpy(data, ss.str().c_str());
+                                ss.clear();
+                                ss.str("");
+                                outMailHdr.length = strlen(data) + 1;
+                                postOffice->Send(outPktHdr,outMailHdr, data);
+                            }
+                        } else { // I should have the cv
+                            if (conditionIndex % MAX_RESOURCES > serverCVs->size() - 1) {
+                                // in my range but invalid
+                                ss << ERROR;
+                                strcpy(data, ss.str().c_str());
+                                outPktHdr.to = r->fromMachineID;
+                                outMailHdr.to = r->fromMailbox;
+                                outMailHdr.length = strlen(data) + 1;
+                                postOffice->Send(outPktHdr, outMailHdr, data);
+                                break;
+                            }
+
+                            //I do have the condition
+                            //add client to cvWaitQueue
+
+                            success = Wait(r->conditionIndex % MAX_RESOURCES, r->lockIndex, r->fromMachineID, r->fromMailbox);
+                            if(success) {
+                                printf("Machine [%d:%d] is waiting on lock %d with condition %d\n", r->fromMachineID, r->fromMailbox, r->lockIndex, r->conditionIndex);
+                            } else {
+                                // Locks are different, client should continue
+                                ss << SUCCESS;
+                                strcpy(data, ss.str().c_str());
+                                outPktHdr.to = r->fromMachineID;
+                                outMailHdr.to = r->fromMailbox;
+                                outMailHdr.length = strlen(data) + 1;
+                                postOffice->Send(outPktHdr, outMailHdr, data);
+                            }
+
+                        }
+                    }
                     requestTable.erase(requestID);
                 }
                 break;
@@ -360,7 +428,7 @@ void RunServer()
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverLocks->size()) {
+                    if (index % MAX_RESOURCES > serverLocks->size() - 1) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -441,7 +509,7 @@ void RunServer()
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverLocks->size()) {
+                    if (index % MAX_RESOURCES > serverLocks->size() - 1) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -482,7 +550,7 @@ void RunServer()
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);             
                 } else {
-                    if(index % MAX_RESOURCES > serverLocks->size()) {
+                    if(index % MAX_RESOURCES > serverLocks->size() - 1) {
                         //Lock is in my range but does not exist
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -564,7 +632,7 @@ void RunServer()
 
                 } else {
                     //I should have it because it is in my range
-                    if (index % MAX_RESOURCES > serverLocks->size()) {
+                    if (index % MAX_RESOURCES > serverLocks->size() - 1) {
                         // index is in my range but lock doesn't exist
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -673,6 +741,59 @@ void RunServer()
                     printf("Retrieved CV named %s from machine %d\n", name, incomingMachineID);
                 }
                 break;
+            case S_WAIT:
+                ss >> lockIndex;
+                ss >> conditionIndex;
+
+                ss >> requestID;
+                ss >> machineID;
+                ss >> mailbox;
+
+                ss.clear();
+                ss.str("");
+
+                if(conditionIndex < (myMachineID * MAX_RESOURCES) || conditionIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    // Condition not in my range
+                    //Send a NO to original server
+                    ss << S_RESPONSE << " " << NO << " " << requestID;
+                    outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.from = 0;
+                    strcpy(data, ss.str().c_str());
+                    ss.clear();
+                    ss.str("");
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                } else { //Condition is in my range
+                    if(conditionIndex % MAX_RESOURCES > serverCVs->size() - 1) {
+                        //Condition does not exist
+                        //Send error to client
+                        ss << ERROR;
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
+                        strcpy(data, ss.str().c_str());
+                        break;
+                    }
+                    //I do have the condition
+                    success = Wait(conditionIndex % MAX_RESOURCES, lockIndex, machineID, mailbox);
+
+                    if(success) {
+                        printf("Machine [%d:%d] is waiting on lock %d with condition %d\n", machineID, mailbox, lockIndex, conditionIndex);
+                        
+                    } else {
+                        ss << SUCCESS;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                    }
+
+                    //Send Yes to original Server
+
+                }
+
+                break;
             case WAIT:
                 ss >> conditionIndex;
                 ss >> lockIndex;
@@ -680,6 +801,13 @@ void RunServer()
                 ss.str("");
                 outPktHdr.to = incomingMachineID;
                 outMailHdr.to = incomingMailbox;
+                if(lockIndex < 0 || static_cast<uint64_t>(lockIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
+                    ss << ERROR;
+                    strcpy(data, ss.str().c_str());
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
+                    break;
+                }
                 if(conditionIndex < 0 || static_cast<uint64_t>(conditionIndex) > (MAX_RESOURCES * NUM_SERVERS) - 1) {
                     ss << ERROR;
                     strcpy(data, ss.str().c_str());
@@ -688,9 +816,11 @@ void RunServer()
                     break;
                 }
 
-                // See if I have the lcok and then send request to servers if I don't
-                if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
-                    printf("Did not find lock %d\n", index);
+                if(lockIndex < (myMachineID * MAX_RESOURCES) || lockIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
+                    // I don't have the lock
+                    // Ask other servers
+
+
                     requestID = requestCounter;
                     requestCounter++;
                     Request * r = new Request();
@@ -698,25 +828,29 @@ void RunServer()
                     r->noCounter = 0;
                     r->fromMachineID = incomingMachineID;
                     r->fromMailbox = incomingMailbox;
+                    r->lockIndex = lockIndex;
+                    r->conditionIndex = conditionIndex;
                     requestTable[requestID] = r;
-                    //You don't have lock
-                    //Ask other servers
+
                     for (int i = 0; i < NUM_SERVERS; i++)
                     {
                         if(i == myMachineID) {
                             continue;
                         }
-                        printf("Sending message to Server %d to check ACQUIRE\n", i);
+                        printf("Sending message to Server %d to check if it has Lock %d\n", i, lockIndex);
                         outPktHdr.to = i;
+                        outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
-                        // send my (server) address so we will get the lock, not the client
-                        ss << S_ACQUIRE << " " << index << " " << requestID << " " << myMachineID << " " << 0;
+                        outMailHdr.from = 0;
+                        ss << S_RELEASE << " " << lockIndex << " " << requestID << " " << myMachineID << " " << 0;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
-                } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverLocks->size()) {
+                } else { // I should have the lock
+                    if (lockIndex % MAX_RESOURCES > serverLocks->size() - 1) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -725,26 +859,28 @@ void RunServer()
                         postOffice->Send(outPktHdr, outMailHdr, data);
                         break;
                     }
-                    success = AcquireLock(index, incomingMachineID, incomingMailbox);
-                    if(success) {
-                        //Send response to incomingMachineID
-                        // do Release (pass parameter to not send msg to requester)
-                        // TODO: add extra parameter for ^^ and update existing RELEASE calls
-                    } else { // lock is busy, so don't send response
-                        printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
-                    }
-                }                
 
-                // TODO: add switch case for SUCCESS - when server tell's "client" (us as server in this case) lock is acquired
-                // SUCCESS case would handle the rest of the CV Wait - code below vvv I believe. But we need to make sure we keep the address straight
-                // old code from proj 3
-                success = Wait(conditionIndex, lockIndex, incomingMachineID);
-                if (success){
-                     printf("Machine %d is waiting on lock %d with condition %d\n", incomingMachineID, lockIndex, conditionIndex);
-                } else {
-                    ss << SUCCESS;
+                    //I do have the lock
+                    //Release the lock
+                    ReleaseLock(lockIndex % MAX_RESOURCES, incomingMachineID, incomingMailbox);
+
+                    requestID = requestCounter;
+                    requestCounter++;
+                    Request * r = new Request();
+                    r->rpcType = rpc;
+                    r->noCounter = 0;
+                    r->fromMachineID = incomingMachineID;
+                    r->fromMailbox = incomingMailbox;
+                    r->lockIndex = lockIndex;
+                    r->conditionIndex = conditionIndex;
+                    requestTable[requestID] = r;
+
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    outPktHdr.to = myMachineID;
+                    outMailHdr.to = 0;
                     strcpy(data, ss.str().c_str());
-                    outMailHdr.length = strlen(data) + 1;
+                    ss.clear();
+                    ss.str("");
                     postOffice->Send(outPktHdr, outMailHdr, data);
                 }
                 break;
@@ -905,7 +1041,7 @@ void RunServer()
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);             
                 } else {
-                    if(index % MAX_RESOURCES > serverMVs->size()) {
+                    if(index % MAX_RESOURCES > serverMVs->size() - 1) {
                         //MV is in my range but does not exist
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -988,7 +1124,7 @@ void RunServer()
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverMVs->size()) {
+                    if (index % MAX_RESOURCES > serverMVs->size() - 1) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -1026,7 +1162,7 @@ void RunServer()
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);             
                 } else {
-                    if(index % MAX_RESOURCES > serverMVs->size()) {
+                    if(index % MAX_RESOURCES > serverMVs->size() - 1) {
                         //MV is in my range but does not exist
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -1108,7 +1244,7 @@ void RunServer()
                         postOffice->Send(outPktHdr,outMailHdr, data);
                     }
                 } else { // I should have it (it's in my range)
-                    if (index % MAX_RESOURCES > serverMVs->size()) {
+                    if (index % MAX_RESOURCES > serverMVs->size() - 1) {
                         // in my range but invalid
                         ss << ERROR;
                         strcpy(data, ss.str().c_str());
@@ -1182,7 +1318,7 @@ void TakeAction(int requestID) {
     }
     strcpy(data, ss.str().c_str());
     outMailHdr.length = strlen(data) + 1;
-    printf("Created %s %s at index %d from client [%d:%d]\n", resourceType, request->name, index, request->fromMachineID, request->fromMailbox);
+    //printf("Created %s %s at index %d from client [%d:%d]\n", resourceType, request->name, index, request->fromMachineID, request->fromMailbox);
     postOffice->Send(outPktHdr, outMailHdr, data);
 }
 
@@ -1275,11 +1411,8 @@ int CreateCV(char* name) {
     return index;
 }
 
-bool Wait(int conditionIndex, int lockIndex, int machineID) {
+bool Wait(int conditionIndex, int lockIndex, int machineID, int mailbox) {
     ServerCV * cv = serverCVs->at(conditionIndex);
-    if(lockIndex < 0 || static_cast<uint64_t>(lockIndex) > serverLocks->size() - 1) {
-        return false;
-    }
     if (cv->waitingLock == -1) 
     {
         cv->waitingLock = lockIndex;
@@ -1287,8 +1420,8 @@ bool Wait(int conditionIndex, int lockIndex, int machineID) {
     if(cv->waitingLock != lockIndex) {
         return false;
     }
-    cv->cvWaitQueue->push_back(machineID);
-    ReleaseLock(lockIndex, machineID, 0);
+    cv->cvWaitQueue->push_back(make_pair(machineID, mailbox));
+    //ReleaseLock(lockIndex, machineID, 0);
     return true;
 }
 
@@ -1303,19 +1436,20 @@ void Signal(int conditionIndex, int lockIndex) {
     if(cv->cvWaitQueue->empty()) {
         cv->waitingLock = -1;
     } else {
-        int machineID = cv->cvWaitQueue->front();
+        int machineID = cv->cvWaitQueue->front().first;
+        int mailbox = cv->cvWaitQueue->front().second;
         cv->cvWaitQueue->pop_front();
         stringstream ss;
         PacketHeader outPktHdr;
         MailHeader outMailHdr;
 
         outPktHdr.to = machineID;
-        outMailHdr.to = 0;
+        outMailHdr.to = mailbox;
         ss << SUCCESS;
         char data[MaxMailSize];
         strcpy(data, ss.str().c_str());
         outMailHdr.length = strlen(data) + 1;
-        bool success = AcquireLock(lockIndex, machineID, 0);
+        bool success = AcquireLock(lockIndex, machineID, mailbox);
         printf("Machine %d has been signalled by CV %d\n", machineID, conditionIndex);
         if(success) {
             postOffice->Send(outPktHdr, outMailHdr, data);

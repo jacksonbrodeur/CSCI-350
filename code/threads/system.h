@@ -150,11 +150,12 @@ extern SynchDisk   *synchDisk;
 #define S_RELEASE       18
 #define S_SET_MV        19
 #define S_GET_MV        20
+#define S_WAIT          21
 
 
 //Define codes for responses from server
-#define ERROR           0
-#define SUCCESS         1
+#define ERROR           100
+#define SUCCESS         101
 
 
 
