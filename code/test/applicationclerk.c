@@ -1,97 +1,103 @@
 #include "syscall.h"
 #include "setup.h"
 
-#define NUM_CUSTOMERS 20
-#define NUM_SENATORS 10
-
 main()
 {
     int myLine;
     int i;
     int j = Rand() % 80 + 20;
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
+    int breakLock;
+    int breakCondition;
+    int clerkLock;
+    int customerID;
 
     int clerkType;
     int money;
 
     Acquire(counterLock);
-   myLine = Get(numApplicationClerks, 0);
-   Set(numApplicationClerks, 0, myLine + 1);
-    me = &applicationClerks[myLine];
+    myLine = Get(numApplicationClerks, 0);
+    Set(numApplicationClerks, 0, myLine + 1);
     Release(counterLock);
 
-    int lineCondition = Get(appLineCV, myLine);
-    int bribeLineCondition = Get(appBribeLineCV, myLine);
+    lineCondition = Get(appLineCV, myLine);
+    bribeLineCondition = Get(appBribeLineCV, myLine);
 
-    int clerkCondition = Get(appClerkCV, 0);
+    clerkCondition = Get(appClerkCV, 0);
 
 
-    int breakLock = Get(appBreakLock, myLine);
-    int breakCondition = Get(appBreakCV, myLine);
+    breakLock = Get(appBreakLock, myLine);
+    breakCondition = Get(appBreakCV, myLine);
 
-    int clerkLock = Get(appClerkLock, myLine);
+    clerkLock = Get(appClerkLock, myLine);
     
-    while(GetSyscall(customersFinished) < NUM_CUSTOMERS + NUM_SENATORS) {
+    while(Get(customersFinished, 0) < NUM_CUSTOMERS + NUM_SENATORS) {
         
         Acquire(applicationClerkLock);
         
         /* If there is a customer in line signal him to the counter */
-        if(GetSyscall(appBribeLineCount, myLine) > 0) {
+        if(Get(appBribeLineCount, myLine) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
-            Signal(me->bribeLineCondition, applicationClerkLock);
-            SetSyscall(appState) = BUSY;
-        } else if(GetSyscall(appLineCount, myLine) > 0) {
+            Signal(bribeLineCondition, applicationClerkLock);
+            Set(appState,myLine, BUSY);
+        } else if(Get(appLineCount, myLine) > 0) {
             Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
-            Signal(me->lineCondition, applicationClerkLock);
-            me->state = BUSY;
+            Signal(lineCondition, applicationClerkLock);
+            Set(appState, myLine, BUSY);
         } else {
             
             if(storeJustOpened >= NUM_CLERKS * 4) {
                 Print("ApplicationClerk %i is going on break\n", 39, myLine * 1000, 0);
                 Release(applicationClerkLock);
-                Acquire(me->breakLock);
-                me->state = ONBREAK;
+                Acquire(breakLock);
+                Set(appState, myLine, ONBREAK);
                 
-                if(me->state == ONBREAK) {
-                    Wait(me->breakCondition, me->breakLock);
+                if(Get(appState, myLine) == ONBREAK) {
+                    Wait(breakCondition, breakLock);
                 }
                 
                 Print("ApplicationClerk %i is coming off break\n", 41, myLine * 1000, 0);
-                Release(me->breakLock);
+                Release(breakLock);
                 Acquire(applicationClerkLock);
                 
-                if(me->bribeLineCount > 0) {
+                if(Get(appBribeLineCount, myLine) > 0) {
                     Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
-                    Signal(me->bribeLineCondition, applicationClerkLock);
-                    me->state = BUSY;
-                } else if(me->lineCount > 0) {
+                    Signal(bribeLineCondition, applicationClerkLock);
+                    Set(appState, myLine, BUSY);
+                } else if(Get(appLineCount, myLine) > 0) {
                     Print("ApplicationClerk %i has signalled a customer to come to their counter\n", 71, myLine * 1000, 0);
-                    Signal(me->lineCondition, applicationClerkLock);
-                    me->state = BUSY;
+                    Signal(lineCondition, applicationClerkLock);
+                    Set(appState, myLine, BUSY);
                 }
-                else
-                    me->state = AVAILABLE;
+                else {
+                    Set(appState, myLine, AVAILABLE);
+                }
                 
             } else {
-                me->state = AVAILABLE;
-                storeJustOpened++;
+                Set(appState, myLine, AVAILABLE);
+                Set(storeJustOpened, 0, Get(storeJustOpened, 0) + 1);
             }
         }
         
-        Acquire(me->clerkLock);
+        Acquire(clerkLock);
         Release(applicationClerkLock);
         
-        Wait(me->clerkCondition, me->clerkLock);
+        Wait(clerkCondition, clerkLock);
+
+        customerID = Get(appCustomer,myLine);
         
-        Print("ApplicationClerk %i has received SSN from Customer %i\n", 55, myLine * 1000 + me->customer->id, 0);
+        Print("ApplicationClerk %i has received SSN from Customer %i\n", 55, myLine * 1000 + customerID, 0);
         for(i = 0; i < j; i++) {
             Yield();
         }
-        me->customer->applicationFiled = TRUE;
-        Print("ApplicationClerk %i has recorded a completed application for Customer %i\n", 74, myLine * 1000 + me->customer->id, 0);
+        Set(applicationFiled, customerID, TRUE);
+        Print("ApplicationClerk %i has recorded a completed application for Customer %i\n", 74, myLine * 1000 + customerID, 0);
         
-        Signal(me->clerkCondition, me->clerkLock);
+        Signal(clerkCondition, clerkLock);
         
-        Release(me->clerkLock);
+        Release(clerkLock);
     }
     Exit(0);
 }

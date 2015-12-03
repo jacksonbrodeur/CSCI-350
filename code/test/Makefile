@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm customer
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm customer pictureclerk passportclerk applicationclerk
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -221,13 +221,13 @@ pictureclerk: pictureclerk.o start.o
 
 passportclerk.o: passportclerk.c
 	$(CC) $(CFLAGS) -c passportclerk.c
-pictureclerk: passportclerk.o start.o
+passportclerk: passportclerk.o start.o
 	$(LD) $(LDFLAGS) start.o passportclerk.o -o passportclerk.coff
 	../bin/coff2noff passportclerk.coff passportclerk
 
 applicationclerk.o: applicationclerk.c
 	$(CC) $(CFLAGS) -c applicationclerk.c
-pictureclerk: applicationclerk.o start.o
+applicationclerk: applicationclerk.o start.o
 	$(LD) $(LDFLAGS) start.o applicationclerk.o -o applicationclerk.coff
 	../bin/coff2noff applicationclerk.coff applicationclerk
 

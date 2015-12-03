@@ -3,6 +3,13 @@
 
 main()
 {
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
+    int breakLock;
+    int breakCondition;
+    int clerkLock;
+    int customerID;
     int myLine;
     int firstTime = 1;
     int i;
@@ -12,21 +19,20 @@ main()
     int money;
 
     Acquire(counterLock);
-   myLine = Get(numPictureClerks, 0);
-   Set(numPictureClerks, 0, myLine + 1);
-    me = &pictureClerks[myLine];
+    myLine = Get(numPictureClerks, 0);
+    Set(numPictureClerks, 0, myLine + 1);
     Release(counterLock);
 
-    int lineCondition = Get(picLineCV, myLine);
-    int bribeLineCondition = Get(picBribeLineCV, myLine);
+    lineCondition = Get(picLineCV, myLine);
+    bribeLineCondition = Get(picBribeLineCV, myLine);
 
-    int clerkCondition = Get(picClerkCV, 0);
+    clerkCondition = Get(picClerkCV, 0);
 
 
-    int breakLock = Get(picBreakLock, myLine);
-    int breakCondition = Get(picBreakCV, myLine);
+    breakLock = Get(picBreakLock, myLine);
+    breakCondition = Get(picBreakCV, myLine);
 
-    int clerkLock = Get(picClerkLock, myLine);
+    clerkLock = Get(picClerkLock, myLine);
     
     while(Get(customersFinished, 0) < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(pictureClerkLock);
@@ -34,11 +40,11 @@ main()
         /* If there is a customer in line signal him to the counter */
         if(Get(picBribeLineCount, myLine) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
-            Signal(me->bribeLineCondition, pictureClerkLock);
+            Signal(bribeLineCondition, pictureClerkLock);
             Set(picState, myLine, BUSY);
         } else if(Get(picLineCount, myLine) > 0) {
             Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
-            Signal(me->lineCondition, pictureClerkLock);
+            Signal(lineCondition, pictureClerkLock);
             Set(picState, myLine, BUSY);
         } else {
             
@@ -48,7 +54,7 @@ main()
                 Acquire(breakLock);
                 Set(picState, myLine, ONBREAK);
                 
-                if(Get(picState, myLine, ONBREAK)) {
+                if(Get(picState, myLine) == ONBREAK) {
                     Wait(breakCondition,breakLock);
                 }
                 
@@ -60,7 +66,7 @@ main()
                     Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
                     Signal(bribeLineCondition, pictureClerkLock);
                     Set(picState, myLine, BUSY);
-                } else if(Get(piclineCount, myLine) > 0) {
+                } else if(Get(picLineCount, myLine) > 0) {
                     Print("PictureClerk %i has signalled a customer to come to their counter\n", 67, myLine * 1000, 0);
                     Signal(lineCondition, pictureClerkLock);
                     Set(picState, myLine, BUSY);
@@ -70,7 +76,7 @@ main()
                 
             } else {
                 Set(picState, myLine, AVAILABLE);
-                Set(storeJustOpened, 0, Get(storeJustOpened,0));
+                Set(storeJustOpened, 0, Get(storeJustOpened,0) + 1);
             }
         }
         
@@ -78,13 +84,13 @@ main()
         Release(pictureClerkLock);
         
         Wait(clerkCondition, clerkLock);
-        int customerID = Get(picCustomer, myLine);
+        customerID = Get(picCustomer, myLine);
         Print("PictureClerk %i has received SSN from Customer %i\n", 51, myLine * 1000 + customerID, 0);
         
-        while(Get(picCustomer)->pictureTaken == 0) {
+        while(Get(pictureTaken, customerID) == FALSE) {
             
             if(firstTime != 1) {
-                Print("PictureClerk %i has been told that Customer %i does not like their picture\n", 76, myLine * 1000 + me->customer->id, 0);
+                Print("PictureClerk %i has been told that Customer %i does not like their picture\n", 76, myLine * 1000 + customerID, 0);
             }
             Print("PictureClerk %i has taken a picture of Customer %i\n", 52, myLine * 1000 + customerID, 0);
             Signal(clerkCondition, clerkLock);
@@ -98,10 +104,11 @@ main()
             Yield();
         }
         
-        Get(pictureFiled, customerID, true);
+        Set(pictureFiled, customerID, TRUE);
         Signal(clerkCondition, clerkLock);
         Release(clerkLock);
     }
+
     Exit(0);
     
 

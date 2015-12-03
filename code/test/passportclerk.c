@@ -1,13 +1,17 @@
 #include "syscall.h"
 #include "setup.h"
 
-#define NUM_CUSTOMERS 20
-#define NUM_SENATORS 10
-
 main()
 {
     int myLine;
     int i;
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
+    int breakLock;
+    int breakCondition;
+    int clerkLock;
+    int customerID;
     
     int clerkType;
     int money;
@@ -17,15 +21,15 @@ main()
     Set(numPassportClerks, 0, myLine + 1);
     Release(counterLock);
     
-    int lineCondition = Get(ppLineCV, myLine);
-    int bribeLineCondition = Get(ppBribeLineCV, myLine);
+    lineCondition = Get(ppLineCV, myLine);
+    bribeLineCondition = Get(ppBribeLineCV, myLine);
     
-    int clerkCondition = Get(ppClerkCV, 0);
+    clerkCondition = Get(ppClerkCV, 0);
     
-    int breakLock = Get(ppBreakLock, myLine);
-    int breakCondition = Get(ppBreakCV, myLine);
+    breakLock = Get(ppBreakLock, myLine);
+    breakCondition = Get(ppBreakCV, myLine);
     
-    int clerkLock = Get(ppClerkLock, myLine);
+    clerkLock = Get(ppClerkLock, myLine);
 
     
     /* On duty while there are still customers who haven't completed process */
@@ -51,7 +55,7 @@ main()
                 Set(ppState,myLine,ONBREAK);
                 
                 /* Mesa style monitor, wait to be woken up by manager */
-                if(Get(ppState,myLine,ONBREAK)) {
+                if(Get(ppState,myLine) == ONBREAK) {
                     Wait(breakCondition, breakLock);
                 }
                 
@@ -74,19 +78,19 @@ main()
             }
             else {
                 Set(ppState,myLine,AVAILABLE);
-                Set(storeJustOpened,0,Get(storeJustOpened,0));
+                Set(storeJustOpened,0,Get(storeJustOpened,0) + 1);
             }
         }
         
         /* entering transaction so switch locks */
-        Acquire(clerkLock); //TODO: These acquire/release statements may need to be reversed
+        Acquire(clerkLock); /*TODO: These acquire/release statements may need to be reversed*/
         Release(passportClerkLock);
         
         /* wait for customer data */
         Wait(clerkCondition, clerkLock);
         
         
-        int customerID = Get(ppCustomer,myLine);
+        customerID = Get(ppCustomer,myLine);
         
         Print("Passport Clerk %i has received SSN from Customer %i\n", 53, myLine * 1000 + customerID, 0);
         Print("Passport Clerk %i has determined that Customer %i does have both their application and picture completed\n", 106, myLine * 1000 + customerID, 0);
