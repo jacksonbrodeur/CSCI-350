@@ -873,6 +873,8 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
     if(code != SUCCESS) {
         printf("Condition is invalid\n");
     }
+
+    AcquireSyscall(lockIndex);
 }
 
 void SignalSyscall(int conditionIndex, int lockIndex) {

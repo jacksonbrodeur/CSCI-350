@@ -253,7 +253,7 @@ void RunServer()
                 } else { 
                     // it's a yes so we will indicate that this request is closed by removing it 
                     Request * r = requestTable[requestID];
-                    if(r->rpcType == WAIT) {
+                    if(r && r->rpcType == WAIT) {
                         //Check the cv
 
                         if(r->conditionIndex < (myMachineID * MAX_RESOURCES) || r->conditionIndex > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
@@ -943,12 +943,20 @@ void RunServer()
 
                         // Want to acquire lock
 
-                        ss << ACQUIRE << " " << lockIndex;
-                        outPktHdr.to = myMachineID;
-                        outPktHdr.from = machineID;
-                        outMailHdr.to = 0;
-                        outMailHdr.from = mailbox;
+                        // ss << ACQUIRE << " " << lockIndex;
+                        // outPktHdr.to = myMachineID;
+                        // outPktHdr.from = machineID;
+                        // outMailHdr.to = 0;
+                        // outMailHdr.from = mailbox;
+                        // strcpy(data, ss.str().c_str());
+                        // outMailHdr.length = strlen(data) + 1;
+                        // postOffice->Send(outPktHdr, outMailHdr, data);
+                        ss << SUCCESS;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                     }
@@ -1052,12 +1060,21 @@ void RunServer()
 
                         // Want to acquire lock
 
-                        ss << ACQUIRE << " " << lockIndex;
-                        outPktHdr.to = myMachineID;
-                        outPktHdr.from = machineID;
-                        outMailHdr.to = 0;
-                        outMailHdr.from = mailbox;
+                        // ss << ACQUIRE << " " << lockIndex;
+                        // outPktHdr.to = myMachineID;
+                        // outPktHdr.from = machineID;
+                        // outMailHdr.to = 0;
+                        // outMailHdr.from = mailbox;
+                        // strcpy(data, ss.str().c_str());
+                        // outMailHdr.length = strlen(data) + 1;
+                        // postOffice->Send(outPktHdr, outMailHdr, data);
+
+                        ss << SUCCESS;
                         strcpy(data, ss.str().c_str());
+                        ss.clear();
+                        ss.str("");
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                     }
@@ -1111,14 +1128,22 @@ void RunServer()
                             machineID = cv->cvWaitQueue->front().first;
                             mailbox = cv->cvWaitQueue->front().second;
                             cv->cvWaitQueue->pop_front();
-                            ss << ACQUIRE << " " << lockIndex;
-                            outPktHdr.to = myMachineID;
-                            outPktHdr.from = machineID;
-                            outMailHdr.to = 0;
-                            outMailHdr.from = mailbox;
+                            // ss << ACQUIRE << " " << lockIndex;
+                            // outPktHdr.to = myMachineID;
+                            // outPktHdr.from = machineID;
+                            // outMailHdr.to = 0;
+                            // outMailHdr.from = mailbox;
+                            // strcpy(data, ss.str().c_str());
+                            // ss.clear();
+                            // ss.str("");
+                            // outMailHdr.length = strlen(data) + 1;
+                            // postOffice->Send(outPktHdr, outMailHdr, data);
+                            ss << SUCCESS;
                             strcpy(data, ss.str().c_str());
                             ss.clear();
                             ss.str("");
+                            outPktHdr.to = machineID;
+                            outMailHdr.to = mailbox;
                             outMailHdr.length = strlen(data) + 1;
                             postOffice->Send(outPktHdr, outMailHdr, data);
                         }
@@ -1215,14 +1240,22 @@ void RunServer()
                         machineID = cv->cvWaitQueue->front().first;
                         mailbox = cv->cvWaitQueue->front().second;
                         cv->cvWaitQueue->pop_front();
-                        ss << ACQUIRE << " " << lockIndex;
-                        outPktHdr.to = myMachineID;
-                        outPktHdr.from = machineID;
-                        outMailHdr.to = 0;
-                        outMailHdr.from = mailbox;
+                        // ss << ACQUIRE << " " << lockIndex;
+                        // outPktHdr.to = myMachineID;
+                        // outPktHdr.from = machineID;
+                        // outMailHdr.to = 0;
+                        // outMailHdr.from = mailbox;
+                        // strcpy(data, ss.str().c_str());
+                        // ss.clear();
+                        // ss.str("");
+                        // outMailHdr.length = strlen(data) + 1;
+                        // postOffice->Send(outPktHdr, outMailHdr, data);
+                        ss << SUCCESS;
                         strcpy(data, ss.str().c_str());
                         ss.clear();
                         ss.str("");
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
                     }
@@ -1633,7 +1666,7 @@ void TakeAction(int requestID) {
         //printf("Created %s %s at index %d from client [%d:%d]\n", resourceType, request->name, index, request->fromMachineID, request->fromMailbox);
         postOffice->Send(outPktHdr, outMailHdr, data);
     } else {
-        printf("ERROR in %s syscall\n", rpc);
+        printf("ERROR in %d syscall\n", rpc);
     }
     
 }
