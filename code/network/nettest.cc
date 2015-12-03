@@ -232,6 +232,7 @@ void RunServer()
         int requestID;
         int machineID;
         int mailbox;
+        int sendClientMessage;
         switch(rpc) {
             case SUCCESS:
                 break;
@@ -315,7 +316,7 @@ void RunServer()
 
                         }
                     }
-                    requestTable.erase(requestID);
+                    //requestTable.erase(requestID);
                 }
                 break;
             case S_CREATE_LOCK:
@@ -346,7 +347,7 @@ void RunServer()
                     // Send reply to client with lock index
                     outPktHdr.to = machineID;
                     outMailHdr.to = mailbox;
-                    ss << SUCCESS << " " << index;
+                    ss << SUCCESS << " " << index + MAX_RESOURCES * myMachineID;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
@@ -402,7 +403,7 @@ void RunServer()
                 } else {
                     outPktHdr.to = incomingMachineID;
                     outMailHdr.to = incomingMailbox;
-                    ss << SUCCESS << " " << index;
+                    ss << SUCCESS << " " << index + MAX_RESOURCES * myMachineID;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     success = postOffice->Send(outPktHdr, outMailHdr, data);
@@ -447,9 +448,9 @@ void RunServer()
                         outMailHdr.to = mailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
-                        printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
+                        printf("Acquired lock %d from machine [%d:%d]\n", index, machineID, mailbox);
                     } else {//else lock is busy, so don't send response
-                        printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
+                        printf("Lock %d is busy so machine [%d:%d] will wait\n", index, machineID, mailbox);
                     }
                     ss.clear();
                     ss.str("");
@@ -526,9 +527,9 @@ void RunServer()
                         outMailHdr.to = incomingMailbox;
                         outMailHdr.length = strlen(data) + 1;
                         postOffice->Send(outPktHdr, outMailHdr, data);
-                        printf("Acquired lock %d from machine %d\n", index, incomingMachineID);
+                        printf("Acquired lock %d from machine [%d:%d]\n", index, incomingMachineID, incomingMailbox);
                     } else {//else lock is busy, so don't send response
-                        printf("Lock %d is busy so machine %d will wait\n", index, incomingMachineID);
+                        printf("Lock %d is busy so machine [%d:%d] will wait\n", index, incomingMachineID, incomingMailbox);
                     }
                 }                
                 break;
@@ -537,6 +538,7 @@ void RunServer()
                 ss >> requestID;
                 ss >> machineID;
                 ss >> mailbox;
+                ss >> sendClientMessage;
                 ss.clear();
                 ss.str("");
                 if(index < (myMachineID * MAX_RESOURCES) || index > (myMachineID + 1) * MAX_RESOURCES - 1) {
@@ -562,13 +564,15 @@ void RunServer()
                     }
                     success = ReleaseLock(index % MAX_RESOURCES, machineID, mailbox);
                     //success should always be true;
-                    ss << SUCCESS;
-                    strcpy(data, ss.str().c_str());
-                    outPktHdr.to = machineID;
-                    outMailHdr.to = mailbox;
-                    outMailHdr.length = strlen(data) + 1;
-                    postOffice->Send(outPktHdr, outMailHdr, data);
-                    printf("Released lock %d from machine %d\n", index, incomingMachineID);
+                    if(sendClientMessage == TRUE) {
+                        ss << SUCCESS;
+                        strcpy(data, ss.str().c_str());
+                        outPktHdr.to = machineID;
+                        outMailHdr.to = mailbox;
+                        outMailHdr.length = strlen(data) + 1;
+                        postOffice->Send(outPktHdr, outMailHdr, data);
+                    }
+                    printf("Released lock %d from machine [%d:%d]\n", index, machineID, mailbox);
 
                     ss.clear();
                     ss.str("");
@@ -617,12 +621,12 @@ void RunServer()
                         if(i == myMachineID) {
                             continue;
                         }
-                        printf("Sending message to Server %d to check ACQUIRE\n", i);
+                        printf("Sending message to Server %d to check RELEASE\n", i);
                         outPktHdr.to = i;
                         outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
                         outMailHdr.from = 0;
-                        ss << S_RELEASE << " " << index << " " << requestID << " " << incomingMachineID << " " << incomingMailbox;
+                        ss << S_RELEASE << " " << index << " " << requestID << " " << incomingMachineID << " " << incomingMailbox << " " << TRUE;
                         strcpy(data, ss.str().c_str());
                         ss.clear();
                         ss.str("");
@@ -677,7 +681,7 @@ void RunServer()
                     // Send reply to client with CV index
                     outPktHdr.to = machineID;
                     outMailHdr.to = mailbox;
-                    ss << SUCCESS << " " << index;
+                    ss << SUCCESS << " " << index + MAX_RESOURCES * myMachineID;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
@@ -734,11 +738,11 @@ void RunServer()
                 } else {
                     outPktHdr.to = incomingMachineID;
                     outMailHdr.to = incomingMailbox;
-                    ss << SUCCESS << " " << index;
+                    ss << SUCCESS << " " << index + MAX_RESOURCES * myMachineID;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     success = postOffice->Send(outPktHdr, outMailHdr, data);
-                    printf("Retrieved CV named %s from machine %d\n", name, incomingMachineID);
+                    printf("Retrieved CV named %s from machine [%d:%d]\n", name, incomingMachineID, incomingMailbox);
                 }
                 break;
             case S_WAIT:
@@ -790,6 +794,16 @@ void RunServer()
                     }
 
                     //Send Yes to original Server
+                    ss.clear();
+                    ss.str("");
+                    ss << S_RESPONSE << " " << YES << " " << requestID;
+                    strcpy(data, ss.str().c_str());
+                    outPktHdr.to = incomingMachineID;
+                    outPktHdr.from = myMachineID;
+                    outMailHdr.to = 0;
+                    outMailHdr.from = 0;
+                    outMailHdr.length = strlen(data) + 1;
+                    postOffice->Send(outPktHdr, outMailHdr, data);
 
                 }
 
@@ -842,7 +856,7 @@ void RunServer()
                         outPktHdr.from = myMachineID;
                         outMailHdr.to = 0;
                         outMailHdr.from = 0;
-                        ss << S_RELEASE << " " << lockIndex << " " << requestID << " " << myMachineID << " " << 0;
+                        ss << S_RELEASE << " " << lockIndex << " " << requestID << " " << incomingMachineID << " " << incomingMailbox << " " << FALSE;
                         strcpy(data, ss.str().c_str());
                         ss.clear();
                         ss.str("");
@@ -914,7 +928,7 @@ void RunServer()
                     //I do have the cv
 
                     ServerCV * cv = serverCVs->at(conditionIndex % MAX_RESOURCES);
-                    if(cv->waitingLock == -1 || cv->waitingLock != conditionIndex) {
+                    if(cv->waitingLock == -1 || cv->waitingLock != lockIndex) {
                         //Do nothing
                     } else if(cv->cvWaitQueue->empty()) {
                         cv->waitingLock = -1;
@@ -1256,7 +1270,7 @@ void RunServer()
                     outPktHdr.from = myMachineID;
                     outMailHdr.to = mailbox;
                     outMailHdr.from = 0;
-                    ss << SUCCESS << " " << index;
+                    ss << SUCCESS << " " << index + MAX_RESOURCES * myMachineID;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     postOffice->Send(outPktHdr, outMailHdr, data);
@@ -1313,11 +1327,11 @@ void RunServer()
                 } else {
                     outPktHdr.to = incomingMachineID;
                     outMailHdr.to = incomingMailbox;
-                    ss << SUCCESS << " " << index;
+                    ss << SUCCESS << " " << index + MAX_RESOURCES * myMachineID;
                     strcpy(data, ss.str().c_str());
                     outMailHdr.length = strlen(data) + 1;
                     success = postOffice->Send(outPktHdr, outMailHdr, data);
-                    printf("Retrieved CV named %s from machine %d\n", name, incomingMachineID);
+                    printf("Retrieved MV named %s from machine [%d:%d]\n", name, incomingMachineID, incomingMailbox);
                 }
                 break;
             case S_SET_MV:
@@ -1670,6 +1684,7 @@ bool AcquireLock(int index, int machineID, int mailbox) {
     } else if(sl->owner.first == machineID && sl->owner.second == mailbox) {
         //Do nothing I already have the lock
     } else if (sl->isBusy) {
+        printf("Adding [%d:%d] to waitQueue for lock %d\n", machineID, mailbox, index);
         sl->waitQueue->push_back(make_pair(machineID, mailbox));
         returnValue = false;
     }
@@ -1732,7 +1747,7 @@ void Signal(int conditionIndex, int lockIndex) {
     if(cv->waitingLock == -1) {
         return;
     }
-    if(cv->waitingLock != conditionIndex) {
+    if(cv->waitingLock != lockIndex) {
         return;
     }
     if(cv->cvWaitQueue->empty()) {
@@ -1756,7 +1771,7 @@ void Signal(int conditionIndex, int lockIndex) {
         if(success) {
             postOffice->Send(outPktHdr, outMailHdr, data);
         } else {//else lock is busy, so don't send response
-            printf("Lock %d is busy so machine %d will wait\n", lockIndex, machineID);
+            printf("Lock %d is busy so machine [%d:%d] will wait\n", lockIndex, machineID, mailbox);
         }
         
     }

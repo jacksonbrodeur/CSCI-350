@@ -871,7 +871,7 @@ void WaitSyscall(int conditionIndex, int lockIndex) {
     int code;
     ss >> code;
     if(code != SUCCESS) {
-        printf("Condition is invalid");
+        printf("Condition is invalid\n");
     }
 }
 
@@ -903,7 +903,7 @@ void SignalSyscall(int conditionIndex, int lockIndex) {
     int code;
     ss >> code;
     if(code != SUCCESS) {
-        printf("Condition is invalid");
+        printf("Condition is invalid\n");
     }
 }
 
