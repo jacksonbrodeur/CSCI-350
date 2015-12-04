@@ -37,6 +37,7 @@ using namespace std;
 
 #define NO          0
 #define YES         1
+
 // Test out message delivery, by doing the following:
 //	1. send a message to the machine with ID "farAddr", at mail box #0
 //	2. wait for the other machine's message to arrive (in our mailbox #0)
@@ -141,14 +142,20 @@ struct ServerMV {
 
     ServerMV() {
         name = "";
-        for (int i = 0; i < MAX_MV; i++)
-        	value[i] = 0;
+
+        for(int i = 0; i < MAX_MV; i++) {
+            value[i] = 0;
+        }
+
     }
 
     ServerMV(char* _name) {
         name = _name;
-        for (int i = 0; i < MAX_MV; i++)
-        	value[i] = 0;
+
+        for(int i = 0; i < MAX_MV; i++) {
+            value[i] = 0;
+        }    
+
     }
 };
 
@@ -1560,7 +1567,6 @@ void RunServer()
                     postOffice->Send(outPktHdr, outMailHdr, data);
                     break;
                 }
-
                 if(index < (myMachineID * MAX_RESOURCES) || index > ((myMachineID + 1) * MAX_RESOURCES) - 1) {
                     printf("Did not find mv %d\n", index);
                     //Did not find MV on my server but may be on another

@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm multiserverlock multimv multiwait multisignal multibroadcast mailboxtest
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm multiserverlock multimv multiwait multisignal multibroadcast mailboxtest customer pictureclerk passportclerk applicationclerk
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -242,6 +242,31 @@ mailboxtest.o: mailboxtest.c
 mailboxtest: mailboxtest.o start.o
 	$(LD) $(LDFLAGS) start.o mailboxtest.o -o mailboxtest.coff
 	../bin/coff2noff mailboxtest.coff mailboxtest
+
+customer.o: customer.c
+	$(CC) $(CFLAGS) -c customer.c
+customer: customer.o start.o
+	$(LD) $(LDFLAGS) start.o customer.o -o customer.coff
+	../bin/coff2noff customer.coff customer	
+
+pictureclerk.o: pictureclerk.c
+	$(CC) $(CFLAGS) -c pictureclerk.c
+pictureclerk: pictureclerk.o start.o
+	$(LD) $(LDFLAGS) start.o pictureclerk.o -o pictureclerk.coff
+	../bin/coff2noff pictureclerk.coff pictureclerk
+
+passportclerk.o: passportclerk.c
+	$(CC) $(CFLAGS) -c passportclerk.c
+passportclerk: passportclerk.o start.o
+	$(LD) $(LDFLAGS) start.o passportclerk.o -o passportclerk.coff
+	../bin/coff2noff passportclerk.coff passportclerk
+
+applicationclerk.o: applicationclerk.c
+	$(CC) $(CFLAGS) -c applicationclerk.c
+applicationclerk: applicationclerk.o start.o
+	$(LD) $(LDFLAGS) start.o applicationclerk.o -o applicationclerk.coff
+	../bin/coff2noff applicationclerk.coff applicationclerk
+
 
 clean:
 	rm -f *.o *.coff
