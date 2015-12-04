@@ -165,6 +165,7 @@ extern SynchDisk   *synchDisk;
 #include "post.h"
 extern PostOffice* postOffice;
 extern int myMachineID;
+extern int mailBoxCounter;
 #define NUM_SERVERS 5
 #endif
 
