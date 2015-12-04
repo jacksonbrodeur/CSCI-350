@@ -3,7 +3,7 @@ Date: 12/1/15
 Group:  Jackson Brodeur     jbrodeur@usc.edu
         Dylan Davis         dylandav@usc.edu
         Matthew O'Brien     obrienm@usc.edu
-	Yekaterina Glazko   glazko@usc.edu
+		Yekaterina Glazko   glazko@usc.edu
  
 I. Requirements:
 	Part 1:
@@ -17,9 +17,11 @@ II. Assumptions:
 	We also assumed that the servers would always be consistent in their responses and never drop a request or a response. Thus, if a check was sent by one server to see if any other server had a requested variable, all of the servers would respond eventually.
 
 III. Design:
-	We decided to implement only 1 set of MV calls as we would return all the MVs as an array. Even MVs that are only 1 int, such as customersFinished (which keeps track of the total number of customers who have had their passports completed) is returned in an array. To access the variable in that case, you would always access index 0 of the array. For variables used by clerks, like lineCount, you would access the proper index of the MV (in this case the index at the clerks line number).
-	Algorithms for our passport office will not change because we assume our RPCs to be correct and return the same values as the system calls we used for previous projects. This is explained in the previous “assumptions” section.
-	TODO:WRITE ALGORITHM FOR SERVER COMMUNICATION
+	We decided to implement only 1 set of MV calls with all MVs as an array and would thus need to send the index within the given MV. Even MVs that are only 1 int, such as customersFinished (which keeps track of the total number of customers who have had their passports completed) are stored as an array. To access the variable in that case, you would always pass index 0 as the value of the array requested. For variables used by clerks, like lineCount, you would pass the proper index of the MV (in this case the index at the clerks line number).
+	Algorithms for our passport office will not change because we assume our RPCs to be correct and return the same values as the system calls we used for previous projects - the interface has remained the same despite the backend being modified. This is explained in the previous “assumptions” section.
+	We decided to keep the servers single threaded and have one combined inbox of messages from clients as well as other servers. We created a Request struct to handle each request for a resource and included it's RPC type, name, a counter for "No"s received, client machine ID and mailbox as well as other pertinent information. To keep track of all these requests we used a map that mapped a request ID to each Request struct. To keep track of the server and client messages we used the following notation: syscalls were prepended with an "S" if coming from a server (i.e. ACQUIRE - message from a client & S_ACQUIRE - message from another server). For the creates we used a function that would check to see if we had a pending request for the same resource when being queried for any given resource. On a create we would first check to see if we had it but this time we would send a message to all other servers if we didn't have it. If another server did have the resource then it would take over the rest of the process and return a YES to the original server. If it didn't it would return a NO to the original server. The original server would keep track of NO's and if all NO's were returned then it would finally create the given resource. With the other resource calls (acquire, release, wait, signal, broadcast, get, set) a similar process is followed with the exception that it would be an error if all servers reply NO and no resource would be created. The same part is that the server with the resource will take over the job and reply YES to the original server. With the CV syscalls it became a two step process because it needed both a lock and a CV. So there were four cases - a server had: both resources, only the lock, only the CV, and neither. 
+
+
 	
 
 IV. Implementation:
@@ -64,15 +66,53 @@ IV. Implementation:
 
 		
 	+ Data Structures added, and the file they were added to.
+		struct Request {     -- in nettest.cc
+		    int rpcType;
+		    char * name;
+		    int index;
+		    int lockIndex;
+		    int conditionIndex;
+		    int value;
+		    int noCounter;
+		    int fromMachineID;
+		    int fromMailbox;
+		}
+
+		map<int, Request*> requestTable;   -- in nettest.cc
+
+
 	+ Data Structures modified, and the file they were added to.
-		-For example,
-			class Lock		-- in file threads.cc/threads.h
+			class Thread		-- in file threads.h
 			{
-				//. Modified fields.
+				+  int myMailbox;
 			}
 
 	+ Functions added and in which file.
+		bool haveSameCreate(char* name); -- in file nettest.cc
+		void TakeAction(int requestID); -- in file nettest.cc
+
 	+ Functions modified and in which file.
+		-- in file exception.cc
+		int ExecSyscall(int vaddr, int len);
+		void WaitSyscall(int conditionIndex, int lockIndex);
+
+		-- in file nettest.cc
+		int FindLock(char* name);
+		int CreateLock(char* name);
+		bool AcquireLock(int index, int machineID, int mailbox);
+		bool ReleaseLock(int index, int machineID, int mailbox);
+
+		int FindCV(char* name);
+		int CreateCV(char* name);
+		bool Wait(int conditionIndex, int lockIndex, int machineID, int mailbox);
+		void Signal(int conditionIndex, int lockIndex);
+		void Broadcast(int conditionIndex, int lockIndex);
+
+		int FindMV(char* name);
+		int CreateMV(char* name);
+		void SetMV(int serverIndex, int mvIndex, int value);
+		int GetMV(int serverIndex, int mvIndex);
+
 
 V. Testing:  (For each test case, you must show)
 + How to test
