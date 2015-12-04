@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm customer pictureclerk passportclerk applicationclerk
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm multiserverlock multimv multiwait multisignal multibroadcast mailboxtest customer pictureclerk passportclerk applicationclerk
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -207,6 +207,42 @@ testvm: testvm.o start.o
 	$(LD) $(LDFLAGS) start.o testvm.o -o testvm.coff
 	../bin/coff2noff testvm.coff testvm
 
+multiserverlock.o: multiserverlock.c
+	$(CC) $(CFLAGS) -c multiserverlock.c
+multiserverlock: multiserverlock.o start.o
+	$(LD) $(LDFLAGS) start.o multiserverlock.o -o multiserverlock.coff
+	../bin/coff2noff multiserverlock.coff multiserverlock
+
+multimv.o: multimv.c
+	$(CC) $(CFLAGS) -c multimv.c
+multimv: multimv.o start.o
+	$(LD) $(LDFLAGS) start.o multimv.o -o multimv.coff
+	../bin/coff2noff multimv.coff multimv
+
+multiwait.o: multiwait.c
+	$(CC) $(CFLAGS) -c multiwait.c
+multiwait: multiwait.o start.o
+	$(LD) $(LDFLAGS) start.o multiwait.o -o multiwait.coff
+	../bin/coff2noff multiwait.coff multiwait
+
+multisignal.o: multisignal.c
+	$(CC) $(CFLAGS) -c multisignal.c
+multisignal: multisignal.o start.o
+	$(LD) $(LDFLAGS) start.o multisignal.o -o multisignal.coff
+	../bin/coff2noff multisignal.coff multisignal
+
+multibroadcast.o: multibroadcast.c
+	$(CC) $(CFLAGS) -c multibroadcast.c
+multibroadcast: multibroadcast.o start.o
+	$(LD) $(LDFLAGS) start.o multibroadcast.o -o multibroadcast.coff
+	../bin/coff2noff multibroadcast.coff multibroadcast
+
+mailboxtest.o: mailboxtest.c
+	$(CC) $(CFLAGS) -c mailboxtest.c
+mailboxtest: mailboxtest.o start.o
+	$(LD) $(LDFLAGS) start.o mailboxtest.o -o mailboxtest.coff
+	../bin/coff2noff mailboxtest.coff mailboxtest
+
 customer.o: customer.c
 	$(CC) $(CFLAGS) -c customer.c
 customer: customer.o start.o
@@ -230,6 +266,7 @@ applicationclerk.o: applicationclerk.c
 applicationclerk: applicationclerk.o start.o
 	$(LD) $(LDFLAGS) start.o applicationclerk.o -o applicationclerk.coff
 	../bin/coff2noff applicationclerk.coff applicationclerk
+
 
 clean:
 	rm -f *.o *.coff

@@ -142,9 +142,22 @@ extern SynchDisk   *synchDisk;
 #define GET_MV          11
 #define SET_MV          12
 
+#define S_RESPONSE      13
+#define S_CREATE_LOCK   14
+#define S_CREATE_CV     15
+#define S_CREATE_MV     16
+#define S_ACQUIRE       17
+#define S_RELEASE       18
+#define S_SET_MV        19
+#define S_GET_MV        20
+#define S_WAIT          21
+#define S_SIGNAL        22
+#define S_BROADCAST     23
+
+
 //Define codes for responses from server
-#define ERROR           0
-#define SUCCESS         1
+#define ERROR           100
+#define SUCCESS         101
 
 
 
@@ -152,6 +165,8 @@ extern SynchDisk   *synchDisk;
 #include "post.h"
 extern PostOffice* postOffice;
 extern int myMachineID;
+extern int mailBoxCounter;
+#define NUM_SERVERS 5
 #endif
 
 #endif // SYSTEM_H

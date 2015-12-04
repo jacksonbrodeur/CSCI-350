@@ -95,6 +95,7 @@ Machine *machine;	// user program memory and registers
 #ifdef NETWORK
 PostOffice *postOffice;
 int myMachineID;
+int mailBoxCounter;
 #endif
 
 
@@ -273,6 +274,7 @@ Initialize(int argc, char **argv)
 #ifdef NETWORK
     postOffice = new PostOffice(netname, rely, 10);
     myMachineID = netname;
+    mailBoxCounter = 0;
 #endif
 
 }
