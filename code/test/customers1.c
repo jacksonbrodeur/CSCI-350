@@ -2,10 +2,11 @@
 
 main()
 {
-    //exec 10 customers here
-    for(int i = 0; i < 10; i ++) {
+    /*exec 10 customers here*/
+    int i;
+    for(i = 0; i < 10; i ++) {
         
-        Exec("../test/customer.c", 18);
+        Exec("../test/customer", 18);
     }
     
     Exit(0);

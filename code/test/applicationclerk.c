@@ -17,6 +17,8 @@ main()
     int clerkType;
     int money;
 
+    setup();
+
     Acquire(counterLock);
     myLine = Get(numApplicationClerks, 0);
     Set(numApplicationClerks, 0, myLine + 1);

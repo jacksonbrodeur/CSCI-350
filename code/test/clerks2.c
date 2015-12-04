@@ -2,11 +2,12 @@
 
 main()
 {
-    //exec all the passport clerks and cashiers
-    for(int i = 0; i < 5; i ++) {
+    /*exec all the passport clerks and cashiers*/
+    int i;
+    for(i = 0; i < 5; i ++) {
         
-        Exec("../test/passportclerk.c", 23);
-        Exec("../test/cashier.c", 17);
+        Exec("../test/passportclerk", 23);
+        Exec("../test/cashier", 17);
     }
     
     Exit(0);

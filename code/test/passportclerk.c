@@ -15,6 +15,8 @@ main()
     
     int clerkType;
     int money;
+
+    setup();
     
     Acquire(counterLock);
     myLine = Get(numPassportClerks, 0);

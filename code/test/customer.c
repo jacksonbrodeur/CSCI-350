@@ -299,6 +299,7 @@ main()
     Set(numCustomers, 0, id + 1);
     Release(counterLock);
     /*Print("***\nCustomer %i has been created\n***\n", 40, id * 1000, 0);*/
+    Set(custMoney, id, 100 + (Rand() % 4) * 500);
     
     /*Increment the number of senators currently using the office*/
     if(Get(isSenator, id) != 0)

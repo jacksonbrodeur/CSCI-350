@@ -1,30 +1,41 @@
 #include "syscall.h"
+#include "setup.h"
 
 main()
 {
     int myLine;
+    int lineCondition;
+    int bribeLineCondition;
+    int clerkCondition;
+    int breakLock;
+    int breakCondition;
+    int clerkLock;
+    int customerID;
     
+    setup();
+
+
     Acquire(counterLock);
     myLine = Get(numCashiers,0);
     Set(numCashiers,0,myLine+1);
     Release(counterLock);
+
+
     
-    int lineCondition = Get(cashLineCV,myLine);
-    int bribeLineCondition = Get(cashBribeLineCV,myLine);
-    int clerkCondition = Get(cashClerkCV,myLine);
+    lineCondition = Get(cashLineCV,myLine);
+    bribeLineCondition = Get(cashBribeLineCV,myLine);
+    clerkCondition = Get(cashClerkCV,myLine);
     
-    int breakLock = Get(cashBreakLock,myLine);
-    int breakCondition = Get(cashBreakCV,myLine);
+    breakLock = Get(cashBreakLock,myLine);
+    breakCondition = Get(cashBreakCV,myLine);
     
-    int clerkLock = Get(cashClerkLock,myLine);
-    
-    int cashMoney;
+    clerkLock = Get(cashClerkLock,myLine);
     
     /* On duty while there are still customers who haven't completed process */
     while(Get(customersFinished,0) < NUM_CUSTOMERS + NUM_SENATORS) {
         Acquire(cashierLock);
         
-        if (Get(lineCount,myLine) > 0) {
+        if (Get(cashLineCount,myLine) > 0) {
             Print("Cashier %i has signalled a customer to come to their counter\n", 62, myLine * 1000, 0);
             Signal(lineCondition, cashierLock);
             Set(cashState,myLine,BUSY);
@@ -44,7 +55,7 @@ main()
                 Release(breakLock);
                 Acquire(cashierLock);
                 
-                if (Get(lineCount,myLine) > 0) {
+                if (Get(cashLineCount,myLine) > 0) {
                     Print("Cashier %i has signalled a customer to come to their counter\n", 62, myLine * 1000, 0);
                     Signal(lineCondition, cashierLock);
                     Set(cashState,myLine,BUSY);
@@ -65,7 +76,7 @@ main()
         /* wait for customer to pay */
         Wait(clerkCondition, clerkLock);
         
-        int customerID = Get(cashCustomer,myLine);
+        customerID = Get(cashCustomer,myLine);
         
         Print("Cashier %i has received SSN from Customer %i\n", 46, myLine * 1000 + customerID, 0);
         Print("Cashier %i has verified that Customer %i has been certified by a PassportClerk\n", 80, myLine * 1000 + customerID, 0);

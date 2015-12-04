@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm multiserverlock multimv multiwait multisignal multibroadcast mailboxtest customer pictureclerk passportclerk applicationclerk
+all: halt matmult sort testfiles yieldtest createlock print destroylock acquirelock acquirelockserver releaselock releaselockserver createcondition cv_wait_signal invalidtest rand diff_proc exectest exechelper passportoffice multipassport waitcvserver signalcvserver broadcastcvserver createmv testvm multiserverlock multimv multiwait multisignal multibroadcast mailboxtest customer pictureclerk passportclerk applicationclerk manager clerks1 clerks2 customers1 managers cashier customers2
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -267,6 +267,48 @@ applicationclerk: applicationclerk.o start.o
 	$(LD) $(LDFLAGS) start.o applicationclerk.o -o applicationclerk.coff
 	../bin/coff2noff applicationclerk.coff applicationclerk
 
+manager.o: manager.c
+	$(CC) $(CFLAGS) -c manager.c
+manager: manager.o start.o
+	$(LD) $(LDFLAGS) start.o manager.o -o manager.coff
+	../bin/coff2noff manager.coff manager
+
+
+clerks1.o: clerks1.c
+	$(CC) $(CFLAGS) -c clerks1.c
+clerks1: clerks1.o start.o
+	$(LD) $(LDFLAGS) start.o clerks1.o -o clerks1.coff
+	../bin/coff2noff clerks1.coff clerks1
+
+clerks2.o: clerks2.c
+	$(CC) $(CFLAGS) -c clerks2.c
+clerks2: clerks2.o start.o
+	$(LD) $(LDFLAGS) start.o clerks2.o -o clerks2.coff
+	../bin/coff2noff clerks2.coff clerks2
+
+customers1.o: customers1.c
+	$(CC) $(CFLAGS) -c customers1.c
+customers1: customers1.o start.o
+	$(LD) $(LDFLAGS) start.o customers1.o -o customers1.coff
+	../bin/coff2noff customers1.coff customers1
+
+managers.o: managers.c
+	$(CC) $(CFLAGS) -c managers.c
+managers: managers.o start.o
+	$(LD) $(LDFLAGS) start.o managers.o -o managers.coff
+	../bin/coff2noff managers.coff managers
+
+cashier.o: cashier.c
+	$(CC) $(CFLAGS) -c cashier.c
+cashier: cashier.o start.o
+	$(LD) $(LDFLAGS) start.o cashier.o -o cashier.coff
+	../bin/coff2noff cashier.coff cashier
+
+customers2.o: customers2.c
+	$(CC) $(CFLAGS) -c customers2.c
+customers2: customers2.o start.o
+	$(LD) $(LDFLAGS) start.o customers2.o -o customers2.coff
+	../bin/coff2noff customers2.coff customers2
 
 clean:
 	rm -f *.o *.coff

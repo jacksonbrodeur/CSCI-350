@@ -641,7 +641,6 @@ void YieldSyscall() {
 
 
 int CreateLockSyscall(int vaddr, int len) {
-    printf("myMailbox: %d\n", currentThread->myMailbox);
     char * name = new char[len+1];
 
     if(len < 0 || len > MAXFILENAME) {

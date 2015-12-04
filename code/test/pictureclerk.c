@@ -15,8 +15,12 @@ main()
     int i;
     int j = Rand() % 80 + 20;
 
+
+
     int clerkType;
     int money;
+
+    setup();
 
     Acquire(counterLock);
     myLine = Get(numPictureClerks, 0);
